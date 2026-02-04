@@ -34,14 +34,58 @@ export function getVoiceForNiche(niche: string): { id: string; gender: string; d
   return PIPER_VOICES.default;
 }
 
-// Facade for Gemini calls (formerly callGeminiViaPuter)
+// Facade for Gemini calls (Hybrid: Puter Proxy -> Google Direct)
 export async function callGeminiViaPuter(systemPrompt: string, userQuery: string) {
+  // 1. Try Puter.js AI (Free Proxy) if available
+  if (typeof (window as any).puter !== 'undefined' && (window as any).puter.ai) {
+    try {
+      console.log("[Service] Attempting generation via Puter.ai (Proxy)...");
+      // Puter.ai.chat usually returns a string or an object with text
+      // We combine prompts since it's a single turn
+      const fullPrompt = `${systemPrompt}\n\nUSER INPUT: ${userQuery}`;
+
+      const response = await (window as any).puter.ai.chat(fullPrompt);
+
+      // Parse response
+      const text = typeof response === 'string' ? response : response?.message?.content || JSON.stringify(response);
+      console.log(`[Service] Puter.ai Success. Length: ${text.length}`);
+
+      // Try to parse JSON if expected
+      const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        return cleaned;
+      }
+
+    } catch (err: any) {
+      console.warn("[Service] Puter.ai failed:", err);
+      console.log("[Service] Falling back to Direct Google API...");
+    }
+  } else {
+    console.warn("[Service] Puter.js not loaded. Using Direct Google API.");
+  }
+
+  // 2. Fallback to Google Direct (using our robust 1.5-flash configuration)
   if (!API_KEY) {
     throw new Error("Missing VITE_GOOGLE_API_KEY. Please add it to your .env file.");
   }
-  console.log("[Service] Using Direct Google API Key (Puter Removed)");
   return await generateContentWithGoogle(systemPrompt, userQuery);
 }
+
+// Stub out Voice/Video functions to prevent accidental usage if UI triggers them
+export async function generateContentWithPuter(systemPrompt: string, userQuery: string, imageFile?: File) {
+  return callGeminiViaPuter(systemPrompt, userQuery);
+}
+
+export async function rankViralTopics(niche: string) {
+  return [
+    { title: `Why ${niche} is failing`, score: 95 },
+    { title: `The future of ${niche}`, score: 90 },
+    { title: `Top 10 ${niche} secrets`, score: 85 }
+  ];
+}
+
 
 // Helper to summarize knowledge for the prompt
 const getDirectorContext = () => {
@@ -551,38 +595,53 @@ export async function consultWithUser(history: { role: string, content: string }
     - The user wants to make a YouTube video but might verify details.
     - You need to extract:
       1. TOPIC (What is it about?)
-      2. NICHE (Gaming, Tech, Documentary, History, etc.)
-      3. LENGTH (Target word count OR "Manual Duration" in seconds)
-      4. VOICE STYLE (Voice tone: Friendly, Dramatic, Scary, etc.)
-      5. VISUAL STYLE (Visual look: "Cinematic/Photorealistic", "2D Animated", "Anime", "3D CGI", "Documentary", "Horror", "Retro")
+    VISUAL STYLE KNOWLEDGE (CRITICAL):
+    You must understand and guide the user towards these specific styles with professional details:
 
-    KNOWLEDGE BASE: ${directorContext}
+    1. **CINEMATIC / PHOTOREALISTIC**
+       - **Keywords**: 35mm film, Arri Alexa, anamorphic lens, bokeh, dramatic lighting, color graded, 8k resolution.
+       - **Camera**: Low angles for power, wide shots for landscape, close-ups for emotion.
+       - **Lighting**: Rembrandt lighting, volumetric fog, rim lighting.
 
-    VISUAL STYLE EXAMPLES (help user choose):
-    - "Cinematic" = Photorealistic, 35mm film, movie quality, dramatic lighting
-    - "2D Animated" = Motion graphics, vector art, clean flat design, vibrant colors
-    - "Anime" = Japanese animation style, cel-shaded, expressive characters
-    - "3D CGI" = Pixar-quality 3D renders, smooth textures, volumetric lighting
-    - "Documentary" = Raw footage, natural lighting, authentic feel
-    - "Horror" = Dark, atmospheric, unsettling imagery, deep shadows
-    - "Retro" = Vintage film grain, 80s/90s aesthetic, VHS texture
+    2. **ANIME**
+       - **Keywords**: Makoto Shinkai style, Studio Ghibli, high detail, vibrant skies, emotional expressions, cel-shaded.
+       - **Features**: Speed lines for action, exaggerated emotive eyes, detailed backgrounds.
+
+    3. **2D ANIMATED / MOTION GRAPHICS**
+       - **Keywords**: Vector art, Kurzgesagt style, clean lines, flat design, smooth transitions, vibrant palette.
+       - **Usage**: Perfect for educational, tech, and explainer videos.
+
+    4. **DOCUMENTARY**
+       - **Keywords**: Handheld camera, natural lighting, raw footage, archival grain, 16mm film texture, journalistic.
+       - ** vibe**: Authentic, gritty, real-world feel.
+
+    5. **3D CGI / PIXAR STYLE**
+       - **Keywords**: Unreal Engine 5, Octane Render, Disney/Pixar style, soft textures, subsurface scattering, ambient occlusion.
+       - **Usage**: High-end storytelling, cute characters.
+
+    6. **HORROR / DARK**
+       - **Keywords**: Low key lighting, grain, CRT texture, found footage, VHS glitch, shadowy silhouette.
+       - **Color**: Desaturated, cold blues, deep reds.
+
+    7. **RETRO / VINTAGE**
+       - **Keywords**: VHS overlay, 80s synthwave, neon glow, chromatic aberration, glitched tape.
 
     INSTRUCTIONS:
-    1. Be brief, professional, and helpful. 
-    2. Ask ONE clarifying question at a time if details are missing.
-    3. If the user mentions "External Audio" or "I have a voiceover", ask for the duration in seconds.
-    4. If the user hasn't specified a visual style, ASK: "What visual style do you want? (Cinematic, 2D Animated, Anime, etc.)"
+    1. **ANALYZE** the user's request. If they say "make it look like a movie", use the **Cinematic** knowledge.
+    2. **SUGGEST** a style if they are unsure (e.g., "For a tech video, I recommend 2D Motion Graphics or clean Cinematic").
+    3. **EXTRACT** the 5 key details.
+    4. If Visual Style is missing, ask: "Do you want this to look like a Movie (Cinematic), a Cartoon (2D/Anime), or something else?"    
     5. WHEN YOU HAVE ALL 5 ITEMS (Topic, Niche, Length, Voice Style, Visual Style):
-       - Respond with a special JSON block at the END of your message.
+       - Respond with the start JSON block.
        - JSON Format: 
          \`\`\`json
          {
            "ready": true,
            "topic": "...",
            "niche": "...",
-           "videoLength": "1500 Words" (OR "MANUAL: 60s"),
+           "videoLength": "1500 Words",
            "voiceStyle": "...",
-           "visualStyle": "Cinematic" (or "2D Animated", "Anime", etc.)
+           "visualStyle": "Cinematic" (or specific style like "Anime", "2D Animated", "Documentary")
          }
          \`\`\`
     6. If not ready, "ready": false.

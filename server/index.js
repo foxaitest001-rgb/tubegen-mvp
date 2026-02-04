@@ -291,7 +291,7 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
         // 1. EXECUTION LOOP
         let currentShotIndex = 0;
 
-        while (currentShotIndex < shotQueue.length) {
+        shotLoop: while (currentShotIndex < shotQueue.length) {
 
             // CHECK RESTART
             if (directorState.restart) {
@@ -299,258 +299,293 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                 currentShotIndex = 0; // Reset
                 directorState.restart = false; // Ack
                 await interruptibleSleep(1000);
-                continue;
+                continue shotLoop;
             }
 
-            if (await checkControlState()) continue; // If restart, loop top handles it
+            if (await checkControlState()) continue shotLoop; // If restart, loop top handles it
 
             const job = shotQueue[currentShotIndex];
             const { sceneNum, shotNum, prompt } = job;
 
-            directorLog(sceneNum, "ACTION", `🎬 Starting Shot ${shotNum} (Progress: ${currentShotIndex + 1}/${shotQueue.length})`);
+            // RETRY LOGIC: Try up to 3 times with prompt simplification
+            const MAX_RETRIES = 3;
+            let shotSuccess = false;
+            let currentPrompt = prompt;
 
-            try {
-                directorLog(sceneNum, "STEP", "📍 Step 1: Finding input box...");
+            for (let attempt = 1; attempt <= MAX_RETRIES && !shotSuccess; attempt++) {
+                if (directorState.restart) break;
 
-                // FOCUS & CLEAR INPUT
-                let inputElement = null;
+                if (attempt > 1) {
+                    directorLog(sceneNum, "RETRY", `🔄 Retry ${attempt}/${MAX_RETRIES} for Shot ${shotNum}...`);
+                    // Simplify prompt on retry - remove complex descriptors
+                    currentPrompt = currentPrompt
+                        .replace(/\d+mm film,?\s*/gi, '')
+                        .replace(/shallow depth of field,?\s*/gi, '')
+                        .replace(/movie quality,?\s*/gi, '')
+                        .replace(/--ar 16:9,?\s*/gi, '')
+                        .replace(/\(.*?\)/g, '')
+                        .replace(/,\s*,/g, ',')
+                        .trim();
+                    if (attempt === 3) {
+                        // Last attempt: super simple
+                        currentPrompt = currentPrompt.split(',').slice(0, 2).join(', ') + ', cinematic video';
+                    }
+                    directorLog(sceneNum, "RETRY", `📝 Simplified prompt (${currentPrompt.length} chars)`);
+                    await interruptibleSleep(3000); // Brief pause before retry
+                }
+
+                directorLog(sceneNum, "ACTION", `🎬 Starting Shot ${shotNum} (Progress: ${currentShotIndex + 1}/${shotQueue.length})${attempt > 1 ? ` [Attempt ${attempt}]` : ''}`);
+
                 try {
-                    inputElement = await page.waitForSelector(inputSelector, { timeout: 5000 });
-                    directorLog(sceneNum, "STEP", "✓ Input box found");
-                } catch (e) {
-                    directorLog(sceneNum, "WARN", "⚠️ Input box not found, retrying...");
-                }
+                    directorLog(sceneNum, "STEP", "📍 Step 1: Finding input box...");
 
-                if (inputElement) {
-                    directorLog(sceneNum, "STEP", "📍 Step 2: Focusing and clearing input...");
-                    await inputElement.click();
-                    await inputElement.focus();
+                    // FOCUS & CLEAR INPUT
+                    let inputElement = null;
+                    try {
+                        inputElement = await page.waitForSelector(inputSelector, { timeout: 5000 });
+                        directorLog(sceneNum, "STEP", "✓ Input box found");
+                    } catch (e) {
+                        directorLog(sceneNum, "WARN", "⚠️ Input box not found, retrying...");
+                    }
 
-                    // CLEAR TEXT
-                    await page.keyboard.down('Control');
-                    await page.keyboard.press('A');
-                    await page.keyboard.up('Control');
-                    await page.keyboard.press('Backspace');
-                    await new Promise(r => setTimeout(r, 200));
-                    directorLog(sceneNum, "STEP", "✓ Input cleared");
-                }
+                    if (inputElement) {
+                        directorLog(sceneNum, "STEP", "📍 Step 2: Focusing and clearing input...");
+                        await inputElement.click();
+                        await inputElement.focus();
 
-                if (await checkControlState()) continue;
+                        // CLEAR TEXT
+                        await page.keyboard.down('Control');
+                        await page.keyboard.press('A');
+                        await page.keyboard.up('Control');
+                        await page.keyboard.press('Backspace');
+                        await new Promise(r => setTimeout(r, 200));
+                        directorLog(sceneNum, "STEP", "✓ Input cleared");
+                    }
 
-                // TYPE
-                const cleanPrompt = prompt.replace(/^Shot\s+\d+(\s*\(.*?\))?:?\s*/i, "").trim();
+                    if (await checkControlState()) continue shotLoop;
 
-                // Build prompt prefix based on visual style
-                let stylePrefix = 'Create a photorealistic video (16:9 cinematic)';
-                const lowerStyle = visualStyle.toLowerCase();
-                if (lowerStyle.includes('2d') || lowerStyle.includes('animated')) {
-                    stylePrefix = 'Create a 2D animated video (16:9, motion graphics, vibrant colors)';
-                } else if (lowerStyle.includes('anime')) {
-                    stylePrefix = 'Create an anime-style video (16:9, Japanese animation, cel-shaded)';
-                } else if (lowerStyle.includes('3d') || lowerStyle.includes('cgi')) {
-                    stylePrefix = 'Create a 3D CGI video (16:9, Pixar-quality, smooth textures)';
-                } else if (lowerStyle.includes('horror')) {
-                    stylePrefix = 'Create a dark atmospheric video (16:9, horror style, unsettling)';
-                } else if (lowerStyle.includes('retro')) {
-                    stylePrefix = 'Create a retro-style video (16:9, vintage 80s aesthetic, film grain)';
-                } else if (lowerStyle.includes('documentary')) {
-                    stylePrefix = 'Create a documentary-style video (16:9, raw footage, natural lighting)';
-                }
+                    // TYPE - Use currentPrompt (may be simplified on retries)
+                    const cleanPrompt = currentPrompt.replace(/^Shot\s+\d+(\s*\(.*?\))?:?\s*/i, "").trim();
 
-                const fullPrompt = `${stylePrefix}: ${cleanPrompt}`;
+                    // Build prompt prefix based on visual style
+                    let stylePrefix = 'Create a photorealistic video (16:9 cinematic)';
+                    const lowerStyle = visualStyle.toLowerCase();
+                    if (lowerStyle.includes('2d') || lowerStyle.includes('animated')) {
+                        stylePrefix = 'Create a 2D animated video (16:9, motion graphics, vibrant colors)';
+                    } else if (lowerStyle.includes('anime')) {
+                        stylePrefix = 'Create an anime-style video (16:9, Japanese animation, cel-shaded)';
+                    } else if (lowerStyle.includes('3d') || lowerStyle.includes('cgi')) {
+                        stylePrefix = 'Create a 3D CGI video (16:9, Pixar-quality, smooth textures)';
+                    } else if (lowerStyle.includes('horror')) {
+                        stylePrefix = 'Create a dark atmospheric video (16:9, horror style, unsettling)';
+                    } else if (lowerStyle.includes('retro')) {
+                        stylePrefix = 'Create a retro-style video (16:9, vintage 80s aesthetic, film grain)';
+                    } else if (lowerStyle.includes('documentary')) {
+                        stylePrefix = 'Create a documentary-style video (16:9, raw footage, natural lighting)';
+                    }
 
-                directorLog(sceneNum, "STEP", `📍 Step 3: Typing prompt (${fullPrompt.length} chars)...`);
-                await page.keyboard.type(fullPrompt, { delay: 30 });
-                await new Promise(r => setTimeout(r, 500));
-                directorLog(sceneNum, "STEP", "✓ Prompt typed");
+                    const fullPrompt = `${stylePrefix}: ${cleanPrompt}`;
 
-                // SEND
-                directorLog(sceneNum, "STEP", "📍 Step 4: Sending prompt to Meta.ai...");
-                await page.keyboard.press('Enter');
-                directorLog(sceneNum, "STEP", "✓ Prompt sent! Waiting 30s for video generation...");
+                    directorLog(sceneNum, "STEP", `📍 Step 3: Typing prompt (${fullPrompt.length} chars)...`);
+                    await page.keyboard.type(fullPrompt, { delay: 30 });
+                    await new Promise(r => setTimeout(r, 500));
+                    directorLog(sceneNum, "STEP", "✓ Prompt typed");
 
-                // WAIT - Reduced from 90s to 30s
-                await interruptibleSleep(30000);
-                if (directorState.restart) continue;
+                    // SEND
+                    directorLog(sceneNum, "STEP", "📍 Step 4: Sending prompt to Meta.ai...");
+                    await page.keyboard.press('Enter');
+                    directorLog(sceneNum, "STEP", "✓ Prompt sent! Waiting 30s for video generation...");
 
-                // DOWNLOAD (Improved: Scroll first, wait for NEW video, track downloads)
-                try {
-                    directorLog(sceneNum, "STEP", "📍 Step 5: Scrolling to bottom of page...");
+                    // WAIT - Reduced from 90s to 30s
+                    await interruptibleSleep(30000);
+                    if (directorState.restart) continue shotLoop;
 
-                    // FIRST: Scroll to bottom of page to see new content
-                    await page.evaluate(() => {
-                        window.scrollTo(0, document.body.scrollHeight);
-                    });
-                    await new Promise(r => setTimeout(r, 2000));
-                    directorLog(sceneNum, "STEP", "✓ Scrolled to bottom");
+                    // DOWNLOAD (Improved: Scroll first, wait for NEW video, track downloads)
+                    try {
+                        directorLog(sceneNum, "STEP", "📍 Step 5: Scrolling to bottom of page...");
 
-                    // Get count of videos BEFORE generation completes
-                    const videoCountBefore = await page.evaluate(() => {
-                        return document.querySelectorAll('video').length;
-                    });
-
-                    directorLog(sceneNum, "STEP", `📍 Step 6: Detecting new video... (Found ${videoCountBefore} existing)`);
-
-                    // Wait for a NEW video to appear (poll every 5s)
-                    let newVideoFound = false;
-                    let retryCount = 0;
-                    const maxRetries = 12; // 12 * 5s = 60s max additional wait
-
-                    while (!newVideoFound && retryCount < maxRetries) {
-                        if (directorState.restart) break;
-
-                        // Scroll down again to ensure we see new content
+                        // FIRST: Scroll to bottom of page to see new content
                         await page.evaluate(() => {
                             window.scrollTo(0, document.body.scrollHeight);
                         });
-                        await new Promise(r => setTimeout(r, 1000));
-
-                        // Check for new videos
-                        const currentInfo = await page.evaluate((prevCount) => {
-                            const videos = Array.from(document.querySelectorAll('video'));
-                            const validVideos = videos.filter(v => v.src && v.src.length > 10 && !v.src.startsWith('blob:'));
-                            return {
-                                count: videos.length,
-                                validCount: validVideos.length,
-                                hasNew: videos.length > prevCount,
-                                latestSrc: validVideos.length > 0 ? validVideos[validVideos.length - 1].src : null
-                            };
-                        }, videoCountBefore);
-
-                        if (currentInfo.validCount > 0 && (currentInfo.hasNew || retryCount > 2)) {
-                            newVideoFound = true;
-                            directorLog(sceneNum, `Shot ${shotNum}`, `✅ New video detected! (${currentInfo.validCount} valid videos)`);
-                        } else {
-                            retryCount++;
-                            directorLog(sceneNum, `Shot ${shotNum}`, `⏳ Waiting for video... (${retryCount * 5}s / 60s max)`);
-                            await interruptibleSleep(5000); // 5 second intervals instead of 10
-                        }
-                    }
-
-                    if (directorState.restart) continue;
-
-                    // NOW get the LAST video on the page (bottom-most = most recent)
-                    const latestVideoSrc = await page.evaluate(() => {
-                        const videos = Array.from(document.querySelectorAll('video'));
-                        // Filter for valid video sources (not blob:, has actual URL)
-                        const validVideos = videos.filter(v => v.src && v.src.length > 10 && !v.src.startsWith('blob:'));
-                        if (validVideos.length === 0) return null;
-
-                        // Get the LAST one (most recent, at bottom of page)
-                        const lastVideo = validVideos[validVideos.length - 1];
-
-                        // Scroll this video into view
-                        lastVideo.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                        return lastVideo.src;
-                    });
-
-                    if (!latestVideoSrc) {
-                        throw new Error("No valid video source found after waiting.");
-                    }
-
-                    directorLog(sceneNum, "STEP", `📍 Step 7: Hovering over video element...`);
-
-                    // Hover over the video element to reveal download button
-                    const videoElem = await page.evaluateHandle((src) => {
-                        const videos = Array.from(document.querySelectorAll('video'));
-                        return videos.find(v => v.src === src);
-                    }, latestVideoSrc);
-
-                    if (videoElem) {
-                        await videoElem.hover();
-                        await new Promise(r => setTimeout(r, 1500));
-                        directorLog(sceneNum, "STEP", "✓ Hovering over video");
-                    }
-
-                    directorLog(sceneNum, "STEP", `📍 Step 8: Setting download directory...`);
-                    directorLog(sceneNum, "STEP", `   Target folder: ${outputPublic}`);
-
-                    // Set download directory to project folder
-                    const client = await page.target().createCDPSession();
-                    await client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: outputPublic });
-                    directorLog(sceneNum, "STEP", "✓ Download directory configured");
-
-                    directorLog(sceneNum, "STEP", `📍 Step 9: Finding download button...`);
-                    let dlBtn = null;
-                    const pollStart = Date.now();
-                    while (Date.now() - pollStart < 30000) {
-                        if (directorState.restart) break;
-
-                        const selectors = [
-                            '[aria-label="Download"]',
-                            '[aria-label="Save"]',
-                            'div[role="button"][aria-label="Download"]',
-                            '[aria-label="Download media"]',
-                            'div[role="button"][aria-label="Download media"]'
-                        ];
-
-                        for (const sel of selectors) {
-                            const buttons = await page.$$(sel);
-                            if (buttons.length > 0) {
-                                // Get the LAST download button (most recent video's button)
-                                dlBtn = buttons[buttons.length - 1];
-                                break;
-                            }
-                        }
-                        if (dlBtn) break;
                         await new Promise(r => setTimeout(r, 2000));
-                    }
+                        directorLog(sceneNum, "STEP", "✓ Scrolled to bottom");
 
-                    if (directorState.restart) continue;
+                        // Get count of videos BEFORE generation completes
+                        const videoCountBefore = await page.evaluate(() => {
+                            return document.querySelectorAll('video').length;
+                        });
 
-                    if (dlBtn) {
-                        directorLog(sceneNum, "STEP", `📍 Step 10: Clicking download button...`);
-                        await dlBtn.click();
-                        directorLog(sceneNum, "STEP", `✓ Download clicked! Waiting 10s for file...`);
-                        await interruptibleSleep(10000);
+                        directorLog(sceneNum, "STEP", `📍 Step 6: Detecting new video... (Found ${videoCountBefore} existing)`);
 
-                        directorLog(sceneNum, "STEP", `📍 Step 11: Renaming downloaded file...`);
-                        // RENAME Logic - save to project folder
-                        try {
-                            const files = fs.readdirSync(outputPublic);
-                            const sortedFiles = files
-                                .map(fileName => ({ name: fileName, time: fs.statSync(path.join(outputPublic, fileName)).mtime.getTime() }))
-                                .sort((a, b) => b.time - a.time);
-                            const candidates = sortedFiles.filter(f => !f.name.startsWith('scene_'));
+                        // Wait for a NEW video to appear (poll every 5s)
+                        let newVideoFound = false;
+                        let retryCount = 0;
+                        const maxRetries = 12; // 12 * 5s = 60s max additional wait
 
-                            if (candidates.length > 0) {
-                                const newestFile = candidates[0];
-                                if (Date.now() - newestFile.time < 60000) {
-                                    const oldPath = path.join(outputPublic, newestFile.name);
-                                    const extension = path.extname(newestFile.name);
-                                    const newFilename = `scene_${sceneNum}_shot_${shotNum}${extension}`;
+                        while (!newVideoFound && retryCount < maxRetries) {
+                            if (directorState.restart) break;
 
-                                    const publicPath = path.join(outputPublic, newFilename);
-                                    const serverPath = path.join(outputServer, newFilename);
+                            // Scroll down again to ensure we see new content
+                            await page.evaluate(() => {
+                                window.scrollTo(0, document.body.scrollHeight);
+                            });
+                            await new Promise(r => setTimeout(r, 1000));
 
-                                    if (fs.existsSync(publicPath)) fs.unlinkSync(publicPath);
-                                    fs.renameSync(oldPath, publicPath);
-                                    fs.copyFileSync(publicPath, serverPath);
+                            // Check for new videos
+                            const currentInfo = await page.evaluate((prevCount) => {
+                                const videos = Array.from(document.querySelectorAll('video'));
+                                const validVideos = videos.filter(v => v.src && v.src.length > 10 && !v.src.startsWith('blob:'));
+                                return {
+                                    count: videos.length,
+                                    validCount: validVideos.length,
+                                    hasNew: videos.length > prevCount,
+                                    latestSrc: validVideos.length > 0 ? validVideos[validVideos.length - 1].src : null
+                                };
+                            }, videoCountBefore);
 
-                                    directorLog(sceneNum, "STEP", `✅ COMPLETE: Saved ${newFilename}`);
-                                    directorLog(sceneNum, "STEP", `   Location: ${outputPublic}`);
-                                } else {
-                                    directorLog(sceneNum, "WARN", `⚠️ Downloaded file too old, may have failed`);
-                                }
+                            if (currentInfo.validCount > 0 && (currentInfo.hasNew || retryCount > 2)) {
+                                newVideoFound = true;
+                                directorLog(sceneNum, `Shot ${shotNum}`, `✅ New video detected! (${currentInfo.validCount} valid videos)`);
                             } else {
-                                directorLog(sceneNum, "WARN", `⚠️ No new files found to rename`);
+                                retryCount++;
+                                directorLog(sceneNum, `Shot ${shotNum}`, `⏳ Waiting for video... (${retryCount * 5}s / 60s max)`);
+                                await interruptibleSleep(5000); // 5 second intervals instead of 10
                             }
-                        } catch (e) {
-                            directorLog(sceneNum, "ERROR", `Rename failed: ${e.message}`);
                         }
 
-                    } else {
-                        directorLog(sceneNum, "STEP", `❌ Download button not found after 30s`);
-                    }
+                        if (directorState.restart) continue shotLoop;
 
-                } catch (dlErr) {
-                    directorLog(sceneNum, `WARN`, `Download failed: ${dlErr.message}`);
+                        // NOW get the LAST video on the page (bottom-most = most recent)
+                        const latestVideoSrc = await page.evaluate(() => {
+                            const videos = Array.from(document.querySelectorAll('video'));
+                            // Filter for valid video sources (not blob:, has actual URL)
+                            const validVideos = videos.filter(v => v.src && v.src.length > 10 && !v.src.startsWith('blob:'));
+                            if (validVideos.length === 0) return null;
+
+                            // Get the LAST one (most recent, at bottom of page)
+                            const lastVideo = validVideos[validVideos.length - 1];
+
+                            // Scroll this video into view
+                            lastVideo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                            return lastVideo.src;
+                        });
+
+                        if (!latestVideoSrc) {
+                            throw new Error("No valid video source found after waiting.");
+                        }
+
+                        directorLog(sceneNum, "STEP", `📍 Step 7: Hovering over video element...`);
+
+                        // Hover over the video element to reveal download button
+                        const videoElem = await page.evaluateHandle((src) => {
+                            const videos = Array.from(document.querySelectorAll('video'));
+                            return videos.find(v => v.src === src);
+                        }, latestVideoSrc);
+
+                        if (videoElem) {
+                            await videoElem.hover();
+                            await new Promise(r => setTimeout(r, 1500));
+                            directorLog(sceneNum, "STEP", "✓ Hovering over video");
+                        }
+
+                        directorLog(sceneNum, "STEP", `📍 Step 8: Setting download directory...`);
+                        directorLog(sceneNum, "STEP", `   Target folder: ${outputPublic}`);
+
+                        // Set download directory to project folder
+                        const client = await page.target().createCDPSession();
+                        await client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: outputPublic });
+                        directorLog(sceneNum, "STEP", "✓ Download directory configured");
+
+                        directorLog(sceneNum, "STEP", `📍 Step 9: Finding download button...`);
+                        let dlBtn = null;
+                        const pollStart = Date.now();
+                        while (Date.now() - pollStart < 30000) {
+                            if (directorState.restart) break;
+
+                            const selectors = [
+                                '[aria-label="Download"]',
+                                '[aria-label="Save"]',
+                                'div[role="button"][aria-label="Download"]',
+                                '[aria-label="Download media"]',
+                                'div[role="button"][aria-label="Download media"]'
+                            ];
+
+                            for (const sel of selectors) {
+                                const buttons = await page.$$(sel);
+                                if (buttons.length > 0) {
+                                    // Get the LAST download button (most recent video's button)
+                                    dlBtn = buttons[buttons.length - 1];
+                                    break;
+                                }
+                            }
+                            if (dlBtn) break;
+                            await new Promise(r => setTimeout(r, 2000));
+                        }
+
+                        if (directorState.restart) continue shotLoop;
+
+                        if (dlBtn) {
+                            directorLog(sceneNum, "STEP", `📍 Step 10: Clicking download button...`);
+                            await dlBtn.click();
+                            directorLog(sceneNum, "STEP", `✓ Download clicked! Waiting 10s for file...`);
+                            await interruptibleSleep(10000);
+
+                            directorLog(sceneNum, "STEP", `📍 Step 11: Renaming downloaded file...`);
+                            // RENAME Logic - save to project folder
+                            try {
+                                const files = fs.readdirSync(outputPublic);
+                                const sortedFiles = files
+                                    .map(fileName => ({ name: fileName, time: fs.statSync(path.join(outputPublic, fileName)).mtime.getTime() }))
+                                    .sort((a, b) => b.time - a.time);
+                                const candidates = sortedFiles.filter(f => !f.name.startsWith('scene_'));
+
+                                if (candidates.length > 0) {
+                                    const newestFile = candidates[0];
+                                    if (Date.now() - newestFile.time < 60000) {
+                                        const oldPath = path.join(outputPublic, newestFile.name);
+                                        const extension = path.extname(newestFile.name);
+                                        const newFilename = `scene_${sceneNum}_shot_${shotNum}${extension}`;
+
+                                        const publicPath = path.join(outputPublic, newFilename);
+                                        const serverPath = path.join(outputServer, newFilename);
+
+                                        if (fs.existsSync(publicPath)) fs.unlinkSync(publicPath);
+                                        fs.renameSync(oldPath, publicPath);
+                                        fs.copyFileSync(publicPath, serverPath);
+
+                                        directorLog(sceneNum, "STEP", `✅ COMPLETE: Saved ${newFilename}`);
+                                        directorLog(sceneNum, "STEP", `   Location: ${outputPublic}`);
+                                        shotSuccess = true; // Mark as successful!
+                                    } else {
+                                        directorLog(sceneNum, "WARN", `⚠️ Downloaded file too old, may have failed`);
+                                    }
+                                } else {
+                                    directorLog(sceneNum, "WARN", `⚠️ No new files found to rename`);
+                                }
+                            } catch (e) {
+                                directorLog(sceneNum, "ERROR", `Rename failed: ${e.message}`);
+                            }
+
+                        } else {
+                            directorLog(sceneNum, "STEP", `❌ Download button not found after 30s`);
+                        }
+
+                    } catch (dlErr) {
+                        directorLog(sceneNum, `WARN`, `Download failed: ${dlErr.message}`);
+                    }
+                } catch (shotError) {
+                    directorLog(sceneNum, `ERROR`, `Shot attempt failed: ${shotError.message}`);
                 }
+            } // End of retry loop
+
+            // Only advance to next shot if successful, otherwise log final failure
+            if (shotSuccess) {
                 currentShotIndex++;
-            } catch (shotError) {
-                directorLog(sceneNum, `ERROR`, `Shot failed: ${shotError.message}`);
-                currentShotIndex++;
+            } else {
+                directorLog(sceneNum, "ERROR", `❌ Shot ${shotNum} failed after ${MAX_RETRIES} attempts. Skipping.`);
+                currentShotIndex++; // Skip this shot after all retries exhausted
             }
         }
 

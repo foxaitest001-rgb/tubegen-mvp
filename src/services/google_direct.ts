@@ -5,51 +5,77 @@ const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
 // --- GENERATIVE AI (GEMINI) ---
 
-// Models ordered by reliability (remove gemini-3-pro-preview - causes 429 errors)
-const FALLBACK_MODELS = [
-    'gemini-2.5-flash-preview-09-2025',  // Most reliable
-    'gemini-2.0-flash',                  // Stable fallback
-    'gemini-1.5-flash',                  // Legacy stable
+// Single model: gemini-2.5-flash (Primary - Verified Available)
+// Fallback: gemini-2.5-pro, gemini-3-flash-preview
+// NOTE: This user has access to Next-Gen models. Legacy 1.5 models are NOT available.
+const FALLBACK_MODELS: string[] = [
+    'gemini-2.5-pro',
+    'gemini-3-flash-preview',
+    'gemini-2.0-flash-lite',
+    'gemini-flash-latest' // Catch-all
 ];
 
-export async function generateContentWithGoogle(systemPrompt: string, userQuery: string, primaryModel: string = 'gemini-2.5-flash-preview-09-2025') {
+export async function generateContentWithGoogle(systemPrompt: string, userQuery: string, primaryModel: string = 'gemini-2.5-flash') {
     if (!API_KEY) throw new Error("Missing VITE_GOOGLE_API_KEY in .env");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const combinedPrompt = `${systemPrompt}\n\nUSER REQUEST: ${userQuery}`;
 
-    // Ensure primary model is tried first
+    // Ensure primary model is tried first, then fallbacks
+    // Start with primaryModel, then iterate through FALLBACKS
     const modelsToTry = [primaryModel, ...FALLBACK_MODELS.filter(m => m !== primaryModel)];
 
     let lastError;
 
     for (const modelName of modelsToTry) {
-        try {
-            console.log(`[Google Direct] Attempting generation with ${modelName}...`);
-            const model = genAI.getGenerativeModel({ model: modelName });
+        // Robust Retry Logic for Rate Limits
+        const MAX_RETRIES = 3;
+        let retries = 0;
 
-            const result = await model.generateContent(combinedPrompt);
-            const response = await result.response;
-            const text = response.text();
-
-            console.log(`[Google Direct] Success with ${modelName}. Response length: ${text.length}`);
-
-            // Clean Markdown for JSON parsing
-            const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-
+        while (retries <= MAX_RETRIES) {
             try {
-                return JSON.parse(cleaned);
-            } catch (e: any) {
-                console.warn(`[Google Direct] JSON Parse failed for ${modelName}. Returning raw text.`);
-                // If it's not JSON, it might be the raw prompt requested (like for Thumbnails).
-                // Return the text directly.
-                return cleaned;
-            }
+                const attemptLabel = retries > 0 ? `(Retry ${retries}/${MAX_RETRIES})` : '';
+                console.log(`[Google Direct] Attempting generation with ${modelName} ${attemptLabel}...`);
 
-        } catch (error: any) {
-            console.warn(`[Google Direct] Failed with ${modelName}:`, error.message.substring(0, 100));
-            lastError = error;
-            // Continue to next model
+                const model = genAI.getGenerativeModel({ model: modelName });
+
+                const result = await model.generateContent(combinedPrompt);
+                const response = await result.response;
+                const text = response.text();
+
+                console.log(`[Google Direct] Success with ${modelName}. Response length: ${text.length}`);
+
+                // Clean Markdown for JSON parsing
+                const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+                try {
+                    return JSON.parse(cleaned);
+                } catch (e: any) {
+                    console.warn(`[Google Direct] JSON Parse failed for ${modelName}. Returning raw text.`);
+                    // If it's not JSON, it might be the raw prompt requested (like for Thumbnails).
+                    // Return the text directly.
+                    return cleaned;
+                }
+
+            } catch (error: any) {
+                console.warn(`[Google Direct] Failed with ${modelName}:`, error.message.substring(0, 100));
+                lastError = error;
+
+                // If rate limited (429), wait and RETRY the SAME model
+                if (error.message.includes('429') || error.message.includes('Too Many Requests') || error.message.includes('quota')) {
+                    if (retries < MAX_RETRIES) {
+                        // Exponential backoff: 5s, 10s, 15s
+                        const waitTime = 5000 * (retries + 1);
+                        console.log(`[Google Direct] ⚠️ Rate Limited (429). Waiting ${waitTime / 1000}s before retry...`);
+                        await new Promise(r => setTimeout(r, waitTime));
+                        retries++;
+                        continue; // LOOP AGAIN with same model
+                    }
+                }
+
+                // If critical error (not 429) OR max retries exhausted, break inner loop to try NEXT model
+                break;
+            }
         }
     }
 
@@ -149,8 +175,9 @@ export async function generateTTSWithGoogle(text: string, voiceName: string = 'e
             if (error.message.includes("Rate Limit") || error.message.includes("Quota")) {
                 attempts++;
                 if (attempts < maxAttempts) {
-                    console.log(`[Google TTS] Retrying in 2 seconds...`);
-                    await new Promise(r => setTimeout(r, 2000));
+                    const waitT = 2000 * attempts;
+                    console.log(`[Google TTS] Retrying in ${waitT / 1000} seconds...`);
+                    await new Promise(r => setTimeout(r, waitT));
                 } else {
                     // All retries exhausted for rate limit/quota
                     return null;
