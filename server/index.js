@@ -114,6 +114,86 @@ async function interruptibleSleep(ms) {
     }
 }
 
+// --- FFmpeg Video Assembly ---
+const { exec } = require('child_process');
+const util = require('util');
+const execAsync = util.promisify(exec);
+
+async function assembleVideo(projectDir) {
+    const outputDir = projectDir.server;
+    const projectName = projectDir.name;
+
+    directorLog(0, "ASSEMBLE", "🎬 Starting FFmpeg Video Assembly...");
+
+    try {
+        // Find all video files (scene_X_shot_Y.mp4)
+        const files = fs.readdirSync(outputDir);
+        const videoFiles = files
+            .filter(f => f.endsWith('.mp4') && f.startsWith('scene_'))
+            .sort((a, b) => {
+                // Sort by scene then shot number
+                const parseNums = (name) => {
+                    const match = name.match(/scene_(\d+)_shot_(\d+)/);
+                    return match ? [parseInt(match[1]), parseInt(match[2])] : [0, 0];
+                };
+                const [as, ash] = parseNums(a);
+                const [bs, bsh] = parseNums(b);
+                return as !== bs ? as - bs : ash - bsh;
+            });
+
+        if (videoFiles.length === 0) {
+            directorLog(0, "WARN", "No video files found for assembly");
+            return null;
+        }
+
+        directorLog(0, "ASSEMBLE", `Found ${videoFiles.length} video files to assemble`);
+
+        // Create concat list file
+        const listPath = path.join(outputDir, 'concat_list.txt');
+        const listContent = videoFiles.map(f => `file '${f}'`).join('\n');
+        fs.writeFileSync(listPath, listContent);
+        directorLog(0, "ASSEMBLE", "✓ Created concat list");
+
+        // Run FFmpeg concat
+        const finalPath = path.join(outputDir, 'final_video.mp4');
+        const ffmpegCmd = `ffmpeg -f concat -safe 0 -i "${listPath}" -c copy "${finalPath}" -y`;
+
+        directorLog(0, "ASSEMBLE", `Running FFmpeg: ${ffmpegCmd.substring(0, 60)}...`);
+
+        try {
+            const { stdout, stderr } = await execAsync(ffmpegCmd, {
+                cwd: outputDir,
+                timeout: 300000 // 5 min timeout
+            });
+
+            if (fs.existsSync(finalPath)) {
+                const stats = fs.statSync(finalPath);
+                const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+                directorLog(0, "ASSEMBLE", `✅ Final video created: final_video.mp4 (${sizeMB}MB)`);
+
+                // Clean up list file
+                fs.unlinkSync(listPath);
+
+                return {
+                    path: finalPath,
+                    name: 'final_video.mp4',
+                    size: stats.size
+                };
+            } else {
+                directorLog(0, "ERROR", "FFmpeg completed but final video not found");
+                return null;
+            }
+        } catch (ffmpegErr) {
+            directorLog(0, "ERROR", `FFmpeg failed: ${ffmpegErr.message}`);
+            return null;
+        }
+
+    } catch (e) {
+        directorLog(0, "ERROR", `Assembly error: ${e.message}`);
+        return null;
+    }
+}
+
 // --- THE DIRECTOR AGENT (V2: Flat Queue Architecture) ---
 async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photorealistic') {
     // Use provided project dir or current
@@ -476,14 +556,21 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
         directorLog(0, "DONE", "All scenes completed.");
 
+        // Run FFmpeg assembly to create final video
+        const finalVideo = await assembleVideo(projectDir);
+
         // Send completion event with file list for auto-download
         try {
             const files = fs.readdirSync(outputPublic);
-            const fileList = files.map(f => ({
+            let fileList = files.map(f => ({
                 name: f,
                 path: `/download/${encodeURIComponent(currentProjectDir.name)}/${encodeURIComponent(f)}`,
-                size: fs.statSync(path.join(outputPublic, f)).size
+                size: fs.statSync(path.join(outputPublic, f)).size,
+                isFinal: f === 'final_video.mp4'
             }));
+
+            // Sort to put final_video.mp4 first for priority download
+            fileList.sort((a, b) => (b.isFinal ? 1 : 0) - (a.isFinal ? 1 : 0));
 
             // Broadcast to all connected clients
             clients.forEach(client => {
@@ -491,11 +578,14 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                     type: 'completed',
                     projectFolder: currentProjectDir.name,
                     files: fileList,
-                    message: 'Generation complete! Downloading files...'
+                    finalVideo: finalVideo ? finalVideo.name : null,
+                    message: finalVideo
+                        ? '🎬 Final video assembled! Downloading...'
+                        : 'Generation complete! Downloading files...'
                 })}\n\n`);
             });
 
-            directorLog(0, "FILES", `📦 ${fileList.length} files ready for download`);
+            directorLog(0, "FILES", `📦 ${fileList.length} files ready for download${finalVideo ? ' (including final_video.mp4)' : ''}`);
         } catch (e) {
             console.error("File list error:", e);
         }

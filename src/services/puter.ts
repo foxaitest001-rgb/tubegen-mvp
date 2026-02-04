@@ -7,6 +7,33 @@ import viralStrategies from '../data/viral_strategies.json';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
+// --- PIPER VOICE CONFIGURATION ---
+// Maps niches/styles to specific Piper voice IDs from HuggingFace
+export const PIPER_VOICES: Record<string, { id: string; gender: string; description: string }> = {
+  horror: { id: 'en_US-ryan-medium', gender: 'male', description: 'Deep dramatic voice for horror/drama' },
+  documentary: { id: 'en_US-norman-medium', gender: 'male', description: 'Serious narrator for documentaries' },
+  history: { id: 'en_US-norman-medium', gender: 'male', description: 'Educational authoritative voice' },
+  gaming: { id: 'en_US-bryce-medium', gender: 'male', description: 'Confident energetic for gaming' },
+  tech: { id: 'en_US-lessac-medium', gender: 'male', description: 'Neutral professional for tech' },
+  vlog: { id: 'en_US-joe-medium', gender: 'male', description: 'Warm friendly for vlogs' },
+  entertainment: { id: 'en_US-joe-medium', gender: 'male', description: 'Energetic for entertainment' },
+  health: { id: 'en_US-amy-medium', gender: 'female', description: 'Warm caring for health/lifestyle' },
+  professional: { id: 'en_US-hfc_female-medium', gender: 'female', description: 'Clear professional for business' },
+  calm: { id: 'en_US-danny-low', gender: 'male', description: 'Calm soothing for ASMR/meditation' },
+  default: { id: 'en_US-lessac-medium', gender: 'male', description: 'Neutral default voice' }
+};
+
+// Helper: Get voice based on niche
+export function getVoiceForNiche(niche: string): { id: string; gender: string; description: string } {
+  const lowerNiche = niche.toLowerCase();
+  for (const [key, voice] of Object.entries(PIPER_VOICES)) {
+    if (lowerNiche.includes(key)) {
+      return voice;
+    }
+  }
+  return PIPER_VOICES.default;
+}
+
 // Facade for Gemini calls (formerly callGeminiViaPuter)
 export async function callGeminiViaPuter(systemPrompt: string, userQuery: string) {
   if (!API_KEY) {
@@ -592,6 +619,16 @@ export async function consultWithUser(history: { role: string, content: string }
           extractedConfig = JSON.parse(jsonMatch[1]);
           // Remove the JSON from the displayed message
           responseText = result.replace(jsonMatch[0], '').trim();
+
+          // Auto-enrich with voice selection based on niche
+          if (extractedConfig.ready && extractedConfig.niche) {
+            const voice = getVoiceForNiche(extractedConfig.niche);
+            extractedConfig.voiceId = voice.id;
+            extractedConfig.voiceGender = voice.gender;
+            extractedConfig.voiceDescription = voice.description;
+            console.log(`[Consultant] Auto-selected voice: ${voice.id} (${voice.description})`);
+          }
+
           console.log("[Consultant] Extracted config:", extractedConfig);
         } catch (e) {
           console.warn("Failed to parse Consultant JSON", e);
