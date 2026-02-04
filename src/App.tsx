@@ -20,6 +20,8 @@ function App() {
   // Providers
   const [voiceProvider, setVoiceProvider] = useState<'google' | 'piper'>('google')
   const [videoProvider, setVideoProvider] = useState<'pollinations' | 'puter' | 'meta-local'>('pollinations')
+  // Remote Server URL (for GitHub RDP hybrid mode)
+  const [remoteServerUrl, setRemoteServerUrl] = useState('')
 
   // New state for assets
   const [assets, setAssets] = useState<Record<string, { image?: any, audio?: any, type?: string, url?: string, label?: string }>>({})
@@ -153,12 +155,14 @@ function App() {
       }
       console.log("[Pipeline] ✅ All voiceovers downloaded!");
 
-      // Step 3: Send to Meta.ai Director
-      console.log("[Pipeline] Step 3: Sending to Meta.ai Director...");
+      // Step 3: Send to Meta.ai Director (Local or Remote)
+      const serverUrl = remoteServerUrl.trim() || 'http://localhost:3001';
+      const isRemote = !!remoteServerUrl.trim();
+      console.log(`[Pipeline] Step 3: Sending to ${isRemote ? 'REMOTE' : 'LOCAL'} Director: ${serverUrl}`);
       await new Promise(r => setTimeout(r, 500));
 
       try {
-        const res = await fetch('http://localhost:3001/generate-video', {
+        const res = await fetch(`${serverUrl}/generate-video`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ scriptData: scriptResult })
@@ -167,7 +171,10 @@ function App() {
         const data = await res.json();
         if (res.ok) {
           console.log("[Pipeline] ✅ Director Agent started:", data.message);
-          alert(`🎬 Full Pipeline Complete!\n\n✅ Script Generated\n✅ Voiceovers Created (Piper)\n✅ Director Agent Started\n\nMeta.ai is now generating your videos.\nCheck the server console for progress.`);
+          const locationMsg = isRemote
+            ? `Videos generating on REMOTE server (GitHub RDP)!\nDownload from GitHub Artifacts when complete.`
+            : `Meta.ai is now generating your videos.\nCheck the server console for progress.`;
+          alert(`🎬 Full Pipeline Complete!\n\n✅ Script Generated\n✅ Voiceovers Created (Piper)\n✅ Director Agent Started\n\n${locationMsg}`);
         } else {
           throw new Error(data.error || "Director failed");
         }
@@ -872,6 +879,23 @@ function App() {
                             Meta (Local)
                           </button>
                         </div>
+                      </div>
+
+                      {/* Remote Server URL for GitHub RDP */}
+                      <div className="space-y-2 col-span-2">
+                        <label className="text-sm font-medium text-gray-300 ml-1 flex items-center gap-2">
+                          <span className="text-green-400">🌐</span> Remote Server URL (GitHub RDP)
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full bg-black/50 border border-green-500/30 rounded-xl py-3 px-4 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all font-mono text-sm"
+                          placeholder="https://xxx.trycloudflare.com (leave empty for local)"
+                          value={remoteServerUrl}
+                          onChange={(e) => setRemoteServerUrl(e.target.value)}
+                        />
+                        <p className="text-xs text-gray-500 ml-1">
+                          Paste the API URL from GitHub Actions to generate videos remotely.
+                        </p>
                       </div>
                     </div>
                   </div>

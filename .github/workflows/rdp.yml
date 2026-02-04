@@ -1,187 +1,123 @@
-name: Remote Desktop for Video Generation
-# ⚠️ EDUCATIONAL USE ONLY - For testing and development purposes
+name: Remote Video Generation Server
+# This workflow runs a headless video generation server on GitHub Actions
+# Your local TubeGen app will send requests to this server for video generation
 
 on:
   workflow_dispatch:
     inputs:
-      vnc_password:
-        description: 'VNC Password (min 6 chars)'
-        required: true
-        default: 'tubegen123'
       session_hours:
         description: 'Session duration (max 6)'
         required: true
         default: '5'
 
-env:
-  PROJECT_DIR: ${{ github.workspace }}
-
 jobs:
-  remote-desktop:
+  video-server:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours max
+    timeout-minutes: 360
 
     steps:
-      - name: 📦 Checkout TubeGen Repository
+      - name: 📦 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🖥️ Install Desktop Environment (XFCE)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xfce4 xfce4-goodies dbus-x11 xterm
-          sudo apt-get install -y x11vnc xvfb novnc websockify
-          echo "✅ Desktop environment installed"
-
-      - name: 🌐 Install Chrome & Dependencies
+      - name: 🌐 Install Chrome
         run: |
           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
           rm google-chrome-stable_current_amd64.deb
-          echo "✅ Google Chrome installed"
+          sudo apt-get install -y xvfb
+          echo "✅ Chrome installed"
 
       - name: 📦 Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
-      - name: 📦 Install Project Dependencies
-        run: |
-          cd $PROJECT_DIR
-          npm install
-          cd server && npm install && cd ..
-          echo "✅ All dependencies installed"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
-      - name: 🔧 Start Virtual Display & VNC
+      - name: 📦 Install Server Dependencies
         run: |
-          # Start virtual display
+          cd server
+          npm install
+          echo "✅ Server dependencies installed"
+
+      - name: 🔧 Start Virtual Display
+        run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1920x1080x24 &
           sleep 2
-          
-          # Create VNC password file
-          mkdir -p ~/.vnc
-          x11vnc -storepasswd "${{ github.event.inputs.vnc_password }}" ~/.vnc/passwd
-          
-          # Start XFCE desktop
-          DISPLAY=:99 startxfce4 &
-          sleep 5
-          
-          # Start VNC server
-          x11vnc -display :99 -rfbauth ~/.vnc/passwd -forever -shared -bg -rfbport 5900
-          
-          echo "✅ VNC server started on display :99, port 5900"
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+          echo "✅ Virtual display started"
 
-      - name: 🌍 Setup noVNC (Browser Access)
+      - name: 🚀 Start Video Generation Server
         run: |
-          websockify --web=/usr/share/novnc/ 6080 localhost:5900 &
-          sleep 2
-          echo "✅ noVNC proxy started on port 6080"
-
-      - name: 🚀 Start TubeGen Services (Auto)
-        run: |
-          export DISPLAY=:99
-          cd $PROJECT_DIR
-          
-          # Start backend server
           cd server
-          node index.js > /tmp/server.log 2>&1 &
-          SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-          cd ..
-          
-          sleep 3
-          
-          # Start frontend dev server
-          npm run dev > /tmp/frontend.log 2>&1 &
-          FRONTEND_PID=$!
-          echo "FRONTEND_PID=$FRONTEND_PID" >> $GITHUB_ENV
-          
-          sleep 5
-          
-          echo "✅ Backend running (PID: $SERVER_PID)"
-          echo "✅ Frontend running (PID: $FRONTEND_PID)"
-          echo ""
-          echo "📍 Project directory: $PROJECT_DIR"
-
-      - name: 🌐 Open Chrome with TubeGen & Meta.ai
-        run: |
           export DISPLAY=:99
           
-          # Open Chrome with TubeGen app and Meta.ai tabs
-          google-chrome --no-sandbox --disable-gpu \
-            --user-data-dir=/tmp/chrome-profile \
-            http://localhost:5173 \
-            https://meta.ai &
-          
+          # Start the server with CORS enabled for remote access
+          node index.js &
           sleep 5
-          echo "✅ Chrome opened with TubeGen and Meta.ai"
+          
+          # Verify server is running
+          curl -s http://localhost:3001/health || echo "Health endpoint not available"
+          echo "✅ Video generation server running on port 3001"
 
-      - name: 🔗 Setup Cloudflare Tunnel
+      - name: 🔗 Setup Cloudflare Tunnel for API
         run: |
           wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared-linux-amd64.deb
           rm cloudflared-linux-amd64.deb
           
-          # Start tunnel for noVNC
-          cloudflared tunnel --url http://localhost:6080 > /tmp/tunnel.log 2>&1 &
+          # Tunnel the server API (port 3001)
+          cloudflared tunnel --url http://localhost:3001 > /tmp/tunnel.log 2>&1 &
           sleep 10
           
           # Extract URL
-          TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
+          API_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
           
           echo ""
-          echo "╔══════════════════════════════════════════════════════════════╗"
-          echo "║           🖥️  REMOTE DESKTOP READY!                          ║"
-          echo "╠══════════════════════════════════════════════════════════════╣"
-          echo "║                                                              ║"
-          echo "║  📌 VNC URL: ${TUNNEL_URL}/vnc.html                          ║"
-          echo "║                                                              ║"
-          echo "║  🔑 Password: ${{ github.event.inputs.vnc_password }}                                     ║"
-          echo "║                                                              ║"
-          echo "║  ⏱️  Session: ${{ github.event.inputs.session_hours }} hours                                            ║"
-          echo "║                                                              ║"
-          echo "╠══════════════════════════════════════════════════════════════╣"
-          echo "║  ✅ Chrome is ALREADY open with:                             ║"
-          echo "║     • TubeGen App (localhost:5173)                           ║"
-          echo "║     • Meta.ai (log in to enable video generation)            ║"
-          echo "║                                                              ║"
-          echo "║  🎬 TO GENERATE VIDEOS:                                      ║"
-          echo "║     1. Connect to VNC URL above                              ║"
-          echo "║     2. Log into Meta.ai in the Chrome tab                    ║"
-          echo "║     3. Switch to TubeGen tab                                 ║"
-          echo "║     4. Use Consultant → 'send to director'                   ║"
-          echo "║     5. Videos generate automatically!                        ║"
-          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo "╔══════════════════════════════════════════════════════════════════════════╗"
+          echo "║           🎬  REMOTE VIDEO GENERATION SERVER READY!                      ║"
+          echo "╠══════════════════════════════════════════════════════════════════════════╣"
+          echo "║                                                                          ║"
+          echo "║  📌 REMOTE API URL:                                                      ║"
+          echo "║                                                                          ║"
+          echo "║     $API_URL"
+          echo "║                                                                          ║"
+          echo "║  ⏱️  Session: ${{ github.event.inputs.session_hours }} hours                                                   ║"
+          echo "║                                                                          ║"
+          echo "╠══════════════════════════════════════════════════════════════════════════╣"
+          echo "║                                                                          ║"
+          echo "║  🔧 HOW TO USE:                                                          ║"
+          echo "║                                                                          ║"
+          echo "║  1. Copy the API URL above                                               ║"
+          echo "║                                                                          ║"
+          echo "║  2. In your LOCAL TubeGen app, Click on 'Model Selectors'                ║"
+          echo "║                                                                          ║"  
+          echo "║  3. Paste the API URL in 'Remote Server URL' field                       ║"
+          echo "║                                                                          ║"
+          echo "║  4. Use Consultant → Generate Videos → They run on THIS server!         ║"
+          echo "║                                                                          ║"
+          echo "╚══════════════════════════════════════════════════════════════════════════╝"
           echo ""
-          echo "TUNNEL_URL=${TUNNEL_URL}/vnc.html" >> $GITHUB_ENV
+          echo "API_URL=$API_URL" >> $GITHUB_ENV
 
-      - name: ⏳ Keep Session Alive
+      - name: ⏳ Keep Server Alive
         run: |
           HOURS=${{ github.event.inputs.session_hours }}
           
-          echo "🟢 Session active for $HOURS hours..."
-          echo "📌 VNC URL: $TUNNEL_URL"
+          echo "🟢 Server active for $HOURS hours..."
+          echo "📌 API URL: $API_URL"
+          echo ""
+          echo "Waiting for video generation requests..."
           echo ""
           
-          # Create a helper script for the user
-          cat > /tmp/tubegen-help.sh << 'EOF'
-          echo "=== TubeGen Quick Commands ==="
-          echo "cd $PROJECT_DIR           # Go to project"
-          echo "cat /tmp/server.log       # View server logs"
-          echo "cat /tmp/frontend.log     # View frontend logs"
-          echo "cat /tmp/tunnel.log       # View tunnel logs"
-          EOF
-          chmod +x /tmp/tubegen-help.sh
+          # Monitor server logs
+          tail -f /tmp/server.log 2>/dev/null &
           
-          # Hourly status updates
           for i in $(seq 1 $HOURS); do
-            echo "⏰ Hour $i of $HOURS - Services running..."
-            echo "   Server PID: $SERVER_PID | Frontend PID: $FRONTEND_PID"
+            echo "⏰ Hour $i of $HOURS - Server running..."
             sleep 3600
           done
           
-          echo "✅ Session ended after $HOURS hours"
+          echo "✅ Session ended"
 
       - name: 📤 Upload Generated Videos
         if: always()
@@ -191,6 +127,5 @@ jobs:
           path: |
             ${{ github.workspace }}/server/public/scenes/**/*.mp4
             ${{ github.workspace }}/server/output/**/*.mp4
-            ${{ github.workspace }}/output/**/*.mp4
           if-no-files-found: ignore
           retention-days: 7
