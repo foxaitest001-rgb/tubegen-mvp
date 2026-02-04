@@ -74,9 +74,16 @@ function App() {
       const nicheToUse = config.niche || niche;
       const lengthToUse = config.videoLength || videoLength;
       const styleToUse = config.voiceStyle || voiceStyle;
+      const visualStyleToUse = config.visualStyle || 'Cinematic'; // Default to cinematic
 
       console.log("[Pipeline] Step 1: Generating script...");
-      const scriptResult = await generateNarrative(topicToUse, nicheToUse, referenceUrl, lengthToUse, styleToUse);
+      console.log(`[Pipeline] Visual Style: ${visualStyleToUse}`);
+      const scriptResult = await generateNarrative(topicToUse, nicheToUse, referenceUrl, lengthToUse, styleToUse, visualStyleToUse);
+
+      // Store visual style in result for later use by Director
+      if (scriptResult) {
+        scriptResult.visualStyle = visualStyleToUse;
+      }
 
       if (!scriptResult || !scriptResult.structure) {
         throw new Error("Script generation failed");
@@ -97,14 +104,43 @@ function App() {
       let totalScenes = scriptResult.structure.length;
       const generatedAudios: { name: string, url: string }[] = [];
 
-      // Helper to download a blob URL
-      const downloadAudio = (url: string, filename: string) => {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+      // Helper to save audio to server project folder
+      const saveAudioToServer = async (url: string, filename: string, projectTitle: string, serverUrl: string) => {
+        try {
+          let base64 = '';
+          if (typeof url === 'string' && url.startsWith('data:')) {
+            base64 = url;
+          } else {
+            const blob = await fetch(url).then(r => r.blob());
+            const reader = new FileReader();
+            await new Promise((resolve) => {
+              reader.onloadend = () => { base64 = reader.result as string; resolve(true); };
+              reader.readAsDataURL(blob);
+            });
+          }
+
+          const res = await fetch(`${serverUrl}/save-audio`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename,
+              audioData: base64,
+              projectName: projectTitle  // Pass project name for folder creation
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            console.log(`[Audio] ✅ Saved to project folder: ${filename} -> ${data.projectFolder || 'server'}`);
+            return true;
+          } else {
+            console.warn(`[Audio] ⚠️ Save failed for ${filename}`);
+            return false;
+          }
+        } catch (err) {
+          console.error(`[Audio] Save error for ${filename}:`, err);
+          return false;
+        }
       };
 
       // Generate Hook audio if present
@@ -147,17 +183,24 @@ function App() {
       setResult({ ...scriptResult }); // Update result with audio URLs
       console.log("[Pipeline] ✅ All voiceovers generated!");
 
-      // AUTO-DOWNLOAD ALL VOICEOVERS
-      console.log(`[Pipeline] 📥 Downloading ${generatedAudios.length} voiceover files...`);
-      for (const audio of generatedAudios) {
-        downloadAudio(audio.url, audio.name);
-        await new Promise(r => setTimeout(r, 300)); // Small delay between downloads
-      }
-      console.log("[Pipeline] ✅ All voiceovers downloaded!");
-
       // Step 3: Send to Meta.ai Director (Local or Remote)
       const serverUrl = remoteServerUrl.trim() || 'http://localhost:3001';
       const isRemote = !!remoteServerUrl.trim();
+
+      // Get project title for folder naming
+      const projectTitle = scriptResult.title_options?.[0] || `video_${Date.now()}`;
+
+      // SAVE ALL VOICEOVERS TO SERVER PROJECT FOLDER
+      console.log(`[Pipeline] 📥 Saving ${generatedAudios.length} voiceover files to project folder...`);
+      console.log(`[Pipeline] Project: ${projectTitle}`);
+      console.log(`[Pipeline] Server: ${serverUrl}`);
+
+      for (const audio of generatedAudios) {
+        await saveAudioToServer(audio.url, audio.name, projectTitle, serverUrl);
+        await new Promise(r => setTimeout(r, 200)); // Small delay between saves
+      }
+      console.log("[Pipeline] ✅ All voiceovers saved to project folder!");
+
       console.log(`[Pipeline] Step 3: Sending to ${isRemote ? 'REMOTE' : 'LOCAL'} Director: ${serverUrl}`);
       await new Promise(r => setTimeout(r, 500));
 
@@ -232,12 +275,18 @@ function App() {
               });
             }
             const safeTitle = result.title_options?.[0]?.substring(0, 10).replace(/[^a-z0-9]/gi, '_') || 'video';
-            await fetch('http://localhost:3001/save-audio', {
+            const projectTitle = result.title_options?.[0] || 'video';
+            const serverUrl = remoteServerUrl.trim() || 'http://localhost:3001';
+            await fetch(`${serverUrl}/save-audio`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ filename: `hook_${safeTitle}.mp3`, audioData: base64 })
+              body: JSON.stringify({
+                filename: `hook_${safeTitle}.mp3`,
+                audioData: base64,
+                projectName: projectTitle
+              })
             });
-            console.log("[Audio] Hook Saved to Server.");
+            console.log("[Audio] Hook Saved to project folder.");
           } catch (err) {
             console.warn("Could not save hook audio", err);
           }
@@ -370,12 +419,18 @@ function App() {
                 }
 
                 const safeTitle = result.title_options?.[0]?.substring(0, 10).replace(/[^a-z0-9]/gi, '_') || 'audio';
+                const projectTitle = result.title_options?.[0] || 'video';
+                const serverUrl = remoteServerUrl.trim() || 'http://localhost:3001';
                 const filename = `voiceover_scene_${i + 1}_${safeTitle}.mp3`;
 
-                const saveRes = await fetch('http://localhost:3001/save-audio', {
+                const saveRes = await fetch(`${serverUrl}/save-audio`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ filename, audioData: base64 })
+                  body: JSON.stringify({
+                    filename,
+                    audioData: base64,
+                    projectName: projectTitle
+                  })
                 });
 
                 if (!saveRes.ok) {
@@ -383,7 +438,7 @@ function App() {
                   console.error("Save Audio API Error:", errText);
                   alert(`Audio Save Failed for Scene ${i + 1}: ${errText}`);
                 } else {
-                  console.log(`[Audio] Saved: ${filename}`);
+                  console.log(`[Audio] Saved to project folder: ${filename}`);
                 }
 
               } catch (saveErr: any) {

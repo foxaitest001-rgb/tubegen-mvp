@@ -115,7 +115,7 @@ async function interruptibleSleep(ms) {
 }
 
 // --- THE DIRECTOR AGENT (V2: Flat Queue Architecture) ---
-async function generateVideo(tasks, projectDir) {
+async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photorealistic') {
     // Use provided project dir or current
     const outputPublic = projectDir?.public || currentProjectDir.public;
     const outputServer = projectDir?.server || currentProjectDir.server;
@@ -125,6 +125,7 @@ async function generateVideo(tasks, projectDir) {
     directorState.restart = false;
     directorLog(0, "INIT", `Initializing Director Agent...`);
     directorLog(0, "PROJECT", `Output folder: ${projectDir?.name || 'default'}`);
+    directorLog(0, "STYLE", `Visual Style: ${visualStyle}`);
 
     let browser;
     let page;
@@ -258,7 +259,25 @@ async function generateVideo(tasks, projectDir) {
 
                 // TYPE
                 const cleanPrompt = prompt.replace(/^Shot\s+\d+(\s*\(.*?\))?:?\s*/i, "").trim();
-                const fullPrompt = `Create a photorealistic video (16:9 cinematic): ${cleanPrompt}`;
+
+                // Build prompt prefix based on visual style
+                let stylePrefix = 'Create a photorealistic video (16:9 cinematic)';
+                const lowerStyle = visualStyle.toLowerCase();
+                if (lowerStyle.includes('2d') || lowerStyle.includes('animated')) {
+                    stylePrefix = 'Create a 2D animated video (16:9, motion graphics, vibrant colors)';
+                } else if (lowerStyle.includes('anime')) {
+                    stylePrefix = 'Create an anime-style video (16:9, Japanese animation, cel-shaded)';
+                } else if (lowerStyle.includes('3d') || lowerStyle.includes('cgi')) {
+                    stylePrefix = 'Create a 3D CGI video (16:9, Pixar-quality, smooth textures)';
+                } else if (lowerStyle.includes('horror')) {
+                    stylePrefix = 'Create a dark atmospheric video (16:9, horror style, unsettling)';
+                } else if (lowerStyle.includes('retro')) {
+                    stylePrefix = 'Create a retro-style video (16:9, vintage 80s aesthetic, film grain)';
+                } else if (lowerStyle.includes('documentary')) {
+                    stylePrefix = 'Create a documentary-style video (16:9, raw footage, natural lighting)';
+                }
+
+                const fullPrompt = `${stylePrefix}: ${cleanPrompt}`;
 
                 directorLog(sceneNum, "STEP", `📍 Step 3: Typing prompt (${fullPrompt.length} chars)...`);
                 await page.keyboard.type(fullPrompt, { delay: 30 });
@@ -508,10 +527,13 @@ app.post('/generate-video', async (req, res) => {
     const title = scriptData.title_options?.[0] || scriptData.title || `video_${Date.now()}`;
     const projectDir = createProjectFolder(title);
 
+    // Get visual style from script data (set by Consultant)
+    const visualStyle = scriptData.visualStyle || 'Cinematic photorealistic';
+
     directorState.paused = false;
     directorState.stopped = false;
-    generateVideo(scriptData.structure, projectDir).catch(console.error);
-    res.json({ status: "started", message: "Director Agent started.", projectFolder: projectDir.name });
+    generateVideo(scriptData.structure, projectDir, visualStyle).catch(console.error);
+    res.json({ status: "started", message: "Director Agent started.", projectFolder: projectDir.name, visualStyle });
 });
 
 app.post('/save-audio', async (req, res) => {

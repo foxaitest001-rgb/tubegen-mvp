@@ -52,9 +52,31 @@ const getRetentionStrategy = (niche: string) => {
   return viralStrategies.Universal;
 };
 
-export async function generateNarrative(topic: string, niche: string, referenceUrl?: string, videoLength?: string, voiceStyle?: string) {
+export async function generateNarrative(topic: string, niche: string, referenceUrl?: string, videoLength?: string, voiceStyle?: string, visualStyle?: string) {
   const strategy = getRetentionStrategy(niche);
   console.log(`[Service] Applied Viral Strategy: ${strategy.structure_name} for niche: ${niche}`);
+  console.log(`[Service] Visual Style: ${visualStyle || 'Cinematic/Photorealistic (default)'}`);
+  // Determine the visual style for video prompts
+  const effectiveVisualStyle = visualStyle || 'Cinematic photorealistic';
+  const visualStyleGuide = {
+    '2d': '2D animated, vibrant colors, clean vector graphics, motion graphics style, flat design with subtle shadows',
+    'anime': 'Anime style, Japanese animation aesthetic, expressive characters, dynamic poses, cel-shaded',
+    'cinematic': 'Cinematic photorealistic, 35mm film, shallow depth of field, dramatic lighting, movie quality',
+    '3d': '3D rendered, Pixar-quality animation, smooth textures, volumetric lighting, high-fidelity CGI',
+    'documentary': 'Documentary style, raw footage aesthetic, natural lighting, handheld camera feel, authentic',
+    'horror': 'Dark and atmospheric, unsettling imagery, deep shadows, desaturated colors, ominous mood',
+    'retro': 'Retro aesthetic, vintage film grain, 80s/90s color palette, nostalgic vibe, VHS texture'
+  };
+
+  // Match user's style to guide (case insensitive partial match)
+  const lowerStyle = effectiveVisualStyle.toLowerCase();
+  let styleDescription = visualStyleGuide['cinematic']; // default
+  for (const [key, value] of Object.entries(visualStyleGuide)) {
+    if (lowerStyle.includes(key)) {
+      styleDescription = value;
+      break;
+    }
+  }
 
   const directorContext = getDirectorContext();
 
@@ -62,6 +84,13 @@ export async function generateNarrative(topic: string, niche: string, referenceU
   You specialize in the '${niche}' niche and assume the archetype of: ${strategy.structure_name}.
   
   GOAL: Create a viral retention-based script + detailed AI art prompts.
+  
+  ## VISUAL STYLE (USER PREFERENCE - CRITICAL):
+  **ALL video_prompts MUST use this visual style: ${effectiveVisualStyle}**
+  Style Guide: ${styleDescription}
+  - Every "video_prompts" entry must explicitly include this style in the description.
+  - Do NOT generate photorealistic prompts if user asked for 2D/anime.
+  - Do NOT generate animated prompts if user asked for cinematic.
   
   ## CORE ARCHITECTURE: ${strategy.structure_name}
   You MUST adhere to this exact pacing structure tailored for this niche:
@@ -363,20 +392,29 @@ export async function generateVideoWithPuter(
   return null;
 }
 
-// --- DYNAMIC VISUAL EXPANSION ---
 export async function generateExtraVideoPrompts(
   niche: string,
   voiceoverContext: string,
   existingPrompts: string[],
-  countNeeded: number
+  countNeeded: number,
+  visualStyle?: string
 ) {
   try {
     const directorContext = getDirectorContext();
     const strategy = getRetentionStrategy(niche);
 
+    // Use provided visual style or default to cinematic
+    const effectiveStyle = visualStyle || 'Cinematic photorealistic';
+
     const systemPrompt = `You are an Expert Visual Director API.
-    ROLE: Expand a video scene by generating ${countNeeded} NEW, UNIQUE, and CINEMATIC video prompts.
+    ROLE: Expand a video scene by generating ${countNeeded} NEW, UNIQUE video prompts.
     CONTEXT: The voiceover is longer than expected, so we need more B-Roll shots to cover the audio.
+    
+    ## CRITICAL - VISUAL STYLE (USER PREFERENCE):
+    **ALL prompts MUST use this visual style: ${effectiveStyle}**
+    - Match the existing shots' style exactly.
+    - If existing shots are 2D animated, new shots must also be 2D animated.
+    - If existing shots are cinematic, new shots must also be cinematic.
     
     STYLE: ${strategy.structure_name}
     KNOWLEDGE BASE: ${directorContext}
@@ -416,19 +454,29 @@ export async function generateExtraVideoPrompts(
   }
 }
 
-// --- JUST-IN-TIME (JIT) VISUAL GENERATION ---
 export async function generateExactVisuals(
   niche: string,
   voiceoverContext: string,
-  countNeeded: number
+  countNeeded: number,
+  visualStyle?: string
 ) {
   try {
     const directorContext = getDirectorContext();
     const strategy = getRetentionStrategy(niche);
 
+    // Use provided visual style or default to cinematic
+    const effectiveStyle = visualStyle || 'Cinematic photorealistic';
+
     const systemPrompt = `You are an Expert Visual Director API.
     ROLE: Generate a perfectly paced visual script for a video.
     CONTEXT: We have the final voiceover and need exactly ${countNeeded} visuals to match the duration (5-7s each).
+    
+    ## CRITICAL - VISUAL STYLE (USER PREFERENCE):
+    **ALL prompts MUST use this visual style: ${effectiveStyle}**
+    - If "2D" or "animated": Use 2D animation style, motion graphics, clean vectors.
+    - If "anime": Use Japanese anime aesthetic, cel-shaded, expressive.
+    - If "cinematic": Use photorealistic, 35mm film, dramatic lighting.
+    - If "3D": Use 3D CGI renders, Pixar quality.
     
     STYLE: ${strategy.structure_name}
     KNOWLEDGE BASE: ${directorContext}
@@ -478,15 +526,26 @@ export async function consultWithUser(history: { role: string, content: string }
       1. TOPIC (What is it about?)
       2. NICHE (Gaming, Tech, Documentary, History, etc.)
       3. LENGTH (Target word count OR "Manual Duration" in seconds)
-      4. STYLE (Cinematic, Fast-paced, Scary, etc.)
+      4. VOICE STYLE (Voice tone: Friendly, Dramatic, Scary, etc.)
+      5. VISUAL STYLE (Visual look: "Cinematic/Photorealistic", "2D Animated", "Anime", "3D CGI", "Documentary", "Horror", "Retro")
 
     KNOWLEDGE BASE: ${directorContext}
+
+    VISUAL STYLE EXAMPLES (help user choose):
+    - "Cinematic" = Photorealistic, 35mm film, movie quality, dramatic lighting
+    - "2D Animated" = Motion graphics, vector art, clean flat design, vibrant colors
+    - "Anime" = Japanese animation style, cel-shaded, expressive characters
+    - "3D CGI" = Pixar-quality 3D renders, smooth textures, volumetric lighting
+    - "Documentary" = Raw footage, natural lighting, authentic feel
+    - "Horror" = Dark, atmospheric, unsettling imagery, deep shadows
+    - "Retro" = Vintage film grain, 80s/90s aesthetic, VHS texture
 
     INSTRUCTIONS:
     1. Be brief, professional, and helpful. 
     2. Ask ONE clarifying question at a time if details are missing.
     3. If the user mentions "External Audio" or "I have a voiceover", ask for the duration in seconds.
-    4. WHEN YOU HAVE ALL 4 ITEMS (Topic, Niche, Length, Style):
+    4. If the user hasn't specified a visual style, ASK: "What visual style do you want? (Cinematic, 2D Animated, Anime, etc.)"
+    5. WHEN YOU HAVE ALL 5 ITEMS (Topic, Niche, Length, Voice Style, Visual Style):
        - Respond with a special JSON block at the END of your message.
        - JSON Format: 
          \`\`\`json
@@ -495,10 +554,11 @@ export async function consultWithUser(history: { role: string, content: string }
            "topic": "...",
            "niche": "...",
            "videoLength": "1500 Words" (OR "MANUAL: 60s"),
-           "voiceStyle": "..."
+           "voiceStyle": "...",
+           "visualStyle": "Cinematic" (or "2D Animated", "Anime", etc.)
          }
          \`\`\`
-    5. If not ready, "ready": false.
+    6. If not ready, "ready": false.
 
     CURRENT HISTORY:
     ${history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}
