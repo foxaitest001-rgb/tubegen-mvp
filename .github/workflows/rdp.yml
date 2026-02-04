@@ -47,7 +47,7 @@ jobs:
           cd server && npm install && cd ..
           echo "✅ TubeGen dependencies installed"
 
-      - name: 🔧 Configure VNC Server
+      - name: 🔧 Start Virtual Display & VNC
         run: |
           # Create VNC password file
           mkdir -p ~/.vnc
@@ -59,13 +59,13 @@ jobs:
           sleep 2
           
           # Start XFCE desktop
-          startxfce4 &
+          DISPLAY=:99 startxfce4 &
           sleep 3
           
           # Start VNC server
-          x11vnc -display :99 -rfbauth ~/.vnc/passwd -forever -shared -bg
+          x11vnc -display :99 -rfbauth ~/.vnc/passwd -forever -shared -bg -rfbport 5900
           
-          echo "✅ VNC server started on display :99"
+          echo "✅ VNC server started on display :99, port 5900"
 
       - name: 🌍 Setup noVNC (Browser Access)
         run: |
@@ -81,28 +81,39 @@ jobs:
           sleep 3
           echo "✅ TubeGen Director Agent running on port 3001"
 
-      - name: 🔗 Setup Tunnel (ngrok/localtunnel)
+      - name: 🔗 Setup Cloudflare Tunnel (Reliable & Free)
         run: |
-          # Install localtunnel (free, no account needed)
-          npm install -g localtunnel
+          # Download cloudflared
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+          rm cloudflared-linux-amd64.deb
           
-          # Start tunnel for noVNC (port 6080)
-          npx localtunnel --port 6080 --subdomain tubegen-rdp-${{ github.run_id }} > tunnel.log 2>&1 &
-          sleep 5
+          # Start Cloudflare Quick Tunnel for noVNC (port 6080)
+          cloudflared tunnel --url http://localhost:6080 > tunnel.log 2>&1 &
           
-          # Extract URL
-          TUNNEL_URL=$(cat tunnel.log | grep -oP 'your url is: \K.*' || echo "Check logs for URL")
-          echo "TUNNEL_URL=$TUNNEL_URL" >> $GITHUB_ENV
+          # Wait for tunnel to be ready
+          sleep 10
           
+          # Extract and display the URL
+          TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' tunnel.log | head -1)
+          
+          echo ""
           echo "=============================================="
           echo "🖥️  REMOTE DESKTOP CONNECTION INFO"
           echo "=============================================="
           echo ""
-          echo "📌 noVNC URL (Browser): Check tunnel.log for URL"
+          echo "📌 noVNC URL: $TUNNEL_URL"
+          echo ""
           echo "🔑 Password: ${{ github.event.inputs.vnc_password }}"
           echo ""
-          echo "⏱️ Session will run for ${{ github.event.inputs.session_hours }} hours"
+          echo "⏱️ Session: ${{ github.event.inputs.session_hours }} hours"
           echo "=============================================="
+          echo ""
+          echo "TUNNEL_URL=$TUNNEL_URL" >> $GITHUB_ENV
+          
+          # Also show the log for debugging
+          echo "Full tunnel log:"
+          cat tunnel.log
 
       - name: 📋 Display Connection Instructions
         run: |
@@ -111,44 +122,41 @@ jobs:
           echo "📖 HOW TO CONNECT:"
           echo "=============================================="
           echo ""
-          echo "1. Open the noVNC URL in your browser"
+          echo "1. Open the noVNC URL above in your browser"
           echo "2. Click 'Connect'"
           echo "3. Enter password: ${{ github.event.inputs.vnc_password }}"
           echo "4. You now have a full Linux desktop!"
           echo ""
           echo "🎬 TO GENERATE VIDEOS:"
-          echo "5. Open Chrome (already installed)"
+          echo "5. Open Chrome (in Applications menu)"
           echo "6. Go to meta.ai and log in"
-          echo "7. Open Terminal and run:"
-          echo "   cd /home/runner/work/*/tubegen-mvp"
-          echo "   npm run dev"
-          echo "8. Open localhost:5173 in Chrome"
-          echo "9. Use the Consultant to generate videos!"
+          echo "7. Open Terminal (Applications > Terminal)"
+          echo "8. Run: cd /home/runner/work/*/*"
+          echo "9. Run: npm run dev"
+          echo "10. Open http://localhost:5173 in Chrome"
+          echo "11. Use the Consultant to generate videos!"
           echo ""
           echo "=============================================="
-          
-          # Show tunnel log
-          echo "Tunnel Log:"
-          cat tunnel.log || echo "Tunnel starting..."
 
       - name: ⏳ Keep Session Alive
         run: |
-          # Keep the session alive for specified hours
           HOURS=${{ github.event.inputs.session_hours }}
-          SECONDS_TO_WAIT=$((HOURS * 3600))
           
-          echo "Session will remain active for $HOURS hours..."
-          echo "Connection info above. Do NOT close this workflow."
+          echo "🟢 Session active for $HOURS hours..."
+          echo "📌 Connection URL: $TUNNEL_URL"
+          echo ""
+          echo "Do NOT close this workflow tab!"
+          echo ""
           
-          # Heartbeat loop
+          # Show hourly updates
           for i in $(seq 1 $HOURS); do
-            echo "⏰ Hour $i of $HOURS - Session still active..."
+            echo "⏰ Hour $i of $HOURS - Session active..."
             sleep 3600
           done
           
           echo "✅ Session ended after $HOURS hours"
 
-      - name: 📤 Upload Generated Videos (if any)
+      - name: 📤 Upload Generated Videos
         if: always()
         uses: actions/upload-artifact@v4
         with:
