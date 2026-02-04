@@ -1,0 +1,90 @@
+{
+    "Universal": {
+        "structure_name": "The Universal Viral Curve (MrBeast/Netflix)",
+        "hook_strategy": "The 'Impossible' Question or 'High Stakes' result shown immediately.",
+        "pacing": "Fast. New visual/info every 3-5 seconds. Escalating stakes every minute.",
+        "emotional_arc": "Curiosity -> Tension -> Shock -> Satisfaction",
+        "retention_rules": [
+            "The 'Fichten Curve': Continuous rising action.",
+            "No Fluff: Cut anything that doesn't advance the plot.",
+            "Midpoint Twist: Re-contextualize the goal halfway through."
+        ]
+    },
+    "Gaming": {
+        "structure_name": "The 'Zero to Hero' / 'Impossible Challenge' Arc",
+        "hook_strategy": "Show the failure first (The 'Noob' moment) OR the God-Tier loot. Shout out the challenge constraint immediately.",
+        "pacing": "Hyper-Fast (Gen Z/Alpha attention). Meme-style editing cues. Loud, energetic delivery.",
+        "emotional_arc": "Frustration -> Determination -> Near-Miss -> Victory",
+        "retention_rules": [
+            "Spectacle over Logic: If it looks cool, keep it.",
+            "The 30-Second Rule: Something funny or loud must happen every 30s.",
+            "Community Callouts: Reference memes or internal jokes."
+        ]
+    },
+    "Documentary": {
+        "structure_name": "The 'Golden Thread' Mystery (Veritasium/Vox Style)",
+        "hook_strategy": "Present a Counter-Intuitive Fact or a 'Glitch in the Matrix'. 'You think you know X, but actually...'",
+        "pacing": "Measured but dense. Each section reveals a new layer of the mystery.",
+        "emotional_arc": "Intrigue -> Confusion -> Realization -> Awe",
+        "retention_rules": [
+            "The Visual Analogy: Explain complex topics with simple physical props or metaphors.",
+            "Open Loops: Start a side-story but don't finish it until later.",
+            "Deep Dive: Don't just skim surface level; go oddly deep into one specific detail."
+        ]
+    },
+    "Finance": {
+        "structure_name": "The 'Wealth Gap' Analysis (hormozi/Iman Gadzhi Style)",
+        "hook_strategy": "The 'Pain Point' or 'The Secret Number'. 'Why you're staying poor' or 'How I made $X in Y days'.",
+        "pacing": "Authoritative, Punchy. Text on screen for every number. High contrast.",
+        "emotional_arc": "Fear of Missing Out (FOMO) -> Hope -> Action Plan",
+        "retention_rules": [
+            "Social Proof: Show charts, screenshots, or receipts early.",
+            "Step-by-Step: Number your lists (Step 1, Step 2). People watch to the end of a list.",
+            "Contrarian Take: Attack a popular belief ('Savings accounts are a scam')."
+        ]
+    },
+    "Tech": {
+        "structure_name": "The 'Verdict First' Review (MKBHD/MrWhosetheboss)",
+        "hook_strategy": "The B-Roll Beauty Shot + The Conclusion Tease. 'Is this worth $1000?'",
+        "pacing": "Crisp. Clean transitions. Focus on aesthetics and specs.",
+        "emotional_arc": "Desire -> Skepticism -> Validation",
+        "retention_rules": [
+            "The Easter Egg: Hide small details for commenters to find.",
+            "Feature Stacking: Compare it to the 'King' of the category.",
+            "The 'Nitpick': Find one small flaw to build trust."
+        ]
+    },
+    "Horror": {
+        "structure_name": "The 'Slow Burn' Dread (Nexpo/JCS)",
+        "hook_strategy": "The 'Uncanny Valley' Audio/Visual. A distorted image or 911 call audio. Atmosphere is king.",
+        "pacing": "Slow, deliberate. Silence is used as a weapon.",
+        "emotional_arc": "Unsettled -> Dread -> Terror -> Lingering Fear",
+        "retention_rules": [
+            "Show Less: Let the audience imagine the monster.",
+            "Audio Design: Use low-frequency hums (Infrasound) to cause unease.",
+            "The 'Real' Evidence: Emphasize that 'This is 100% true'."
+        ]
+    },
+    "Health": {
+        "structure_name": "The 'Biological Hack' (Huberman/Athlean-X)",
+        "hook_strategy": "The 'Mistake' you are making. 'Stop doing Crunches!'",
+        "pacing": "Educational-Authoritative. Diagrams formatted over video.",
+        "emotional_arc": "Problem Awareness -> Scientific Explanation -> Solution",
+        "retention_rules": [
+            "Anatomy Visuals: Show the muscle/organ working.",
+            "Myth Busting: Destroy a common misconception.",
+            "Immediate Application: Give a tip they can do *right now*."
+        ]
+    },
+    "Vlog": {
+        "structure_name": "The 'Hero's Journey' Day (Casey Neistat)",
+        "hook_strategy": "In Medias Res. Start in the middle of the chaos/action.",
+        "pacing": "Rhythmic. Music drives the cuts.",
+        "emotional_arc": "Chaos -> Reflection -> Resolution",
+        "retention_rules": [
+            "The Time-Lapse: Show passage of time cinematically.",
+            "The 'Confessional': Talk directly to lens in a quiet moment.",
+            "Show the Gear: Briefly mention setup to engage tech nerds."
+        ]
+    }
+}
