@@ -1,14 +1,20 @@
-name: Remote Video Generation Server
-# This workflow runs a headless video generation server on GitHub Actions
-# Your local TubeGen app will send requests to this server for video generation
+name: Remote Video Generation (Hybrid)
+# Combines VNC desktop (for Meta.ai login) + API tunnel (for remote video generation)
 
 on:
   workflow_dispatch:
     inputs:
+      vnc_password:
+        description: 'VNC Password (min 6 chars)'
+        required: true
+        default: 'tubegen123'
       session_hours:
         description: 'Session duration (max 6)'
         required: true
         default: '5'
+
+env:
+  PROJECT_DIR: ${{ github.workspace }}
 
 jobs:
   video-server:
@@ -19,12 +25,18 @@ jobs:
       - name: 📦 Checkout Repository
         uses: actions/checkout@v4
 
+      - name: 🖥️ Install Desktop & VNC
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xfce4 xfce4-goodies dbus-x11 xterm
+          sudo apt-get install -y x11vnc xvfb novnc websockify
+          echo "✅ Desktop environment installed"
+
       - name: 🌐 Install Chrome
         run: |
           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
           rm google-chrome-stable_current_amd64.deb
-          sudo apt-get install -y xvfb
           echo "✅ Chrome installed"
 
       - name: 📦 Install Node.js
@@ -34,89 +46,104 @@ jobs:
 
       - name: 📦 Install Server Dependencies
         run: |
-          cd server
-          npm install
+          cd server && npm install && cd ..
           echo "✅ Server dependencies installed"
 
-      - name: 🔧 Start Virtual Display
+      - name: 🔧 Start Virtual Display & VNC
         run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1920x1080x24 &
           sleep 2
-          echo "DISPLAY=:99" >> $GITHUB_ENV
-          echo "✅ Virtual display started"
+          
+          mkdir -p ~/.vnc
+          x11vnc -storepasswd "${{ github.event.inputs.vnc_password }}" ~/.vnc/passwd
+          
+          DISPLAY=:99 startxfce4 &
+          sleep 5
+          
+          x11vnc -display :99 -rfbauth ~/.vnc/passwd -forever -shared -bg -rfbport 5900
+          websockify --web=/usr/share/novnc/ 6080 localhost:5900 &
+          sleep 2
+          
+          echo "✅ VNC ready on port 6080"
+
+      - name: 🌐 Open Chrome with Meta.ai
+        run: |
+          export DISPLAY=:99
+          google-chrome --no-sandbox --disable-gpu --user-data-dir=/tmp/chrome-profile https://meta.ai &
+          sleep 5
+          echo "✅ Chrome opened with Meta.ai"
 
       - name: 🚀 Start Video Generation Server
         run: |
-          cd server
           export DISPLAY=:99
-          
-          # Start the server with CORS enabled for remote access
-          node index.js &
-          sleep 5
-          
-          # Verify server is running
-          curl -s http://localhost:3001/health || echo "Health endpoint not available"
-          echo "✅ Video generation server running on port 3001"
+          cd server
+          node index.js > /tmp/server.log 2>&1 &
+          sleep 3
+          echo "✅ Director Agent running on port 3001"
 
-      - name: 🔗 Setup Cloudflare Tunnel for API
+      - name: 🔗 Setup Cloudflare Tunnels
         run: |
           wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared-linux-amd64.deb
           rm cloudflared-linux-amd64.deb
           
-          # Tunnel the server API (port 3001)
-          cloudflared tunnel --url http://localhost:3001 > /tmp/tunnel.log 2>&1 &
-          sleep 10
+          # Tunnel 1: VNC (for login)
+          cloudflared tunnel --url http://localhost:6080 > /tmp/vnc_tunnel.log 2>&1 &
+          sleep 8
+          VNC_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/vnc_tunnel.log | head -1)
           
-          # Extract URL
-          API_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
+          # Tunnel 2: API (for video generation)
+          cloudflared tunnel --url http://localhost:3001 > /tmp/api_tunnel.log 2>&1 &
+          sleep 8
+          API_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/api_tunnel.log | head -1)
           
           echo ""
-          echo "╔══════════════════════════════════════════════════════════════════════════╗"
-          echo "║           🎬  REMOTE VIDEO GENERATION SERVER READY!                      ║"
-          echo "╠══════════════════════════════════════════════════════════════════════════╣"
-          echo "║                                                                          ║"
-          echo "║  📌 REMOTE API URL:                                                      ║"
-          echo "║                                                                          ║"
-          echo "║     $API_URL"
-          echo "║                                                                          ║"
-          echo "║  ⏱️  Session: ${{ github.event.inputs.session_hours }} hours                                                   ║"
-          echo "║                                                                          ║"
-          echo "╠══════════════════════════════════════════════════════════════════════════╣"
-          echo "║                                                                          ║"
-          echo "║  🔧 HOW TO USE:                                                          ║"
-          echo "║                                                                          ║"
-          echo "║  1. Copy the API URL above                                               ║"
-          echo "║                                                                          ║"
-          echo "║  2. In your LOCAL TubeGen app, Click on 'Model Selectors'                ║"
-          echo "║                                                                          ║"  
-          echo "║  3. Paste the API URL in 'Remote Server URL' field                       ║"
-          echo "║                                                                          ║"
-          echo "║  4. Use Consultant → Generate Videos → They run on THIS server!         ║"
-          echo "║                                                                          ║"
-          echo "╚══════════════════════════════════════════════════════════════════════════╝"
+          echo "╔═══════════════════════════════════════════════════════════════════════════════╗"
+          echo "║           🎬  REMOTE VIDEO GENERATION SERVER READY!                           ║"
+          echo "╠═══════════════════════════════════════════════════════════════════════════════╣"
+          echo "║                                                                               ║"
+          echo "║  📺 VNC URL (for login):                                                      ║"
+          echo "║     ${VNC_URL}/vnc.html                                                       ║"
+          echo "║     Password: ${{ github.event.inputs.vnc_password }}                         ║"
+          echo "║                                                                               ║"
+          echo "║  🔌 API URL (paste in TubeGen):                                               ║"
+          echo "║     ${API_URL}                                                                ║"
+          echo "║                                                                               ║"
+          echo "╠═══════════════════════════════════════════════════════════════════════════════╣"
+          echo "║                                                                               ║"
+          echo "║  📋 STEPS:                                                                    ║"
+          echo "║     1. Open VNC URL → Log into Meta.ai in Chrome                              ║"
+          echo "║     2. Copy API URL → Paste in TubeGen 'Remote Server URL'                    ║"
+          echo "║     3. Use Consultant → Videos generate on this server!                       ║"
+          echo "║                                                                               ║"
+          echo "╚═══════════════════════════════════════════════════════════════════════════════╝"
           echo ""
-          echo "API_URL=$API_URL" >> $GITHUB_ENV
+          
+          echo "VNC_URL=${VNC_URL}/vnc.html" >> $GITHUB_ENV
+          echo "API_URL=${API_URL}" >> $GITHUB_ENV
 
-      - name: ⏳ Keep Server Alive
+      - name: ⏳ Keep Server Alive & Show Logs
         run: |
           HOURS=${{ github.event.inputs.session_hours }}
           
-          echo "🟢 Server active for $HOURS hours..."
-          echo "📌 API URL: $API_URL"
+          echo "🟢 Server active for $HOURS hours"
+          echo "📺 VNC: $VNC_URL"
+          echo "🔌 API: $API_URL"
           echo ""
-          echo "Waiting for video generation requests..."
-          echo ""
+          echo "═══════════ SERVER LOG ═══════════"
           
-          # Monitor server logs
-          tail -f /tmp/server.log 2>/dev/null &
+          # Show server logs in real-time
+          tail -f /tmp/server.log &
+          TAIL_PID=$!
           
           for i in $(seq 1 $HOURS); do
-            echo "⏰ Hour $i of $HOURS - Server running..."
             sleep 3600
+            echo ""
+            echo "⏰ Hour $i of $HOURS completed"
           done
           
+          kill $TAIL_PID 2>/dev/null || true
           echo "✅ Session ended"
 
       - name: 📤 Upload Generated Videos
