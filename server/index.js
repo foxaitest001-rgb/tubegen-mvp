@@ -14,12 +14,49 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// DUAL OUTPUT DIRS
+// DUAL OUTPUT DIRS (Base directories)
 const PUBLIC_OUTPUT_DIR = path.join(__dirname, '..', 'public', 'output');
-const SERVER_OUTPUT_DIR = path.join(__dirname, 'output'); // User requested location
+const SERVER_OUTPUT_DIR = path.join(__dirname, 'output');
 
 if (!fs.existsSync(PUBLIC_OUTPUT_DIR)) fs.mkdirSync(PUBLIC_OUTPUT_DIR, { recursive: true });
 if (!fs.existsSync(SERVER_OUTPUT_DIR)) fs.mkdirSync(SERVER_OUTPUT_DIR, { recursive: true });
+
+// Current project folder (set when generation starts)
+let currentProjectDir = {
+    public: PUBLIC_OUTPUT_DIR,
+    server: SERVER_OUTPUT_DIR,
+    name: null
+};
+
+// Helper: Create project folder from title
+function createProjectFolder(title) {
+    if (!title) title = `project_${Date.now()}`;
+
+    // Sanitize title for folder name
+    const safeName = title
+        .substring(0, 50)
+        .replace(/[<>:"/\\|?*]/g, '')
+        .replace(/\s+/g, '_')
+        .toLowerCase();
+
+    const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const folderName = `${timestamp}_${safeName}`;
+
+    const publicDir = path.join(PUBLIC_OUTPUT_DIR, folderName);
+    const serverDir = path.join(SERVER_OUTPUT_DIR, folderName);
+
+    if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
+    if (!fs.existsSync(serverDir)) fs.mkdirSync(serverDir, { recursive: true });
+
+    currentProjectDir = {
+        public: publicDir,
+        server: serverDir,
+        name: folderName
+    };
+
+    console.log(`[PROJECT] Created folder: ${folderName}`);
+    return currentProjectDir;
+}
 
 // --- SSE LOGGING SYSTEM ---
 let clients = [];
@@ -77,11 +114,16 @@ async function interruptibleSleep(ms) {
 }
 
 // --- THE DIRECTOR AGENT (V2: Flat Queue Architecture) ---
-async function generateVideo(tasks) {
+async function generateVideo(tasks, projectDir) {
+    // Use provided project dir or current
+    const outputPublic = projectDir?.public || currentProjectDir.public;
+    const outputServer = projectDir?.server || currentProjectDir.server;
+
     directorState.stopped = false;
     directorState.paused = false;
     directorState.restart = false;
-    directorLog(0, "INIT", "Initializing Director Agent...");
+    directorLog(0, "INIT", `Initializing Director Agent...`);
+    directorLog(0, "PROJECT", `Output folder: ${projectDir?.name || 'default'}`);
 
     const browser = await puppeteer.launch({
         headless: false,
@@ -192,105 +234,158 @@ async function generateVideo(tasks) {
                 await interruptibleSleep(90000);
                 if (directorState.restart) continue;
 
-                // DOWNLOAD
+                // DOWNLOAD (Improved: Scroll first, wait for NEW video, track downloads)
                 try {
-                    let videoSrcs = [];
+                    // FIRST: Scroll to bottom of page to see new content
+                    await page.evaluate(() => {
+                        window.scrollTo(0, document.body.scrollHeight);
+                    });
+                    await new Promise(r => setTimeout(r, 2000));
+
+                    // Get count of videos BEFORE generation completes
+                    const videoCountBefore = await page.evaluate(() => {
+                        return document.querySelectorAll('video').length;
+                    });
+
+                    directorLog(sceneNum, `Shot ${shotNum}`, `📊 Found ${videoCountBefore} videos on page. Waiting for new video...`);
+
+                    // Wait for a NEW video to appear (poll for video count increase OR new src)
+                    let newVideoFound = false;
                     let retryCount = 0;
+                    const maxRetries = 12; // 12 * 10s = 2 minutes max wait
 
-                    while (retryCount < 3 && videoSrcs.length === 0) {
+                    while (!newVideoFound && retryCount < maxRetries) {
                         if (directorState.restart) break;
-                        try {
-                            // SCROLL TO BOTTOM OF PAGE FIRST (to find latest video)
-                            await page.evaluate(() => {
-                                window.scrollTo(0, document.body.scrollHeight);
-                            });
-                            await new Promise(r => setTimeout(r, 1000)); // Wait for scroll
 
-                            // Find all videos and get the LAST one (most recent)
-                            videoSrcs = await page.evaluate(() => {
-                                const videos = Array.from(document.querySelectorAll('video'));
-                                return videos.filter(v => v.src && v.src.length > 5).map(v => v.src);
-                            });
+                        // Scroll down again to ensure we see new content
+                        await page.evaluate(() => {
+                            window.scrollTo(0, document.body.scrollHeight);
+                        });
+                        await new Promise(r => setTimeout(r, 1000));
 
-                            if (videoSrcs.length === 0) {
-                                directorLog(sceneNum, `Shot ${shotNum}`, `⚠️ No videos found. Scrolling and retrying (${retryCount + 1}/3)...`);
-                                await interruptibleSleep(10000);
-                                retryCount++;
-                            }
-                        } catch (e) { break; }
+                        // Check for new videos
+                        const currentInfo = await page.evaluate((prevCount) => {
+                            const videos = Array.from(document.querySelectorAll('video'));
+                            const validVideos = videos.filter(v => v.src && v.src.length > 10 && !v.src.startsWith('blob:'));
+                            return {
+                                count: videos.length,
+                                validCount: validVideos.length,
+                                hasNew: videos.length > prevCount,
+                                latestSrc: validVideos.length > 0 ? validVideos[validVideos.length - 1].src : null
+                            };
+                        }, videoCountBefore);
+
+                        if (currentInfo.validCount > 0 && (currentInfo.hasNew || retryCount > 3)) {
+                            newVideoFound = true;
+                            directorLog(sceneNum, `Shot ${shotNum}`, `✅ New video detected! (${currentInfo.validCount} valid videos)`);
+                        } else {
+                            retryCount++;
+                            directorLog(sceneNum, `Shot ${shotNum}`, `⏳ Waiting for video render... (${retryCount}/${maxRetries})`);
+                            await interruptibleSleep(10000);
+                        }
                     }
 
                     if (directorState.restart) continue;
 
-                    if (videoSrcs.length > 0) {
-                        // GET THE LAST VIDEO (most recently generated, at bottom of page)
-                        const latestVideoSrc = videoSrcs[videoSrcs.length - 1];
+                    // NOW get the LAST video on the page (bottom-most = most recent)
+                    const latestVideoSrc = await page.evaluate(() => {
+                        const videos = Array.from(document.querySelectorAll('video'));
+                        // Filter for valid video sources (not blob:, has actual URL)
+                        const validVideos = videos.filter(v => v.src && v.src.length > 10 && !v.src.startsWith('blob:'));
+                        if (validVideos.length === 0) return null;
 
-                        directorLog(sceneNum, `Shot ${shotNum}`, `📥 Found ${videoSrcs.length} videos. Downloading LATEST (bottom of page)...`);
+                        // Get the LAST one (most recent, at bottom of page)
+                        const lastVideo = validVideos[validVideos.length - 1];
 
-                        const src = latestVideoSrc;
+                        // Scroll this video into view
+                        lastVideo.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-                        const client = await page.target().createCDPSession();
-                        // Default to PUBLIC output for browser downloads
-                        await client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: PUBLIC_OUTPUT_DIR });
+                        return lastVideo.src;
+                    });
 
-                        const videoElem = await page.evaluateHandle((src) => {
-                            return Array.from(document.querySelectorAll('video')).find(v => v.src === src);
-                        }, src);
-                        if (videoElem) { await videoElem.hover(); await new Promise(r => setTimeout(r, 1000)); }
+                    if (!latestVideoSrc) {
+                        throw new Error("No valid video source found after waiting.");
+                    }
 
-                        let dlBtn = null;
-                        const pollStart = Date.now();
-                        while (Date.now() - pollStart < 60000) {
-                            if (directorState.restart) break;
-                            const selectors = ['[aria-label="Download"]', '[aria-label="Save"]', 'div[role="button"][aria-label="Download"]', '[aria-label="Download media"]', 'div[role="button"][aria-label="Download media"]'];
-                            for (const sel of selectors) { dlBtn = await page.$(sel); if (dlBtn) break; }
-                            if (dlBtn) break;
-                            await interruptibleSleep(2000);
+                    directorLog(sceneNum, `Shot ${shotNum}`, `📥 Hovering over latest video to find download button...`);
+
+                    // Hover over the video element to reveal download button
+                    const videoElem = await page.evaluateHandle((src) => {
+                        const videos = Array.from(document.querySelectorAll('video'));
+                        return videos.find(v => v.src === src);
+                    }, latestVideoSrc);
+
+                    if (videoElem) {
+                        await videoElem.hover();
+                        await new Promise(r => setTimeout(r, 1500));
+                    }
+
+                    // Set download directory to project folder
+                    const client = await page.target().createCDPSession();
+                    await client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: outputPublic });
+
+                    // Find download button near the hovered video
+                    let dlBtn = null;
+                    const pollStart = Date.now();
+                    while (Date.now() - pollStart < 30000) {
+                        if (directorState.restart) break;
+
+                        const selectors = [
+                            '[aria-label="Download"]',
+                            '[aria-label="Save"]',
+                            'div[role="button"][aria-label="Download"]',
+                            '[aria-label="Download media"]',
+                            'div[role="button"][aria-label="Download media"]'
+                        ];
+
+                        for (const sel of selectors) {
+                            const buttons = await page.$$(sel);
+                            if (buttons.length > 0) {
+                                // Get the LAST download button (most recent video's button)
+                                dlBtn = buttons[buttons.length - 1];
+                                break;
+                            }
                         }
+                        if (dlBtn) break;
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
 
-                        if (directorState.restart) continue;
+                    if (directorState.restart) continue;
 
-                        if (dlBtn) {
-                            await dlBtn.click();
-                            directorLog(sceneNum, `Shot ${shotNum}`, `✅ Download Clicked.`);
-                            await interruptibleSleep(10000);
+                    if (dlBtn) {
+                        await dlBtn.click();
+                        directorLog(sceneNum, `Shot ${shotNum}`, `✅ Download Clicked!`);
+                        await interruptibleSleep(10000);
 
-                            // RENAME Logic (Apply to both dirs)
-                            try {
-                                // 1. Handle Public Dir
-                                const files = fs.readdirSync(PUBLIC_OUTPUT_DIR);
-                                const sortedFiles = files
-                                    .map(fileName => ({ name: fileName, time: fs.statSync(path.join(PUBLIC_OUTPUT_DIR, fileName)).mtime.getTime() }))
-                                    .sort((a, b) => b.time - a.time);
-                                const candidates = sortedFiles.filter(f => !f.name.startsWith('scene_'));
+                        // RENAME Logic - save to project folder
+                        try {
+                            const files = fs.readdirSync(outputPublic);
+                            const sortedFiles = files
+                                .map(fileName => ({ name: fileName, time: fs.statSync(path.join(outputPublic, fileName)).mtime.getTime() }))
+                                .sort((a, b) => b.time - a.time);
+                            const candidates = sortedFiles.filter(f => !f.name.startsWith('scene_'));
 
-                                if (candidates.length > 0) {
-                                    const newestFile = candidates[0];
-                                    if (Date.now() - newestFile.time < 60000) {
-                                        const oldPath = path.join(PUBLIC_OUTPUT_DIR, newestFile.name);
-                                        const extension = path.extname(newestFile.name);
-                                        const newFilename = `scene_${sceneNum}_shot_${shotNum}${extension}`;
+                            if (candidates.length > 0) {
+                                const newestFile = candidates[0];
+                                if (Date.now() - newestFile.time < 60000) {
+                                    const oldPath = path.join(outputPublic, newestFile.name);
+                                    const extension = path.extname(newestFile.name);
+                                    const newFilename = `scene_${sceneNum}_shot_${shotNum}${extension}`;
 
-                                        const publicPath = path.join(PUBLIC_OUTPUT_DIR, newFilename);
-                                        const serverPath = path.join(SERVER_OUTPUT_DIR, newFilename); // Mirror copy
+                                    const publicPath = path.join(outputPublic, newFilename);
+                                    const serverPath = path.join(outputServer, newFilename);
 
-                                        if (fs.existsSync(publicPath)) fs.unlinkSync(publicPath);
-                                        fs.renameSync(oldPath, publicPath); // Rename in public
+                                    if (fs.existsSync(publicPath)) fs.unlinkSync(publicPath);
+                                    fs.renameSync(oldPath, publicPath);
+                                    fs.copyFileSync(publicPath, serverPath);
 
-                                        // Copy to server/output for user convenience
-                                        fs.copyFileSync(publicPath, serverPath);
-
-                                        directorLog(sceneNum, `Shot ${shotNum}`, `📂 Saved: ${newFilename} (to public & server/output)`);
-                                    }
+                                    directorLog(sceneNum, `Shot ${shotNum}`, `📂 Saved: ${newFilename}`);
                                 }
-                            } catch (e) { console.error(e); }
+                            }
+                        } catch (e) { console.error(e); }
 
-                        } else {
-                            directorLog(sceneNum, `Shot ${shotNum}`, `❌ Download button missing.`);
-                        }
                     } else {
-                        throw new Error("No videos rendered.");
+                        directorLog(sceneNum, `Shot ${shotNum}`, `❌ Download button not found.`);
                     }
 
                 } catch (dlErr) {
@@ -351,28 +446,42 @@ app.post('/control', (req, res) => {
 app.post('/generate-video', async (req, res) => {
     const { scriptData } = req.body;
     if (!scriptData || !scriptData.structure) return res.status(400).json({ error: "Invalid data" });
+
+    // Create project folder from first title option
+    const title = scriptData.title_options?.[0] || scriptData.title || `video_${Date.now()}`;
+    const projectDir = createProjectFolder(title);
+
     directorState.paused = false;
     directorState.stopped = false;
-    generateVideo(scriptData.structure).catch(console.error);
-    res.json({ status: "started", message: "Director Agent started." });
+    generateVideo(scriptData.structure, projectDir).catch(console.error);
+    res.json({ status: "started", message: "Director Agent started.", projectFolder: projectDir.name });
 });
 
 app.post('/save-audio', async (req, res) => {
     try {
-        const { filename, audioData } = req.body;
+        const { filename, audioData, projectName } = req.body;
         if (!filename || !audioData) return res.status(400).json({ error: "Missing data" });
 
         const base64Data = audioData.split(';base64,').pop();
 
-        // Save to BOTH locations
-        const publicPath = path.join(PUBLIC_OUTPUT_DIR, filename);
-        const serverPath = path.join(SERVER_OUTPUT_DIR, filename);
+        // Use current project folder or create one if projectName provided
+        let targetPublic = currentProjectDir.public;
+        let targetServer = currentProjectDir.server;
+
+        if (projectName) {
+            const projectDir = createProjectFolder(projectName);
+            targetPublic = projectDir.public;
+            targetServer = projectDir.server;
+        }
+
+        const publicPath = path.join(targetPublic, filename);
+        const serverPath = path.join(targetServer, filename);
 
         fs.writeFileSync(publicPath, Buffer.from(base64Data, 'base64'));
         fs.writeFileSync(serverPath, Buffer.from(base64Data, 'base64'));
 
-        console.log(`[API] Saved Audio: ${filename} (Dual Location)`);
-        res.json({ success: true, filepath: publicPath });
+        console.log(`[API] Saved Audio: ${filename} -> ${currentProjectDir.name || 'default'}`);
+        res.json({ success: true, filepath: publicPath, projectFolder: currentProjectDir.name });
     } catch (e) {
         console.error("Save Audio Error:", e);
         res.status(500).json({ error: e.message });
