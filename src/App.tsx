@@ -214,10 +214,61 @@ function App() {
         const data = await res.json();
         if (res.ok) {
           console.log("[Pipeline] ✅ Director Agent started:", data.message);
+          console.log("[Pipeline] Project folder:", data.projectFolder);
+          console.log("[Pipeline] Visual style:", data.visualStyle);
+
+          // Start listening for completion event to auto-download files
+          console.log("[Pipeline] 📡 Listening for generation completion...");
+
+          const eventSource = new EventSource(`${serverUrl}/events`);
+
+          eventSource.onmessage = async (event) => {
+            try {
+              const eventData = JSON.parse(event.data);
+
+              if (eventData.type === 'completed' && eventData.files) {
+                console.log("[Pipeline] 🎉 Generation complete! Downloading files...");
+                console.log(`[Pipeline] Files to download: ${eventData.files.length}`);
+
+                // Download each file with a small delay
+                for (const file of eventData.files) {
+                  try {
+                    console.log(`[Download] Starting: ${file.name}`);
+
+                    // Create download link and click it
+                    const downloadUrl = `${serverUrl}${file.path}`;
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.download = file.name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    console.log(`[Download] ✅ Initiated: ${file.name}`);
+                    await new Promise(r => setTimeout(r, 500)); // Delay between downloads
+                  } catch (dlErr) {
+                    console.error(`[Download] Failed: ${file.name}`, dlErr);
+                  }
+                }
+
+                // Close the event source after files are downloaded
+                eventSource.close();
+                console.log("[Pipeline] ✅ All files downloaded to your PC!");
+                alert(`🎬 Generation Complete!\n\n✅ ${eventData.files.length} files downloaded to your PC!\n\nProject: ${eventData.projectFolder}`);
+              }
+            } catch (e) {
+              // Ignore parse errors for log messages
+            }
+          };
+
+          eventSource.onerror = () => {
+            console.warn("[Pipeline] SSE connection lost, reconnecting...");
+          };
+
           const locationMsg = isRemote
-            ? `Videos generating on REMOTE server (GitHub RDP)!\nDownload from GitHub Artifacts when complete.`
-            : `Meta.ai is now generating your videos.\nCheck the server console for progress.`;
-          alert(`🎬 Full Pipeline Complete!\n\n✅ Script Generated\n✅ Voiceovers Created (Piper)\n✅ Director Agent Started\n\n${locationMsg}`);
+            ? `Videos generating on REMOTE server!\\nFiles will auto-download when complete.`
+            : `Meta.ai is now generating your videos.\\nFiles will auto-download when complete.`;
+          alert(`🎬 Full Pipeline Started!\\n\\n✅ Script Generated\\n✅ Voiceovers Created\\n✅ Director Agent Running\\n\\n${locationMsg}`);
         } else {
           throw new Error(data.error || "Director failed");
         }

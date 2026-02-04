@@ -476,6 +476,30 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
         directorLog(0, "DONE", "All scenes completed.");
 
+        // Send completion event with file list for auto-download
+        try {
+            const files = fs.readdirSync(outputPublic);
+            const fileList = files.map(f => ({
+                name: f,
+                path: `/download/${encodeURIComponent(currentProjectDir.name)}/${encodeURIComponent(f)}`,
+                size: fs.statSync(path.join(outputPublic, f)).size
+            }));
+
+            // Broadcast to all connected clients
+            clients.forEach(client => {
+                client.res.write(`data: ${JSON.stringify({
+                    type: 'completed',
+                    projectFolder: currentProjectDir.name,
+                    files: fileList,
+                    message: 'Generation complete! Downloading files...'
+                })}\n\n`);
+            });
+
+            directorLog(0, "FILES", `📦 ${fileList.length} files ready for download`);
+        } catch (e) {
+            console.error("File list error:", e);
+        }
+
     } catch (error) {
         if (error.message && error.message.includes("Stopped")) {
             directorLog(0, "STOPPED", "🛑 Process stopped by user.");
@@ -496,6 +520,54 @@ app.get('/events', (req, res) => {
     clients.push({ id: clientId, res });
     res.write(`data: ${JSON.stringify({ type: 'connected', message: 'Connected to Director Agent' })}\n\n`);
     req.on('close', () => { clients = clients.filter(c => c.id !== clientId); });
+});
+
+// --- FILE DOWNLOAD ENDPOINT ---
+app.get('/download/:projectFolder/:filename', (req, res) => {
+    try {
+        const { projectFolder, filename } = req.params;
+        const filePath = path.join(SERVER_OUTPUT_DIR, decodeURIComponent(projectFolder), decodeURIComponent(filename));
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        // Set headers for download
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Type', 'application/octet-stream');
+
+        // Stream the file
+        const fileStream = fs.createReadStream(filePath);
+        fileStream.pipe(res);
+
+        console.log(`[DOWNLOAD] Serving: ${projectFolder}/${filename}`);
+    } catch (e) {
+        console.error("Download error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- LIST PROJECT FILES ENDPOINT ---
+app.get('/list-files/:projectFolder', (req, res) => {
+    try {
+        const { projectFolder } = req.params;
+        const folderPath = path.join(SERVER_OUTPUT_DIR, decodeURIComponent(projectFolder));
+
+        if (!fs.existsSync(folderPath)) {
+            return res.json({ files: [], error: 'Project folder not found' });
+        }
+
+        const files = fs.readdirSync(folderPath).map(f => ({
+            name: f,
+            path: `/download/${encodeURIComponent(projectFolder)}/${encodeURIComponent(f)}`,
+            size: fs.statSync(path.join(folderPath, f)).size
+        }));
+
+        res.json({ projectFolder, files });
+    } catch (e) {
+        console.error("List files error:", e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/control', (req, res) => {
