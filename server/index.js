@@ -92,7 +92,11 @@ async function generateVideo(tasks) {
             '--disable-web-security',
             '--disable-features=IsolateOrigins,site-per-process',
             '--mute-audio',
-            '--no-default-browser-check'
+            '--no-default-browser-check',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
         ]
     });
 
