@@ -67,12 +67,21 @@ jobs:
           
           echo "✅ VNC ready on port 6080"
 
-      - name: 🌐 Open Chrome with Meta.ai
+      - name: 🌐 Open Chrome with Meta.ai (Debug Port Enabled)
         run: |
           export DISPLAY=:99
-          google-chrome --no-sandbox --disable-gpu --user-data-dir=/tmp/chrome-profile https://meta.ai &
+          
+          # Launch Chrome with remote debugging port so Director can connect to it
+          google-chrome \
+            --no-sandbox \
+            --disable-gpu \
+            --user-data-dir=/tmp/chrome-profile \
+            --remote-debugging-port=9222 \
+            https://meta.ai &
+          
           sleep 5
-          echo "✅ Chrome opened with Meta.ai"
+          echo "✅ Chrome opened with Meta.ai (Debug port: 9222)"
+          echo "   Director will connect to this browser session"
 
       - name: 🚀 Start Video Generation Server
         run: |

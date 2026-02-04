@@ -9,6 +9,7 @@ puppeteer.use(StealthPlugin());
 
 const app = express();
 const PORT = 3001;
+const VERSION = 'v2.4';
 
 // Enable CORS/JSON
 app.use(cors());
@@ -125,41 +126,69 @@ async function generateVideo(tasks, projectDir) {
     directorLog(0, "INIT", `Initializing Director Agent...`);
     directorLog(0, "PROJECT", `Output folder: ${projectDir?.name || 'default'}`);
 
-    const browser = await puppeteer.launch({
-        headless: false,
-        userDataDir: "./user_data",
-        defaultViewport: null,
-        args: [
-            '--start-maximized',
-            '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--mute-audio',
-            '--no-default-browser-check',
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu'
-        ]
-    });
+    let browser;
+    let page;
 
-    const page = await browser.newPage();
+    // Try to connect to existing Chrome first (RDP mode)
+    try {
+        directorLog(0, "BROWSER", "Trying to connect to existing Chrome...");
+        browser = await puppeteer.connect({
+            browserURL: 'http://localhost:9222',
+            defaultViewport: null
+        });
+
+        // Get existing pages and find Meta.ai tab or create new
+        const pages = await browser.pages();
+        page = pages.find(p => p.url().includes('meta.ai'));
+
+        if (page) {
+            directorLog(0, "BROWSER", "✅ Connected to existing Meta.ai tab!");
+        } else {
+            // Use any existing page or create new
+            page = pages[0] || await browser.newPage();
+            directorLog(0, "BROWSER", "Connected to existing Chrome, opening Meta.ai...");
+            await page.goto('https://www.meta.ai', { waitUntil: 'domcontentloaded', timeout: 0 });
+        }
+    } catch (e) {
+        // Fallback: Launch new browser (local mode)
+        directorLog(0, "BROWSER", "No existing Chrome found, launching new browser...");
+        browser = await puppeteer.launch({
+            headless: false,
+            userDataDir: "./user_data",
+            defaultViewport: null,
+            args: [
+                '--start-maximized',
+                '--disable-web-security',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--mute-audio',
+                '--no-default-browser-check',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ]
+        });
+
+        page = await browser.newPage();
+        await page.goto('https://www.meta.ai', { waitUntil: 'domcontentloaded', timeout: 0 });
+    }
+
     await page.setBypassCSP(true);
 
+    directorLog(0, "STEP", "✓ Browser connected, CSP bypassed");
+    directorLog(0, "STEP", "⏳ Waiting 5s for page warmup...");
+    await interruptibleSleep(5000);
+
+    const inputSelector = 'textarea, div[contenteditable="true"], div[role="textbox"]';
+
     try {
-        await page.goto('https://www.meta.ai', { waitUntil: 'domcontentloaded', timeout: 0 });
+        await page.waitForSelector(inputSelector, { timeout: 5000 });
+        directorLog(0, "STEP", "✓ Input box detected - Meta.ai ready!");
+    } catch (e) {
+        directorLog(0, "WARN", "⚠️ Input box not detected. You may need to log in via VNC.");
+    }
 
-        directorLog(0, "AUTH", "Waiting 5s for page warmup...");
-        await interruptibleSleep(5000);
-
-        const inputSelector = 'textarea, div[contenteditable="true"], div[role="textbox"]';
-
-        try {
-            await page.waitForSelector(inputSelector, { timeout: 5000 });
-            directorLog(0, "READY", "Input box detected.");
-        } catch (e) {
-            directorLog(0, "WARN", "Input box not detected yet. Proceeding anyway.");
-        }
-
+    try {
         // 0. FLATTEN TASKS -> SHOT QUEUE
         let shotQueue = [];
         for (let i = 0; i < tasks.length; i++) {
@@ -200,13 +229,19 @@ async function generateVideo(tasks, projectDir) {
             directorLog(sceneNum, "ACTION", `🎬 Starting Shot ${shotNum} (Progress: ${currentShotIndex + 1}/${shotQueue.length})`);
 
             try {
+                directorLog(sceneNum, "STEP", "📍 Step 1: Finding input box...");
+
                 // FOCUS & CLEAR INPUT
                 let inputElement = null;
                 try {
                     inputElement = await page.waitForSelector(inputSelector, { timeout: 5000 });
-                } catch (e) { /* ignore */ }
+                    directorLog(sceneNum, "STEP", "✓ Input box found");
+                } catch (e) {
+                    directorLog(sceneNum, "WARN", "⚠️ Input box not found, retrying...");
+                }
 
                 if (inputElement) {
+                    directorLog(sceneNum, "STEP", "📍 Step 2: Focusing and clearing input...");
                     await inputElement.click();
                     await inputElement.focus();
 
@@ -216,6 +251,7 @@ async function generateVideo(tasks, projectDir) {
                     await page.keyboard.up('Control');
                     await page.keyboard.press('Backspace');
                     await new Promise(r => setTimeout(r, 200));
+                    directorLog(sceneNum, "STEP", "✓ Input cleared");
                 }
 
                 if (await checkControlState()) continue;
@@ -223,36 +259,43 @@ async function generateVideo(tasks, projectDir) {
                 // TYPE
                 const cleanPrompt = prompt.replace(/^Shot\s+\d+(\s*\(.*?\))?:?\s*/i, "").trim();
                 const fullPrompt = `Create a photorealistic video (16:9 cinematic): ${cleanPrompt}`;
+
+                directorLog(sceneNum, "STEP", `📍 Step 3: Typing prompt (${fullPrompt.length} chars)...`);
                 await page.keyboard.type(fullPrompt, { delay: 30 });
                 await new Promise(r => setTimeout(r, 500));
+                directorLog(sceneNum, "STEP", "✓ Prompt typed");
 
                 // SEND
+                directorLog(sceneNum, "STEP", "📍 Step 4: Sending prompt to Meta.ai...");
                 await page.keyboard.press('Enter');
-                directorLog(sceneNum, `Shot ${shotNum}`, "Generating... (15s minimum)");
+                directorLog(sceneNum, "STEP", "✓ Prompt sent! Waiting 30s for video generation...");
 
-                // WAIT
-                await interruptibleSleep(90000);
+                // WAIT - Reduced from 90s to 30s
+                await interruptibleSleep(30000);
                 if (directorState.restart) continue;
 
                 // DOWNLOAD (Improved: Scroll first, wait for NEW video, track downloads)
                 try {
+                    directorLog(sceneNum, "STEP", "📍 Step 5: Scrolling to bottom of page...");
+
                     // FIRST: Scroll to bottom of page to see new content
                     await page.evaluate(() => {
                         window.scrollTo(0, document.body.scrollHeight);
                     });
                     await new Promise(r => setTimeout(r, 2000));
+                    directorLog(sceneNum, "STEP", "✓ Scrolled to bottom");
 
                     // Get count of videos BEFORE generation completes
                     const videoCountBefore = await page.evaluate(() => {
                         return document.querySelectorAll('video').length;
                     });
 
-                    directorLog(sceneNum, `Shot ${shotNum}`, `📊 Found ${videoCountBefore} videos on page. Waiting for new video...`);
+                    directorLog(sceneNum, "STEP", `📍 Step 6: Detecting new video... (Found ${videoCountBefore} existing)`);
 
-                    // Wait for a NEW video to appear (poll for video count increase OR new src)
+                    // Wait for a NEW video to appear (poll every 5s)
                     let newVideoFound = false;
                     let retryCount = 0;
-                    const maxRetries = 12; // 12 * 10s = 2 minutes max wait
+                    const maxRetries = 12; // 12 * 5s = 60s max additional wait
 
                     while (!newVideoFound && retryCount < maxRetries) {
                         if (directorState.restart) break;
@@ -275,13 +318,13 @@ async function generateVideo(tasks, projectDir) {
                             };
                         }, videoCountBefore);
 
-                        if (currentInfo.validCount > 0 && (currentInfo.hasNew || retryCount > 3)) {
+                        if (currentInfo.validCount > 0 && (currentInfo.hasNew || retryCount > 2)) {
                             newVideoFound = true;
                             directorLog(sceneNum, `Shot ${shotNum}`, `✅ New video detected! (${currentInfo.validCount} valid videos)`);
                         } else {
                             retryCount++;
-                            directorLog(sceneNum, `Shot ${shotNum}`, `⏳ Waiting for video render... (${retryCount}/${maxRetries})`);
-                            await interruptibleSleep(10000);
+                            directorLog(sceneNum, `Shot ${shotNum}`, `⏳ Waiting for video... (${retryCount * 5}s / 60s max)`);
+                            await interruptibleSleep(5000); // 5 second intervals instead of 10
                         }
                     }
 
@@ -307,7 +350,7 @@ async function generateVideo(tasks, projectDir) {
                         throw new Error("No valid video source found after waiting.");
                     }
 
-                    directorLog(sceneNum, `Shot ${shotNum}`, `📥 Hovering over latest video to find download button...`);
+                    directorLog(sceneNum, "STEP", `📍 Step 7: Hovering over video element...`);
 
                     // Hover over the video element to reveal download button
                     const videoElem = await page.evaluateHandle((src) => {
@@ -318,13 +361,18 @@ async function generateVideo(tasks, projectDir) {
                     if (videoElem) {
                         await videoElem.hover();
                         await new Promise(r => setTimeout(r, 1500));
+                        directorLog(sceneNum, "STEP", "✓ Hovering over video");
                     }
+
+                    directorLog(sceneNum, "STEP", `📍 Step 8: Setting download directory...`);
+                    directorLog(sceneNum, "STEP", `   Target folder: ${outputPublic}`);
 
                     // Set download directory to project folder
                     const client = await page.target().createCDPSession();
                     await client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: outputPublic });
+                    directorLog(sceneNum, "STEP", "✓ Download directory configured");
 
-                    // Find download button near the hovered video
+                    directorLog(sceneNum, "STEP", `📍 Step 9: Finding download button...`);
                     let dlBtn = null;
                     const pollStart = Date.now();
                     while (Date.now() - pollStart < 30000) {
@@ -353,10 +401,12 @@ async function generateVideo(tasks, projectDir) {
                     if (directorState.restart) continue;
 
                     if (dlBtn) {
+                        directorLog(sceneNum, "STEP", `📍 Step 10: Clicking download button...`);
                         await dlBtn.click();
-                        directorLog(sceneNum, `Shot ${shotNum}`, `✅ Download Clicked!`);
+                        directorLog(sceneNum, "STEP", `✓ Download clicked! Waiting 10s for file...`);
                         await interruptibleSleep(10000);
 
+                        directorLog(sceneNum, "STEP", `📍 Step 11: Renaming downloaded file...`);
                         // RENAME Logic - save to project folder
                         try {
                             const files = fs.readdirSync(outputPublic);
@@ -379,13 +429,20 @@ async function generateVideo(tasks, projectDir) {
                                     fs.renameSync(oldPath, publicPath);
                                     fs.copyFileSync(publicPath, serverPath);
 
-                                    directorLog(sceneNum, `Shot ${shotNum}`, `📂 Saved: ${newFilename}`);
+                                    directorLog(sceneNum, "STEP", `✅ COMPLETE: Saved ${newFilename}`);
+                                    directorLog(sceneNum, "STEP", `   Location: ${outputPublic}`);
+                                } else {
+                                    directorLog(sceneNum, "WARN", `⚠️ Downloaded file too old, may have failed`);
                                 }
+                            } else {
+                                directorLog(sceneNum, "WARN", `⚠️ No new files found to rename`);
                             }
-                        } catch (e) { console.error(e); }
+                        } catch (e) {
+                            directorLog(sceneNum, "ERROR", `Rename failed: ${e.message}`);
+                        }
 
                     } else {
-                        directorLog(sceneNum, `Shot ${shotNum}`, `❌ Download button not found.`);
+                        directorLog(sceneNum, "STEP", `❌ Download button not found after 30s`);
                     }
 
                 } catch (dlErr) {
@@ -489,6 +546,6 @@ app.post('/save-audio', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`[DIRECTOR AGENT] Server running on http://localhost:${PORT}`);
+    console.log(`[DIRECTOR AGENT] ${VERSION} - Server running on http://localhost:${PORT}`);
     console.log(`[DIRECTOR AGENT] Output Dirs: \n - Public: ${PUBLIC_OUTPUT_DIR} \n - Server: ${SERVER_OUTPUT_DIR}`);
 });
