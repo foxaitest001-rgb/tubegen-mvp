@@ -13,6 +13,9 @@ on:
         required: true
         default: '5'
 
+env:
+  PROJECT_DIR: ${{ github.workspace }}
+
 jobs:
   remote-desktop:
     runs-on: ubuntu-latest
@@ -25,7 +28,7 @@ jobs:
       - name: 🖥️ Install Desktop Environment (XFCE)
         run: |
           sudo apt-get update
-          sudo apt-get install -y xfce4 xfce4-goodies dbus-x11
+          sudo apt-get install -y xfce4 xfce4-goodies dbus-x11 xterm
           sudo apt-get install -y x11vnc xvfb novnc websockify
           echo "✅ Desktop environment installed"
 
@@ -36,31 +39,33 @@ jobs:
           rm google-chrome-stable_current_amd64.deb
           echo "✅ Google Chrome installed"
 
-      - name: 📦 Install Node.js & Project Dependencies
+      - name: 📦 Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       
-      - name: 📦 Install TubeGen Dependencies
+      - name: 📦 Install Project Dependencies
         run: |
+          cd $PROJECT_DIR
           npm install
           cd server && npm install && cd ..
-          echo "✅ TubeGen dependencies installed"
+          echo "✅ All dependencies installed"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
       - name: 🔧 Start Virtual Display & VNC
         run: |
-          # Create VNC password file
-          mkdir -p ~/.vnc
-          x11vnc -storepasswd "${{ github.event.inputs.vnc_password }}" ~/.vnc/passwd
-          
           # Start virtual display
           export DISPLAY=:99
           Xvfb :99 -screen 0 1920x1080x24 &
           sleep 2
           
+          # Create VNC password file
+          mkdir -p ~/.vnc
+          x11vnc -storepasswd "${{ github.event.inputs.vnc_password }}" ~/.vnc/passwd
+          
           # Start XFCE desktop
           DISPLAY=:99 startxfce4 &
-          sleep 3
+          sleep 5
           
           # Start VNC server
           x11vnc -display :99 -rfbauth ~/.vnc/passwd -forever -shared -bg -rfbport 5900
@@ -69,88 +74,110 @@ jobs:
 
       - name: 🌍 Setup noVNC (Browser Access)
         run: |
-          # Start noVNC websocket proxy
           websockify --web=/usr/share/novnc/ 6080 localhost:5900 &
           sleep 2
           echo "✅ noVNC proxy started on port 6080"
 
-      - name: 🚀 Start TubeGen Backend Server
+      - name: 🚀 Start TubeGen Services (Auto)
         run: |
+          export DISPLAY=:99
+          cd $PROJECT_DIR
+          
+          # Start backend server
           cd server
-          node index.js &
+          node index.js > /tmp/server.log 2>&1 &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          cd ..
+          
           sleep 3
-          echo "✅ TubeGen Director Agent running on port 3001"
+          
+          # Start frontend dev server
+          npm run dev > /tmp/frontend.log 2>&1 &
+          FRONTEND_PID=$!
+          echo "FRONTEND_PID=$FRONTEND_PID" >> $GITHUB_ENV
+          
+          sleep 5
+          
+          echo "✅ Backend running (PID: $SERVER_PID)"
+          echo "✅ Frontend running (PID: $FRONTEND_PID)"
+          echo ""
+          echo "📍 Project directory: $PROJECT_DIR"
 
-      - name: 🔗 Setup Cloudflare Tunnel (Reliable & Free)
+      - name: 🌐 Open Chrome with TubeGen & Meta.ai
         run: |
-          # Download cloudflared
+          export DISPLAY=:99
+          
+          # Open Chrome with TubeGen app and Meta.ai tabs
+          google-chrome --no-sandbox --disable-gpu \
+            --user-data-dir=/tmp/chrome-profile \
+            http://localhost:5173 \
+            https://meta.ai &
+          
+          sleep 5
+          echo "✅ Chrome opened with TubeGen and Meta.ai"
+
+      - name: 🔗 Setup Cloudflare Tunnel
+        run: |
           wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared-linux-amd64.deb
           rm cloudflared-linux-amd64.deb
           
-          # Start Cloudflare Quick Tunnel for noVNC (port 6080)
-          cloudflared tunnel --url http://localhost:6080 > tunnel.log 2>&1 &
-          
-          # Wait for tunnel to be ready
+          # Start tunnel for noVNC
+          cloudflared tunnel --url http://localhost:6080 > /tmp/tunnel.log 2>&1 &
           sleep 10
           
-          # Extract and display the URL
-          TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' tunnel.log | head -1)
+          # Extract URL
+          TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/tunnel.log | head -1)
           
           echo ""
-          echo "=============================================="
-          echo "🖥️  REMOTE DESKTOP CONNECTION INFO"
-          echo "=============================================="
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║           🖥️  REMOTE DESKTOP READY!                          ║"
+          echo "╠══════════════════════════════════════════════════════════════╣"
+          echo "║                                                              ║"
+          echo "║  📌 VNC URL: ${TUNNEL_URL}/vnc.html                          ║"
+          echo "║                                                              ║"
+          echo "║  🔑 Password: ${{ github.event.inputs.vnc_password }}                                     ║"
+          echo "║                                                              ║"
+          echo "║  ⏱️  Session: ${{ github.event.inputs.session_hours }} hours                                            ║"
+          echo "║                                                              ║"
+          echo "╠══════════════════════════════════════════════════════════════╣"
+          echo "║  ✅ Chrome is ALREADY open with:                             ║"
+          echo "║     • TubeGen App (localhost:5173)                           ║"
+          echo "║     • Meta.ai (log in to enable video generation)            ║"
+          echo "║                                                              ║"
+          echo "║  🎬 TO GENERATE VIDEOS:                                      ║"
+          echo "║     1. Connect to VNC URL above                              ║"
+          echo "║     2. Log into Meta.ai in the Chrome tab                    ║"
+          echo "║     3. Switch to TubeGen tab                                 ║"
+          echo "║     4. Use Consultant → 'send to director'                   ║"
+          echo "║     5. Videos generate automatically!                        ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
           echo ""
-          echo "📌 noVNC URL: $TUNNEL_URL"
-          echo ""
-          echo "🔑 Password: ${{ github.event.inputs.vnc_password }}"
-          echo ""
-          echo "⏱️ Session: ${{ github.event.inputs.session_hours }} hours"
-          echo "=============================================="
-          echo ""
-          echo "TUNNEL_URL=$TUNNEL_URL" >> $GITHUB_ENV
-          
-          # Also show the log for debugging
-          echo "Full tunnel log:"
-          cat tunnel.log
-
-      - name: 📋 Display Connection Instructions
-        run: |
-          echo ""
-          echo "=============================================="
-          echo "📖 HOW TO CONNECT:"
-          echo "=============================================="
-          echo ""
-          echo "1. Open the noVNC URL above in your browser"
-          echo "2. Click 'Connect'"
-          echo "3. Enter password: ${{ github.event.inputs.vnc_password }}"
-          echo "4. You now have a full Linux desktop!"
-          echo ""
-          echo "🎬 TO GENERATE VIDEOS:"
-          echo "5. Open Chrome (in Applications menu)"
-          echo "6. Go to meta.ai and log in"
-          echo "7. Open Terminal (Applications > Terminal)"
-          echo "8. Run: cd /home/runner/work/*/*"
-          echo "9. Run: npm run dev"
-          echo "10. Open http://localhost:5173 in Chrome"
-          echo "11. Use the Consultant to generate videos!"
-          echo ""
-          echo "=============================================="
+          echo "TUNNEL_URL=${TUNNEL_URL}/vnc.html" >> $GITHUB_ENV
 
       - name: ⏳ Keep Session Alive
         run: |
           HOURS=${{ github.event.inputs.session_hours }}
           
           echo "🟢 Session active for $HOURS hours..."
-          echo "📌 Connection URL: $TUNNEL_URL"
-          echo ""
-          echo "Do NOT close this workflow tab!"
+          echo "📌 VNC URL: $TUNNEL_URL"
           echo ""
           
-          # Show hourly updates
+          # Create a helper script for the user
+          cat > /tmp/tubegen-help.sh << 'EOF'
+          echo "=== TubeGen Quick Commands ==="
+          echo "cd $PROJECT_DIR           # Go to project"
+          echo "cat /tmp/server.log       # View server logs"
+          echo "cat /tmp/frontend.log     # View frontend logs"
+          echo "cat /tmp/tunnel.log       # View tunnel logs"
+          EOF
+          chmod +x /tmp/tubegen-help.sh
+          
+          # Hourly status updates
           for i in $(seq 1 $HOURS); do
-            echo "⏰ Hour $i of $HOURS - Session active..."
+            echo "⏰ Hour $i of $HOURS - Services running..."
+            echo "   Server PID: $SERVER_PID | Frontend PID: $FRONTEND_PID"
             sleep 3600
           done
           
@@ -160,8 +187,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: generated-videos
+          name: generated-videos-${{ github.run_id }}
           path: |
-            server/public/scenes/**/*.mp4
-            server/output/**/*.mp4
+            ${{ github.workspace }}/server/public/scenes/**/*.mp4
+            ${{ github.workspace }}/server/output/**/*.mp4
+            ${{ github.workspace }}/output/**/*.mp4
           if-no-files-found: ignore
+          retention-days: 7
