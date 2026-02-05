@@ -15,9 +15,17 @@ function App() {
   const [directorLogs, setDirectorLogs] = useState<string[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null)
 
-  // Remote Server State
-  const [serverUrl, setServerUrl] = useState('http://localhost:3001');
+  // Remote Server State - Load from localStorage if available
+  const [serverUrl, setServerUrl] = useState(() => {
+    const saved = localStorage.getItem('foxtubeServerUrl');
+    return saved || 'http://localhost:3001';
+  });
   const [showServerConfig, setShowServerConfig] = useState(false);
+
+  // Save serverUrl to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('foxtubeServerUrl', serverUrl);
+  }, [serverUrl]);
 
   // Consultant Handler
   const handleApplyConfig = (config: any) => {
