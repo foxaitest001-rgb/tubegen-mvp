@@ -342,55 +342,80 @@ export function calculateUsagePercentage() { return 0; }
 
 // --- PIPER TTS (Offline) & UTILS ---
 let piperEngine: any = null;
+let loadedVoice: string | null = null;
 
-// Helper: Fetch model conf from HuggingFace/Github if needed? 
-// For now, we assume local files in public/ 
+// Available local voices (must be downloaded to public/piper/)
+const LOCAL_VOICES: Record<string, string> = {
+  'lessac': '/piper/en_US-lessac-medium.onnx',
+  'joe': '/piper/en_US-joe-medium.onnx',
+  'ryan': '/piper/en_US-ryan-medium.onnx',
+};
 
-export async function generateSpeechWithPiper(text: string) {
+// Get voice based on style preference
+function selectVoiceForStyle(style?: string): string {
+  const lowerStyle = (style || '').toLowerCase();
+  if (lowerStyle.includes('dramatic') || lowerStyle.includes('horror') || lowerStyle.includes('deep')) {
+    return 'ryan';
+  }
+  if (lowerStyle.includes('friendly') || lowerStyle.includes('warm') || lowerStyle.includes('vlog')) {
+    return 'joe';
+  }
+  return 'lessac'; // default neutral
+}
+
+export async function generateSpeechWithPiper(text: string, voiceStyle?: string) {
   try {
     console.log("[Service] Initializing Piper Engine (Local)...");
 
     // Dynamic import
     // @ts-ignore
-    const { PiperWebEngine, PhonemizeWebRuntime, OnnxWebRuntime } = await import('piper-tts-web');
+    const { PiperTTSWeb } = await import('piper-tts-web');
 
-    if (!piperEngine) {
-      console.log("[Piper] Creating new engine instance with custom paths...");
-      // We must match the paths set in vite.config.ts
-      piperEngine = new PiperWebEngine({
-        phonemizeRuntime: new PhonemizeWebRuntime({ basePath: '/piper/' }),
-        onnxRuntime: new OnnxWebRuntime({ basePath: '/onnx/' })
+    const voiceName = selectVoiceForStyle(voiceStyle);
+    const voicePath = LOCAL_VOICES[voiceName];
+
+    console.log(`[Piper] Using local voice: ${voiceName} (${voicePath})`);
+
+    // Load voice model if not already loaded or different voice requested
+    if (!piperEngine || loadedVoice !== voiceName) {
+      console.log(`[Piper] Loading voice model: ${voiceName}...`);
+
+      // Fetch local model files
+      const modelResponse = await fetch(voicePath);
+      if (!modelResponse.ok) {
+        throw new Error(`Failed to load model: ${voicePath} (${modelResponse.status})`);
+      }
+      const modelBuffer = await modelResponse.arrayBuffer();
+
+      const configResponse = await fetch(voicePath + '.json');
+      if (!configResponse.ok) {
+        throw new Error(`Failed to load config: ${voicePath}.json`);
+      }
+      const config = await configResponse.json();
+
+      // Create Piper engine with local model
+      piperEngine = new PiperTTSWeb({
+        model: new Uint8Array(modelBuffer),
+        config: config
       });
+
+      await piperEngine.init();
+      loadedVoice = voiceName;
+      console.log(`[Piper] Voice model loaded: ${voiceName}`);
     }
 
-    console.log(`[Piper] Synthesizing: "${text.substring(0, 20)}..."`);
+    console.log(`[Piper] Synthesizing: "${text.substring(0, 30)}..."`);
 
-    // This ID must match the filename in public/models/
-    // If file is "en_US-lessac-medium.onnx", the ID is "en_US-lessac-medium" IF the library can find it.
-    // However, the library usually fetches from a repo. 
-    // If we want to use LOCAL models, we have to pass the blob or configure the voice provider.
-    // For MVP simplicity, let's try the direct generate call which works if the model is standard OR 
-    // we might need to "install" the model if strictly offline. 
-    // NOTE: If this fails to find the voice, we will need to load the blob manually.
-    // But first, let's solve the WASM error.
+    // Generate speech
+    const audioData = await piperEngine.synthesize(text);
 
-    const voiceId = 'en_US-lessac-medium';
-
-    const result = await piperEngine.generate(text, voiceId, 0);
-
-    // Result structure: { phonemeData, file: Blob, duration }
-    if (result && result.file) {
-      // The library returns a Blob directly in result.file
-      console.log(`[Piper] Success! Duration: ${result.duration}ms`);
-      return URL.createObjectURL(result.file);
-    } else if (result && result.rawAudio) {
-      const blob = new Blob([result.rawAudio], { type: 'audio/wav' });
+    if (audioData) {
+      const blob = new Blob([audioData], { type: 'audio/wav' });
+      console.log(`[Piper] Success! Audio size: ${(blob.size / 1024).toFixed(1)}KB`);
       return URL.createObjectURL(blob);
-    } else if (result && result.audio) {
-      return URL.createObjectURL(result.audio);
     }
 
-    console.warn("[Piper] No audio in result", result);
+    console.warn("[Piper] No audio generated");
     return null;
 
   } catch (e) {
