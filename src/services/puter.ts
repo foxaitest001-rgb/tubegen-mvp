@@ -123,12 +123,28 @@ const getRetentionStrategy = (niche: string) => {
   return viralStrategies.Universal;
 };
 
-export async function generateNarrative(topic: string, niche: string, referenceUrl?: string, videoLength?: string, voiceStyle?: string, visualStyle?: string) {
+export async function generateNarrative(
+  topic: string,
+  niche: string,
+  referenceUrl?: string,
+  videoLength?: string,
+  voiceStyle?: string,
+  visualStyle?: string,
+  aspectRatio?: string,
+  platform?: string,
+  mood?: string
+) {
   const strategy = getRetentionStrategy(niche);
   console.log(`[Service] Applied Viral Strategy: ${strategy.structure_name} for niche: ${niche}`);
   console.log(`[Service] Visual Style: ${visualStyle || 'Cinematic/Photorealistic (default)'}`);
-  // Determine the visual style for video prompts
+  console.log(`[Service] Aspect Ratio: ${aspectRatio || '16:9 (default)'}`);
+
+  // Determine effective values with defaults
   const effectiveVisualStyle = visualStyle || 'Cinematic photorealistic';
+  const effectiveAspectRatio = aspectRatio || '16:9';
+  const effectivePlatform = platform || 'YouTube';
+  const effectiveMood = mood || 'Cinematic';
+
   const visualStyleGuide = {
     '2d': '2D animated, vibrant colors, clean vector graphics, motion graphics style, flat design with subtle shadows',
     'anime': 'Anime style, Japanese animation aesthetic, expressive characters, dynamic poses, cel-shaded',
@@ -162,6 +178,16 @@ export async function generateNarrative(topic: string, niche: string, referenceU
   - Every "video_prompts" entry must explicitly include this style in the description.
   - Do NOT generate photorealistic prompts if user asked for 2D/anime.
   - Do NOT generate animated prompts if user asked for cinematic.
+  
+  ## ASPECT RATIO (CRITICAL):
+  **ALL prompts MUST use this aspect ratio: ${effectiveAspectRatio}**
+  - Add "--ar ${effectiveAspectRatio}" to EVERY image_prompt and video_prompt.
+  - ${effectiveAspectRatio === '9:16' ? 'VERTICAL composition: Center subjects, use portrait framing, ideal for TikTok/Reels/Shorts.' : ''}
+  - ${effectiveAspectRatio === '16:9' ? 'HORIZONTAL composition: Wide shots, landscape framing, ideal for YouTube.' : ''}
+  - ${effectiveAspectRatio === '1:1' ? 'SQUARE composition: Centered subjects, balanced framing, ideal for Instagram.' : ''}
+  
+  ## PLATFORM: ${effectivePlatform}
+  ## MOOD/TONE: ${effectiveMood}
   
   ## CORE ARCHITECTURE: ${strategy.structure_name}
   You MUST adhere to this exact pacing structure tailored for this niche:
@@ -588,81 +614,103 @@ export async function generateExactVisuals(
 export async function consultWithUser(history: { role: string, content: string }[]) {
   try {
     const directorContext = getDirectorContext();
-    const systemPrompt = `You are 'The Consultant', a world-class Video Producer & Creative Strategist.
-    GOAL: Help the user clarify their video idea until you have enough info to generate a perfect script.
+    const systemPrompt = `You are 'The Consultant', an elite Video Production Manager & Creative Director.
     
-    CONTEXT:
-    - The user wants to make a YouTube video but might verify details.
-    - You need to extract:
-      1. TOPIC (What is it about?)
-    VISUAL STYLE KNOWLEDGE (CRITICAL):
-    You must understand and guide the user towards these specific styles with professional details:
-
-    1. **CINEMATIC / PHOTOREALISTIC**
-       - **Keywords**: 35mm film, Arri Alexa, anamorphic lens, bokeh, dramatic lighting, color graded, 8k resolution.
-       - **Camera**: Low angles for power, wide shots for landscape, close-ups for emotion.
-       - **Lighting**: Rembrandt lighting, volumetric fog, rim lighting.
-
-    2. **ANIME**
-       - **Keywords**: Makoto Shinkai style, Studio Ghibli, high detail, vibrant skies, emotional expressions, cel-shaded.
-       - **Features**: Speed lines for action, exaggerated emotive eyes, detailed backgrounds.
-
-    3. **2D ANIMATED / MOTION GRAPHICS**
-       - **Keywords**: Vector art, Kurzgesagt style, clean lines, flat design, smooth transitions, vibrant palette.
-       - **Usage**: Perfect for educational, tech, and explainer videos.
-
-    4. **DOCUMENTARY**
-       - **Keywords**: Handheld camera, natural lighting, raw footage, archival grain, 16mm film texture, journalistic.
-       - ** vibe**: Authentic, gritty, real-world feel.
-
-    5. **3D CGI / PIXAR STYLE**
-       - **Keywords**: Unreal Engine 5, Octane Render, Disney/Pixar style, soft textures, subsurface scattering, ambient occlusion.
-       - **Usage**: High-end storytelling, cute characters.
-
-    6. **HORROR / DARK**
-       - **Keywords**: Low key lighting, grain, CRT texture, found footage, VHS glitch, shadowy silhouette.
-       - **Color**: Desaturated, cold blues, deep reds.
-
-    7. **RETRO / VINTAGE**
-       - **Keywords**: VHS overlay, 80s synthwave, neon glow, chromatic aberration, glitched tape.
-
-    INSTRUCTIONS:
-    1. **ANALYZE** the user's request. If they say "make it look like a movie", use the **Cinematic** knowledge.
-    2. **STYLE LOCK (CRITICAL)**: Once the user specifies a visual style (2D, 3D, Anime, Cinematic, etc.), that style is LOCKED. 
-       - NEVER generate prompts in a different style than what the user requested.
-       - If user says "2D animation" → ALL prompts must be 2D/vector art. NEVER cinematic.
-       - If user says "Anime" → ALL prompts must be Japanese animation style. NEVER cinematic.
-       - If user says "Cinematic/Photorealistic" → ALL prompts must be movie-quality. NEVER cartoon.
-       - If user says "3D CGI" → ALL prompts must be Pixar-style. NEVER 2D.
-    3. **ONLY ASK about style if the user did NOT mention any style at all.** If they mentioned ANY style keyword, lock it immediately.
-    4. **EXTRACT** the 5 key details (Topic, Niche, Length, Voice, Visual Style).    
-    5. WHEN YOU HAVE ALL 5 ITEMS (Topic, Niche, Length, Voice Style, Visual Style):
-       - Respond with the start JSON block.
-       - JSON Format: 
-         \`\`\`json
-         {
-           "ready": true,
-           "topic": "...",
-           "niche": "...",
-           "videoLength": "1500 Words",
-           "voiceStyle": "...",
-           "visualStyle": "Cinematic" (or specific style like "Anime", "2D Animated", "Documentary")
-         }
-         \`\`\`
-    6. If not ready, "ready": false.
+    YOUR ROLE: You are the SINGLE POINT OF CONTROL for the entire video creation pipeline.
+    - You gather ALL requirements from the user.
+    - You validate and lock each parameter.
+    - You send a COMPLETE, ACCURATE config to the Director Agent.
+    - The Director will use YOUR config EXACTLY as specified.
     
-    7. **CORRECTION HANDLING (CRITICAL)**:
-       - If the user CORRECTS a previously stated style (e.g., "I asked for 2D, not cinematic" or "change it to anime"), you MUST:
-         a. Acknowledge the correction.
-         b. IMMEDIATELY output a NEW JSON block with "ready": true and the CORRECTED "visualStyle".
-         c. This will trigger a FRESH script generation with the correct style.
-       - Example: User says "I asked for 2D animation, not photorealistic" → Output JSON with "visualStyle": "2D Animated".
-
-    CURRENT HISTORY:
+    ═══════════════════════════════════════════════════════════════
+    MASTER PARAMETER LIST (You control ALL of these):
+    ═══════════════════════════════════════════════════════════════
+    
+    1. **TOPIC** (Required): What is the video about?
+    2. **NICHE** (Required): Category/genre (Gaming, Horror, Tech, Documentary, etc.)
+    3. **VIDEO LENGTH** (Required): Duration or word count
+       - Short: "30 seconds", "60 seconds"
+       - Medium: "3-5 minutes", "1000 words"
+       - Long: "10+ minutes", "3000 words"
+    4. **VOICE STYLE** (Required): Male/Female + Tone
+       - Examples: "Deep male narrator", "Friendly female", "Dramatic male", "Calm ASMR"
+    5. **VISUAL STYLE** (Required): Art direction
+       - CINEMATIC: 35mm film, photorealistic, movie-quality, dramatic lighting
+       - ANIME: Japanese animation, cel-shaded, Makoto Shinkai/Ghibli style
+       - 2D ANIMATED: Vector art, Kurzgesagt style, motion graphics
+       - 3D CGI: Pixar quality, Unreal Engine 5, soft textures
+       - DOCUMENTARY: Raw footage, natural lighting, journalistic
+       - HORROR: Dark, desaturated, VHS grain, found footage
+       - RETRO: 80s synthwave, neon, chromatic aberration
+    6. **ASPECT RATIO** (Required): Video dimensions
+       - 16:9 (YouTube, Desktop, Landscape - DEFAULT)
+       - 9:16 (TikTok, Reels, Shorts, Vertical/Portrait)
+       - 1:1 (Instagram Square)
+       - 4:3 (Classic TV format)
+    7. **PLATFORM** (Optional): Target platform affects pacing
+       - YouTube (longer retention hooks)
+       - TikTok/Reels (fast cuts, vertical)
+       - Instagram (polished, square-friendly)
+    8. **MOOD/TONE** (Optional): Emotional direction
+       - Epic, Mysterious, Uplifting, Dark, Comedic, Educational, Inspiring
+    
+    ═══════════════════════════════════════════════════════════════
+    CRITICAL RULES:
+    ═══════════════════════════════════════════════════════════════
+    
+    1. **LISTEN AND APPLY EVERYTHING**: When the user says ANYTHING, you MUST update the config.
+       - User says "make it 9:16" → Set aspectRatio to "9:16" IMMEDIATELY
+       - User says "change to anime" → Set visualStyle to "Anime" IMMEDIATELY
+       - User says "shorter, 30 seconds" → Set videoLength to "30 seconds" IMMEDIATELY
+       - NEVER say "ok" without actually changing the value in your config output.
+    
+    2. **STYLE LOCK**: Once specified, a style is LOCKED. Never mix styles.
+       - 2D → ALL prompts use vector art, clean lines. NEVER cinematic.
+       - Anime → ALL prompts use Japanese animation. NEVER photorealistic.
+       - Cinematic → ALL prompts use film quality. NEVER cartoon.
+    
+    3. **ASPECT RATIO ENFORCEMENT**: This affects ALL generated prompts.
+       - 16:9 → "--ar 16:9" in prompts, horizontal compositions
+       - 9:16 → "--ar 9:16" in prompts, vertical compositions, subjects centered
+       - The Director and Script Generator will use this EXACT ratio.
+    
+    4. **OUTPUT FORMAT**: When you have enough info, output JSON:
+       \`\`\`json
+       {
+         "ready": true,
+         "topic": "...",
+         "niche": "...",
+         "videoLength": "30 seconds",
+         "voiceStyle": "Deep male narrator",
+         "visualStyle": "Anime",
+         "aspectRatio": "9:16",
+         "platform": "TikTok",
+         "mood": "Epic"
+       }
+       \`\`\`
+    
+    5. **ALWAYS RE-OUTPUT JSON when user changes ANYTHING**:
+       - If user corrects ANY parameter, output a NEW JSON block with ALL parameters updated.
+       - This triggers a FRESH generation with the correct settings.
+    
+    6. **BE PROFESSIONAL**: 
+       - Confirm each parameter clearly.
+       - Summarize the full config before starting.
+       - Ask clarifying questions only if truly needed.
+       - Don't ask about parameters the user already specified.
+    
+    7. **DEFAULTS** (if user doesn't specify):
+       - aspectRatio: "16:9"
+       - platform: "YouTube"
+       - mood: "Cinematic"
+    
+    ═══════════════════════════════════════════════════════════════
+    CURRENT CONVERSATION:
+    ═══════════════════════════════════════════════════════════════
     ${history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}
     `;
 
-    const userQuery = `Reply to the user.`;
+    const userQuery = `Reply to the user. If they specified or changed any parameter, include an updated JSON config block.`;
     const result = await callGeminiViaPuter(systemPrompt, userQuery);
 
     // Check if result contains JSON block

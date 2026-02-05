@@ -33,6 +33,20 @@ function App() {
       setDirectorLogs(prev => [...prev, msg]);
     };
 
+    // STEP 0: Clear old logs and cancel any running job
+    setDirectorLogs(["[Pipeline] 🔄 Clearing previous session..."]);
+
+    try {
+      await fetch(`${serverUrl}/control`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel' })
+      });
+      addLog("[Pipeline] ✅ Previous job canceled (if any).");
+    } catch (e) {
+      console.warn("Could not cancel previous job:", e);
+    }
+
     addLog("[Pipeline] 🚀 Starting FULL auto-generation with config: " + JSON.stringify(config));
     addLog(`[Pipeline] 🔌 Server: ${serverUrl}`);
     setStep('generating');
@@ -45,7 +59,10 @@ function App() {
         '',
         config.videoLength || '5-7 minutes',
         config.voiceStyle || 'Conversational',
-        config.visualStyle || 'Cinematic' // Pass the visual style from Consultant config
+        config.visualStyle || 'Cinematic',
+        config.aspectRatio || '16:9',
+        config.platform || 'YouTube',
+        config.mood || 'Cinematic'
       );
 
       if (!scriptResult || !scriptResult.structure) throw new Error("Script generation failed");
@@ -145,8 +162,12 @@ function App() {
       // Step 4: Trigger Server-Side Director (Meta AI + FFmpeg)
       addLog("[Pipeline] 🎬 Starting Director (Meta.ai) on Server...");
 
-      // Attach the project name so server knows where to put videos
+      // Attach the project name and ALL config parameters so server uses the correct settings
       scriptResult.title = projectName;
+      scriptResult.visualStyle = config.visualStyle || 'Cinematic';
+      scriptResult.aspectRatio = config.aspectRatio || '16:9';
+      scriptResult.platform = config.platform || 'YouTube';
+      scriptResult.mood = config.mood || 'Cinematic';
 
       await fetch(`${serverUrl}/generate-video`, {
         method: 'POST',
@@ -174,6 +195,18 @@ function App() {
     // Scroll to bottom of logs
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [directorLogs]);
+
+  // Cancel Director job when page closes/refreshes
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Send cancel request (fire-and-forget, uses navigator.sendBeacon for reliability)
+      const payload = JSON.stringify({ action: 'cancel' });
+      navigator.sendBeacon(`${serverUrl}/control`, payload);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [serverUrl]);
 
   useEffect(() => {
     // Subscribe to Director Events with Retry Logic (Silent when server offline)

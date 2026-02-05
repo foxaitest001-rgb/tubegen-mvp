@@ -83,7 +83,9 @@ function directorLog(sceneNum, type, message) {
 let directorState = {
     paused: false,
     stopped: false,
-    restart: false
+    restart: false,
+    currentJobId: null,  // Unique ID for current job
+    isRunning: false     // Track if Director is active
 };
 
 // Check pause/stop status, returns true if RESTART requested
@@ -195,17 +197,20 @@ async function assembleVideo(projectDir) {
 }
 
 // --- THE DIRECTOR AGENT (V2: Flat Queue Architecture) ---
-async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photorealistic') {
+async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photorealistic', aspectRatio = '16:9', jobId = null) {
     // Use provided project dir or current
     const outputPublic = projectDir?.public || currentProjectDir.public;
     const outputServer = projectDir?.server || currentProjectDir.server;
 
+    // Store jobId for this execution
+    const myJobId = jobId || `job_${Date.now()}`;
+
     directorState.stopped = false;
     directorState.paused = false;
     directorState.restart = false;
-    directorLog(0, "INIT", `Initializing Director Agent...`);
+    directorLog(0, "INIT", `Initializing Director Agent (Job: ${myJobId})...`);
     directorLog(0, "PROJECT", `Output folder: ${projectDir?.name || 'default'}`);
-    directorLog(0, "STYLE", `Visual Style: ${visualStyle}`);
+    directorLog(0, "STYLE", `Visual Style: ${visualStyle} | Aspect Ratio: ${aspectRatio}`);
 
     let browser;
     let page;
@@ -703,10 +708,11 @@ app.post('/control', (req, res) => {
     } else if (action === 'resume') {
         directorState.paused = false;
         directorLog(0, "CTRL", "▶️ Resumed");
-    } else if (action === 'stop') {
+    } else if (action === 'stop' || action === 'cancel') {
         directorState.stopped = true;
         directorState.paused = false;
-        directorLog(0, "CTRL", "🛑 Stopping...");
+        directorState.isRunning = false;
+        directorLog(0, "CTRL", "🛑 Stopping current job...");
     } else if (action === 'restart') {
         directorState.restart = true;
         directorState.paused = false;
@@ -716,21 +722,67 @@ app.post('/control', (req, res) => {
     res.json({ status: "ok", state: directorState });
 });
 
+// Get current Director status
+app.get('/status', (req, res) => {
+    res.json({
+        isRunning: directorState.isRunning,
+        paused: directorState.paused,
+        stopped: directorState.stopped,
+        currentJobId: directorState.currentJobId
+    });
+});
+
 app.post('/generate-video', async (req, res) => {
     const { scriptData } = req.body;
     if (!scriptData || !scriptData.structure) return res.status(400).json({ error: "Invalid data" });
+
+    // CRITICAL: Stop any existing job before starting new one
+    if (directorState.isRunning) {
+        directorLog(0, "CTRL", "🛑 Canceling previous job to start new one...");
+        directorState.stopped = true;
+        // Wait a moment for the old job to acknowledge stop
+        await new Promise(r => setTimeout(r, 1000));
+    }
+
+    // Reset state for new job
+    const newJobId = `job_${Date.now()}`;
+    directorState.paused = false;
+    directorState.stopped = false;
+    directorState.restart = false;
+    directorState.currentJobId = newJobId;
+    directorState.isRunning = true;
 
     // Create project folder from first title option
     const title = scriptData.title_options?.[0] || scriptData.title || `video_${Date.now()}`;
     const projectDir = createProjectFolder(title);
 
-    // Get visual style from script data (set by Consultant)
+    // Get ALL config from script data (set by Consultant)
     const visualStyle = scriptData.visualStyle || 'Cinematic photorealistic';
+    const aspectRatio = scriptData.aspectRatio || '16:9';
+    const platform = scriptData.platform || 'YouTube';
+    const mood = scriptData.mood || 'Cinematic';
 
-    directorState.paused = false;
-    directorState.stopped = false;
-    generateVideo(scriptData.structure, projectDir, visualStyle).catch(console.error);
-    res.json({ status: "started", message: "Director Agent started.", projectFolder: projectDir.name, visualStyle });
+    directorLog(0, "NEW_JOB", `🚀 Starting Job: ${newJobId}`);
+    directorLog(0, "CONFIG", `Visual: ${visualStyle} | Aspect: ${aspectRatio} | Platform: ${platform} | Mood: ${mood}`);
+
+    generateVideo(scriptData.structure, projectDir, visualStyle, aspectRatio, newJobId)
+        .then(() => {
+            directorState.isRunning = false;
+            directorLog(0, "COMPLETE", "🎉 Director job finished successfully!");
+        })
+        .catch(err => {
+            directorState.isRunning = false;
+            directorLog(0, "ERROR", `Job failed: ${err.message}`);
+        });
+
+    res.json({
+        status: "started",
+        message: "Director Agent started.",
+        projectFolder: projectDir.name,
+        visualStyle,
+        aspectRatio,
+        jobId: newJobId
+    });
 });
 
 app.post('/save-audio', async (req, res) => {
