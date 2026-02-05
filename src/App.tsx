@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Settings, Send, Zap } from 'lucide-react';
+import { Settings, Zap, Download } from 'lucide-react';
 import { ConsultantChat } from './components/ConsultantChat'
 import { generateNarrative } from './services/puter'
 
@@ -14,6 +14,10 @@ function App() {
   // State for director logs
   const [directorLogs, setDirectorLogs] = useState<string[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null)
+
+  // Final video download state
+  const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Remote Server State
   const [serverUrl, setServerUrl] = useState(() => {
@@ -178,30 +182,9 @@ function App() {
           const finalVideo = data.files?.find((f: any) => f.isFinal || f.name === 'final_video.mp4');
           if (finalVideo) {
             const downloadUrl = `${serverUrl}${finalVideo.path}`;
-            setDirectorLogs(prev => [...prev, `⬇️ Downloading from: ${downloadUrl}`]);
-
-            // Use fetch + blob for cross-origin download
-            fetch(downloadUrl)
-              .then(response => {
-                if (!response.ok) throw new Error('Download failed');
-                return response.blob();
-              })
-              .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'final_video.mp4';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                setDirectorLogs(prev => [...prev, `✅ Download started! Check your Downloads folder.`]);
-              })
-              .catch(err => {
-                setDirectorLogs(prev => [...prev, `❌ Download error: ${err.message}`]);
-                // Fallback: open in new tab
-                window.open(downloadUrl, '_blank');
-              });
+            setFinalVideoUrl(downloadUrl);
+            setDirectorLogs(prev => [...prev, `⬇️ Auto-downloading from: ${downloadUrl}`]);
+            handleDownloadVideo(downloadUrl);
           }
         } else if (data.type === 'log') {
           setDirectorLogs(prev => [...prev, data.message]);
@@ -215,6 +198,36 @@ function App() {
     connect();
     return () => { evtSource?.close(); clearTimeout(retryTimeout); };
   }, [serverUrl]);
+
+  // Manual Download Handler
+  const handleDownloadVideo = (url: string) => {
+    setIsDownloading(true);
+    setDirectorLogs(prev => [...prev, `⬇️ Downloading video...`]);
+
+    fetch(url)
+      .then(res => {
+        if (!res.ok) throw new Error("Download failed");
+        return res.blob();
+      })
+      .then(blob => {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = 'final_video.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+        setIsDownloading(false);
+        setDirectorLogs(prev => [...prev, `✅ Download saved to disk.`]);
+      })
+      .catch(err => {
+        console.error(err);
+        setIsDownloading(false);
+        setDirectorLogs(prev => [...prev, `❌ Download failed. Opening in new tab...`]);
+        window.open(url, '_blank');
+      });
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex flex-col">
@@ -235,17 +248,29 @@ function App() {
             <p className="text-xs text-gray-500">AI Video Production</p>
           </div>
         </div>
+        <div className="flex gap-2">
+          {finalVideoUrl && (
+            <button
+              onClick={() => handleDownloadVideo(finalVideoUrl)}
+              disabled={isDownloading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-green-500 hover:bg-green-400 text-black shadow-lg shadow-green-500/20 transition-all animate-pulse-slow"
+            >
+              <Download className={`w-4 h-4 ${isDownloading ? 'animate-bounce' : ''}`} />
+              {isDownloading ? 'Downloading...' : 'Download Video'}
+            </button>
+          )}
 
-        <button
-          onClick={() => setShowServerConfig(!showServerConfig)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
+          <button
+            onClick={() => setShowServerConfig(!showServerConfig)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
             ${showServerConfig
-              ? 'bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/50'
-              : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
-        >
-          <Settings className="w-4 h-4" />
-          {serverUrl.includes('localhost') ? 'Local Mode' : 'Remote Mode'}
-        </button>
+                ? 'bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/50'
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+          >
+            <Settings className="w-4 h-4" />
+            {serverUrl.includes('localhost') ? 'Local Mode' : 'Remote Mode'}
+          </button>
+        </div>
       </header>
 
       {/* Server Config */}
