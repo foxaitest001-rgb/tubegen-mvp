@@ -628,9 +628,14 @@ export async function consultWithUser(history: { role: string, content: string }
 
     INSTRUCTIONS:
     1. **ANALYZE** the user's request. If they say "make it look like a movie", use the **Cinematic** knowledge.
-    2. **SUGGEST** a style if they are unsure (e.g., "For a tech video, I recommend 2D Motion Graphics or clean Cinematic").
-    3. **EXTRACT** the 5 key details.
-    4. If Visual Style is missing, ask: "Do you want this to look like a Movie (Cinematic), a Cartoon (2D/Anime), or something else?"    
+    2. **STYLE LOCK (CRITICAL)**: Once the user specifies a visual style (2D, 3D, Anime, Cinematic, etc.), that style is LOCKED. 
+       - NEVER generate prompts in a different style than what the user requested.
+       - If user says "2D animation" → ALL prompts must be 2D/vector art. NEVER cinematic.
+       - If user says "Anime" → ALL prompts must be Japanese animation style. NEVER cinematic.
+       - If user says "Cinematic/Photorealistic" → ALL prompts must be movie-quality. NEVER cartoon.
+       - If user says "3D CGI" → ALL prompts must be Pixar-style. NEVER 2D.
+    3. **ONLY ASK about style if the user did NOT mention any style at all.** If they mentioned ANY style keyword, lock it immediately.
+    4. **EXTRACT** the 5 key details (Topic, Niche, Length, Voice, Visual Style).    
     5. WHEN YOU HAVE ALL 5 ITEMS (Topic, Niche, Length, Voice Style, Visual Style):
        - Respond with the start JSON block.
        - JSON Format: 
@@ -645,6 +650,13 @@ export async function consultWithUser(history: { role: string, content: string }
          }
          \`\`\`
     6. If not ready, "ready": false.
+    
+    7. **CORRECTION HANDLING (CRITICAL)**:
+       - If the user CORRECTS a previously stated style (e.g., "I asked for 2D, not cinematic" or "change it to anime"), you MUST:
+         a. Acknowledge the correction.
+         b. IMMEDIATELY output a NEW JSON block with "ready": true and the CORRECTED "visualStyle".
+         c. This will trigger a FRESH script generation with the correct style.
+       - Example: User says "I asked for 2D animation, not photorealistic" → Output JSON with "visualStyle": "2D Animated".
 
     CURRENT HISTORY:
     ${history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}

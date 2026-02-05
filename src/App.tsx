@@ -44,7 +44,8 @@ function App() {
         config.niche || niche,
         '',
         config.videoLength || '5-7 minutes',
-        config.voiceStyle || 'Conversational'
+        config.voiceStyle || 'Conversational',
+        config.visualStyle || 'Cinematic' // Pass the visual style from Consultant config
       );
 
       if (!scriptResult || !scriptResult.structure) throw new Error("Script generation failed");
