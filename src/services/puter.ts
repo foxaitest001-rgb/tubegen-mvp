@@ -74,7 +74,7 @@ export async function callGeminiViaPuter(systemPrompt: string, userQuery: string
 }
 
 // Stub out Voice/Video functions to prevent accidental usage if UI triggers them
-export async function generateContentWithPuter(systemPrompt: string, userQuery: string, imageFile?: File) {
+export async function generateContentWithPuter(systemPrompt: string, userQuery: string, _imageFile?: File) {
   return callGeminiViaPuter(systemPrompt, userQuery);
 }
 
@@ -613,7 +613,6 @@ export async function generateExactVisuals(
 // --- CONSULTANT AGENT (Agent 3) ---
 export async function consultWithUser(history: { role: string, content: string }[]) {
   try {
-    const directorContext = getDirectorContext();
     const systemPrompt = `You are 'The Consultant', an elite Video Production Manager & Creative Director.
     
     YOUR ROLE: You are the SINGLE POINT OF CONTROL for the entire video creation pipeline.
