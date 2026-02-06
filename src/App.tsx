@@ -102,73 +102,48 @@ function App() {
       if (!scriptResult || !scriptResult.structure) throw new Error("Script generation failed");
       addLog(`[Pipeline] ✅ Script ready! ${scriptResult.structure.length} scenes`);
 
-      // Voiceovers
-      addLog("[Pipeline] 🎙️ Generating voiceovers...");
-      try {
-        const { generateSpeechWithPiper } = await import('./services/puter');
-
-        for (let i = 0; i < scriptResult.structure.length; i++) {
-          const scene = scriptResult.structure[i];
-          if (scene.voiceover) {
-            try {
-              const url = await generateSpeechWithPiper(scene.voiceover, config.voiceStyle);
-              if (url) {
-                scene.audioUrl = url;
-                scene.duration = Math.ceil(scene.voiceover.split(' ').length / 2.5);
-                addLog(`[Pipeline] ✓ Scene ${i + 1} audio ready`);
-              }
-            } catch {
-              scene.duration = Math.ceil(scene.voiceover.split(' ').length / 2.5);
-              addLog(`[Pipeline] ⚠ Scene ${i + 1} audio skipped`);
-            }
-          }
-        }
-      } catch {
-        addLog("[Pipeline] ⚠ Voiceover generation skipped");
-      }
-
-      // Upload assets
-      addLog("[Pipeline] 📤 Uploading assets...");
-      const projectName = scriptResult.title_options?.[0] || config.topic || 'video_project';
-
-
-
       // Start Video Job First (to create project folder)
       addLog("[Pipeline] 🎬 Initializing Director Job...");
+      const projectName = scriptResult.title_options?.[0] || config.topic || 'video_project';
       scriptResult.title = projectName;
       scriptResult.visualStyle = config.visualStyle || 'Cinematic';
       scriptResult.aspectRatio = config.aspectRatio || '16:9';
       scriptResult.platform = config.platform || 'YouTube';
       scriptResult.mood = config.mood || 'Cinematic';
 
-      // 1. Kickoff Job
+      // 1. Kickoff Job (Creates Project Folder & Starts Video Gen)
       await fetch(`${serverUrl}/generate-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scriptData: scriptResult })
       });
+      addLog("[Pipeline] ✅ Director Job Started.");
 
-      // 2. Upload Audio Logic (Now that job exists)
-      addLog("[Pipeline] 📤 Uploading audio assets to Director...");
-      for (let i = 0; i < scriptResult.structure.length; i++) {
-        const scene = scriptResult.structure[i];
-        if (scene.audioUrl) {
-          try {
-            const resp = await fetch(scene.audioUrl);
-            const blob = await resp.blob();
-            // POST raw wav blob
-            await fetch(`${serverUrl}/upload-audio?sceneNum=${i + 1}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'audio/wav' },
-              body: blob
-            });
-            addLog(`[Pipeline] ✓ Uploaded audio for Scene ${i + 1}`);
-          } catch (e) {
-            console.error("Upload failed", e);
+      // 2. Request Server-Side Audio Generation
+      addLog("[Pipeline] 🎙️ Requesting Server-Side Audio Generation...");
+      try {
+        const { generateAudioOnServer } = await import('./services/puter');
+
+        for (let i = 0; i < scriptResult.structure.length; i++) {
+          const scene = scriptResult.structure[i];
+          if (scene.voiceover) {
+            try {
+              const success = await generateAudioOnServer(scene.voiceover, config.voiceStyle, i + 1, serverUrl);
+              if (success) {
+                addLog(`[Pipeline] ✓ Audio generated for Scene ${i + 1}`);
+              } else {
+                addLog(`[Pipeline] ⚠ Audio Start Failed for Scene ${i + 1}`);
+              }
+            } catch (e) {
+              addLog(`[Pipeline] ⚠ Audio Request Error Scene ${i + 1}`);
+            }
           }
         }
+      } catch (e) {
+        addLog("[Pipeline] ⚠ Audio Generation Module Failed");
       }
-      addLog("[Pipeline] ✅ Assets uploaded. Director is working...");
+
+      addLog("[Pipeline] ✅ All assets requested. Director is working...");
 
       setDirectorLogs(prev => [...prev, "[Pipeline] 🚀 Director is working! Watch logs below..."]);
     } catch (e: any) {
@@ -297,89 +272,89 @@ function App() {
         </div>
       </header >
 
-    {/* Server Config */ }
-  {
-    showServerConfig && (
-      <div className="relative z-10 px-6 py-4 bg-black/40 border-b border-white/5 backdrop-blur-sm">
-        <div className="max-w-2xl mx-auto">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Director Server URL</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={serverUrl}
-              onChange={(e) => setServerUrl(e.target.value)}
-              placeholder="https://xxx.trycloudflare.com"
-              className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
-            />
-            <button
-              onClick={() => setShowServerConfig(false)}
-              className="px-6 py-3 bg-purple-500 hover:bg-purple-400 text-white font-medium rounded-xl transition-colors"
-            >
-              Save
-            </button>
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            💡 Paste Cloudflare tunnel URL for RDP, or localhost:3001 for local testing
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  {/* Main Content */ }
-  <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
-    <div className="flex-1 overflow-hidden">
-      <ConsultantChat
-        onApplyConfig={handleApplyConfig}
-        onStartPipeline={handleStartPipeline}
-      />
-    </div>
-
-    {/* Director Logs */}
-    {directorLogs.length > 0 && (
-      <div className="h-56 border-t border-white/5 bg-black/60 backdrop-blur-sm flex flex-col">
-        <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-sm font-semibold text-white">Director Logs</span>
-            <span className="text-xs text-gray-500">({directorLogs.length} entries)</span>
-          </div>
-          <button
-            onClick={() => setDirectorLogs([])}
-            className="text-xs px-3 py-1 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-400 rounded-lg transition-colors"
-          >
-            Clear
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1">
-          {directorLogs.map((log, i) => (
-            <div
-              key={i}
-              className={`${log.includes('✅') || log.includes('🎉') ? 'text-green-400' :
-                log.includes('⚠') ? 'text-yellow-400' :
-                  log.includes('❌') ? 'text-red-400' :
-                    log.includes('🚀') || log.includes('🎬') ? 'text-purple-400' :
-                      'text-gray-400'
-                }`}
-            >
-              {log}
+      {/* Server Config */}
+      {
+        showServerConfig && (
+          <div className="relative z-10 px-6 py-4 bg-black/40 border-b border-white/5 backdrop-blur-sm">
+            <div className="max-w-2xl mx-auto">
+              <label className="block text-sm font-medium text-gray-300 mb-2">Director Server URL</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={serverUrl}
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  placeholder="https://xxx.trycloudflare.com"
+                  className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+                />
+                <button
+                  onClick={() => setShowServerConfig(false)}
+                  className="px-6 py-3 bg-purple-500 hover:bg-purple-400 text-white font-medium rounded-xl transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                💡 Paste Cloudflare tunnel URL for RDP, or localhost:3001 for local testing
+              </p>
             </div>
-          ))}
-          <div ref={logEndRef} />
-        </div>
-      </div>
-    )}
-  </main>
+          </div>
+        )
+      }
 
-  {/* Error Toast */ }
-  {
-    error && (
-      <div className="fixed bottom-6 right-6 z-50 bg-red-500/90 backdrop-blur text-white px-5 py-3 rounded-xl shadow-2xl shadow-red-500/20 flex items-center gap-3">
-        <span className="text-sm">{error}</span>
-        <button onClick={() => setError(null)} className="text-white/80 hover:text-white font-bold">×</button>
-      </div>
-    )
-  }
+      {/* Main Content */}
+      <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-hidden">
+          <ConsultantChat
+            onApplyConfig={handleApplyConfig}
+            onStartPipeline={handleStartPipeline}
+          />
+        </div>
+
+        {/* Director Logs */}
+        {directorLogs.length > 0 && (
+          <div className="h-56 border-t border-white/5 bg-black/60 backdrop-blur-sm flex flex-col">
+            <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm font-semibold text-white">Director Logs</span>
+                <span className="text-xs text-gray-500">({directorLogs.length} entries)</span>
+              </div>
+              <button
+                onClick={() => setDirectorLogs([])}
+                className="text-xs px-3 py-1 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-400 rounded-lg transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1">
+              {directorLogs.map((log, i) => (
+                <div
+                  key={i}
+                  className={`${log.includes('✅') || log.includes('🎉') ? 'text-green-400' :
+                    log.includes('⚠') ? 'text-yellow-400' :
+                      log.includes('❌') ? 'text-red-400' :
+                        log.includes('🚀') || log.includes('🎬') ? 'text-purple-400' :
+                          'text-gray-400'
+                    }`}
+                >
+                  {log}
+                </div>
+              ))}
+              <div ref={logEndRef} />
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Error Toast */}
+      {
+        error && (
+          <div className="fixed bottom-6 right-6 z-50 bg-red-500/90 backdrop-blur text-white px-5 py-3 rounded-xl shadow-2xl shadow-red-500/20 flex items-center gap-3">
+            <span className="text-sm">{error}</span>
+            <button onClick={() => setError(null)} className="text-white/80 hover:text-white font-bold">×</button>
+          </div>
+        )
+      }
     </div >
   )
 }

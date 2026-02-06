@@ -363,65 +363,58 @@ function selectVoiceForStyle(style?: string): string {
   return 'lessac'; // default neutral
 }
 
-export async function generateSpeechWithPiper(text: string, voiceStyle?: string) {
+// REPLACED: Client-side Piper removed. Now using Server-Side Piper.
+export async function generateAudioOnServer(text: string, voiceStyle: string, sceneNum: number, serverUrl: string) {
   try {
-    console.log("[Service] Initializing Piper Engine (Local)...");
-
-    // Dynamic import
-    // @ts-ignore
-    const { PiperTTSWeb } = await import('piper-tts-web');
-
     const voiceName = selectVoiceForStyle(voiceStyle);
-    const voicePath = LOCAL_VOICES[voiceName];
 
-    console.log(`[Piper] Using local voice: ${voiceName} (${voicePath})`);
+    // Remove "piper/" prefix if present in LOCAL_VOICES, we just send the ID
+    // Actually selectVoiceForStyle returns 'ryan', 'joe', etc.
+    // We need to map that to the ONNX filename expected by server
+    // Server expects: "en_US-ryan-medium"
+    const voiceMap: Record<string, string> = {
+      'ryan': 'en_US-ryan-medium',
+      'joe': 'en_US-joe-medium',
+      'lessac': 'en_US-lessac-medium'
+    };
+    const voiceId = voiceMap[voiceName] || 'en_US-lessac-medium';
 
-    // Load voice model if not already loaded or different voice requested
-    if (!piperEngine || loadedVoice !== voiceName) {
-      console.log(`[Piper] Loading voice model: ${voiceName}...`);
+    console.log(`[Service] Requesting server audio (Voice: ${voiceId})...`);
 
-      // Fetch local model files
-      const modelResponse = await fetch(voicePath);
-      if (!modelResponse.ok) {
-        throw new Error(`Failed to load model: ${voicePath} (${modelResponse.status})`);
-      }
-      const modelBuffer = await modelResponse.arrayBuffer();
+    const resp = await fetch(`${serverUrl}/generate-voiceover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        voiceId,
+        sceneNum
+      })
+    });
 
-      const configResponse = await fetch(voicePath + '.json');
-      if (!configResponse.ok) {
-        throw new Error(`Failed to load config: ${voicePath}.json`);
-      }
-      const config = await configResponse.json();
-
-      // Create Piper engine with local model
-      piperEngine = new PiperTTSWeb({
-        model: new Uint8Array(modelBuffer),
-        config: config
-      });
-
-      await piperEngine.init();
-      loadedVoice = voiceName;
-      console.log(`[Piper] Voice model loaded: ${voiceName}`);
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || 'Server audio gen failed');
     }
 
-    console.log(`[Piper] Synthesizing: "${text.substring(0, 30)}..."`);
+    const data = await resp.json();
+    console.log(`[Service] Server generated audio: ${data.path}`);
+    return true;
 
-    // Generate speech
-    const audioData = await piperEngine.synthesize(text);
-
-    if (audioData) {
-      const blob = new Blob([audioData], { type: 'audio/wav' });
-      console.log(`[Piper] Success! Audio size: ${(blob.size / 1024).toFixed(1)}KB`);
-      return URL.createObjectURL(blob);
-    }
-
-    console.warn("[Piper] No audio generated");
-    return null;
-
-  } catch (e) {
-    console.error("Piper TTS Error:", e);
-    return null;
+  } catch (e: any) {
+    console.error("Server Audio Error:", e);
+    return false;
   }
+}
+
+// Legacy stub
+export async function generateSpeechWithPiper(text: string, voiceStyle?: string) {
+  console.warn("Legacy generateSpeechWithPiper called - should use generateAudioOnServer");
+  return null;
+}
+
+// Helper: Silent audio stub (unused in server mode)
+function createSilentAudio(): string {
+  return "";
 }
 
 // --- PUTER VIDEO (Cloud) ---

@@ -1044,6 +1044,50 @@ app.post('/save-audio', async (req, res) => {
     }
 });
 
+// SERVER-SIDE PIPER GENERATION
+app.post('/generate-voiceover', async (req, res) => {
+    const { text, voiceId, sceneNum } = req.body;
+
+    if (!currentProjectDir.server) {
+        return res.status(500).json({ error: "No active project. Start generation first." });
+    }
+
+    try {
+        const piperBinary = path.join(__dirname, 'piper', 'piper'); // User must install this
+        const modelPath = path.join(__dirname, 'public', 'piper', `${voiceId}.onnx`);
+        const outputFilename = `scene_${sceneNum}_audio.wav`;
+        const outputPath = path.join(currentProjectDir.server, outputFilename);
+        const publicPath = path.join(currentProjectDir.public, outputFilename);
+
+        directorLog(sceneNum, "AUDIO", `🎙️ Generating audio on server (Voice: ${voiceId})...`);
+
+        // Check if model exists
+        if (!fs.existsSync(modelPath)) {
+            throw new Error(`Model not found: ${modelPath}`);
+        }
+
+        // Execute Piper
+        // Command: echo "text" | ./piper --model model.onnx --output_file out.wav
+        const cmd = `echo "${text.replace(/"/g, '\\"')}" | "${piperBinary}" --model "${modelPath}" --output_file "${outputPath}"`;
+
+        await execAsync(cmd);
+
+        // Copy to public for playback check
+        fs.copyFileSync(outputPath, publicPath);
+
+        const size = fs.statSync(outputPath).size;
+        directorLog(sceneNum, "AUDIO", `✓ Generated audio: ${outputFilename} (${size} bytes)`);
+        console.log(`[AUDIO] Server-side generation success: ${outputPath}`);
+
+        res.json({ success: true, path: outputPath });
+
+    } catch (e) {
+        console.error("Piper Server Gen Error:", e);
+        directorLog(sceneNum, "ERROR", `Audio Gen Failed: ${e.message}`);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`[DIRECTOR AGENT] ${VERSION} - Server running on http://localhost:${PORT}`);
     console.log(`[DIRECTOR AGENT] Output Dirs: \n - Public: ${PUBLIC_OUTPUT_DIR} \n - Server: ${SERVER_OUTPUT_DIR}`);

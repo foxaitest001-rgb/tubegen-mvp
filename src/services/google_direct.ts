@@ -9,11 +9,12 @@ const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 // Fallback: gemini-2.5-pro, gemini-3-flash-preview
 // NOTE: This user has access to Next-Gen models. Legacy 1.5 models are NOT available.
 // Single model: gemini-3-flash-preview (Primary)
-// Fallback: gemini-2.0-flash, gemini-1.5-pro
+// Fallback: gemini-2.0-flash, gemini-2.0-flash-lite-preview-02-05, gemini-1.5-flash-002
 // NOTE: This user has access to Next-Gen models.
 const FALLBACK_MODELS: string[] = [
     'gemini-2.0-flash',
-    'gemini-1.5-pro',
+    'gemini-2.0-flash-lite-preview-02-05',
+    'gemini-1.5-flash-002',
     'gemini-1.5-flash'
 ];
 
@@ -31,7 +32,7 @@ export async function generateContentWithGoogle(systemPrompt: string, userQuery:
 
     for (const modelName of modelsToTry) {
         // Robust Retry Logic for Rate Limits
-        const MAX_RETRIES = 3;
+        const MAX_RETRIES = 1; // Effective retries after wait
         let retries = 0;
 
         while (retries <= MAX_RETRIES) {
@@ -63,12 +64,12 @@ export async function generateContentWithGoogle(systemPrompt: string, userQuery:
                 console.warn(`[Google Direct] Failed with ${modelName}:`, error.message.substring(0, 100));
                 lastError = error;
 
-                // If rate limited (429), wait and RETRY the SAME model (Single Robust Retry)
-                if (error.message.includes('429') || error.message.includes('Too Many Requests') || error.message.includes('quota')) {
+                // If rate limited (429) or Service Unavailable (503), wait and RETRY the SAME model
+                if (error.message.includes('429') || error.message.includes('503') || error.message.includes('quota')) {
                     if (retries < 1) {
                         // User Request: Skip erratic retries, go straight to long wait
-                        const waitTime = 12000; // 12 seconds
-                        console.log(`[Google Direct] ⚠️ Rate Limited (429). Waiting ${waitTime / 1000}s before FINAL retry...`);
+                        const waitTime = 20000; // 20 seconds
+                        console.log(`[Google Direct] ⚠️ High Traffic (429/503). Waiting ${waitTime / 1000}s before FINAL retry...`);
                         await new Promise(r => setTimeout(r, waitTime));
                         retries++;
                         continue; // LOOP AGAIN with same model

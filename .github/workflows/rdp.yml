@@ -45,6 +45,15 @@ jobs:
           ffmpeg -version | head -1
           echo "✅ FFmpeg installed for video assembly"
 
+      - name: 🗣️ Install Piper TTS (Linux x64)
+        run: |
+          mkdir -p server/piper
+          wget -q -O piper.tar.gz https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz
+          tar -xvf piper.tar.gz -C server/piper --strip-components=1
+          rm piper.tar.gz
+          chmod +x server/piper/piper
+          echo "✅ Piper TTS installed in server/piper"
+
       - name: 📦 Install Node.js
         uses: actions/setup-node@v4
         with:
