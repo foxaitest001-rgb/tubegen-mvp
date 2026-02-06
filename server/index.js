@@ -303,10 +303,12 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
         // NUKE OPTION: Kill all zombie Chromes to unlock user_data
         try {
             directorLog(0, "BROWSER", "🧹 Killing zombie Chrome processes...");
-            // Use 'start' to avoid waiting/hanging if it's stubborn? No, standard exec is fine.
-            // On Windows: /F (force), /IM (image name)
-            // Wrap in try/catch because if no chrome is running, it throws error.
-            await execAsync('taskkill /F /IM chrome.exe /T').catch(() => { });
+            // Cross-platform Zombie Killer
+            const isWin = process.platform === 'win32';
+            const killCmd = isWin ? 'taskkill /F /IM chrome.exe /T' : 'pkill -f chrome || pkill -f chromium';
+
+            directorLog(0, "BROWSER", `🧹 Killing zombie processes (${isWin ? 'Windows' : 'Linux/Unix'})...`);
+            await execAsync(killCmd).catch(() => { });
             await interruptibleSleep(2000); // Wait for file locks to release
         } catch (e) { /* ignore */ }
 
