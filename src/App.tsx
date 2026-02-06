@@ -5,10 +5,10 @@ import { ConsultantChat } from './components/ConsultantChat'
 import { generateNarrative } from './services/puter'
 
 function App() {
-  const [step, setStep] = useState<'input' | 'generating' | 'result'>('input')
+  // const [step, setStep] = useState<'input' | 'generating' | 'result'>('input') // Unused
+  // const [result, setResult] = useState<any>(null) // Unused
   const [niche, setNiche] = useState('')
   const [topic, setTopic] = useState('')
-  const [result, setResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
 
   // State for director logs
@@ -26,9 +26,34 @@ function App() {
   });
   const [showServerConfig, setShowServerConfig] = useState(false);
 
+  // State for result
+  const [projectFolder, setProjectFolder] = useState<string | null>(null);
+
   useEffect(() => {
     localStorage.setItem('foxtubeServerUrl', serverUrl);
   }, [serverUrl]);
+
+  // Parse Logs for Download URL
+  useEffect(() => {
+    if (!directorLogs.length) return;
+    const lastLog = directorLogs[directorLogs.length - 1];
+
+    // Capture Project Folder Name
+    // Log format: [SCENE 0] [PROJECT] Output folder: 2026-02-06_...
+    if (lastLog.includes('Output folder:')) {
+      const match = lastLog.match(/Output folder:\s+(.*)/);
+      if (match) setProjectFolder(match[1].trim());
+    }
+
+    // Capture Completion
+    // Log format: [SCENE 0] [ASSEMBLE] ✅ Final video created: final_video.mp4
+    if (lastLog.includes('Final video created') && projectFolder) {
+      // Construct URL
+      const dlUrl = `${serverUrl}/output/${projectFolder}/final_video.mp4`;
+      console.log("Download URL Available:", dlUrl);
+      setFinalVideoUrl(dlUrl);
+    }
+  }, [directorLogs, projectFolder, serverUrl]);
 
   const handleApplyConfig = (config: any) => {
     if (config.topic) setTopic(config.topic);
@@ -57,7 +82,8 @@ function App() {
 
     addLog("[Pipeline] 🚀 Starting auto-generation...");
     addLog(`[Pipeline] 📡 Server: ${serverUrl}`);
-    setStep('generating');
+    addLog("[Pipeline] 🚀 Starting auto-generation...");
+    addLog(`[Pipeline] 📡 Server: ${serverUrl}`);
 
     try {
       addLog("[Pipeline] 📝 Generating Script...");
@@ -105,14 +131,7 @@ function App() {
       addLog("[Pipeline] 📤 Uploading assets...");
       const projectName = scriptResult.title_options?.[0] || config.topic || 'video_project';
 
-      const blobToBase64 = (blob: Blob): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      };
+
 
       // Start Video Job First (to create project folder)
       addLog("[Pipeline] 🎬 Initializing Director Job...");
@@ -149,30 +168,14 @@ function App() {
           }
         }
       }
-      addLog("[Pipeline] ✅ Assets uploaded");
+      addLog("[Pipeline] ✅ Assets uploaded. Director is working...");
 
-      // Start Director
-      addLog("[Pipeline] 🎬 Starting Director Agent...");
-      scriptResult.title = projectName;
-      scriptResult.visualStyle = config.visualStyle || 'Cinematic';
-      scriptResult.aspectRatio = config.aspectRatio || '16:9';
-      scriptResult.platform = config.platform || 'YouTube';
-      scriptResult.mood = config.mood || 'Cinematic';
-
-      await fetch(`${serverUrl}/generate-video`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scriptData: scriptResult })
-      });
-
-      addLog("[Pipeline] 🚀 Director is working! Watch logs below...");
-      setResult(scriptResult);
-      setStep('result');
+      setDirectorLogs(prev => [...prev, "[Pipeline] 🚀 Director is working! Watch logs below..."]);
     } catch (e: any) {
       setError(e.message);
-      setStep('input');
     }
   };
+
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });

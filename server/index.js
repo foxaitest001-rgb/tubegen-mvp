@@ -600,16 +600,17 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                     await interruptibleSleep(30000);
                     if (directorState.restart) continue shotLoop;
 
-                    // DOWNLOAD (Improved: Scroll first, wait for NEW video, track downloads)
+                    // DOWNLOAD (Improved: Smart Scroll)
                     try {
-                        directorLog(sceneNum, "STEP", "📍 Step 5: Scrolling to bottom of page...");
+                        directorLog(sceneNum, "STEP", "📍 Step 5: locating generated content...");
 
-                        // FIRST: Scroll to bottom of page to see new content
+                        // Smart Scroll: Instead of jumping to bottom (which might hide content behind input box),
+                        // we verify if we need to scroll.
                         await page.evaluate(() => {
-                            window.scrollTo(0, document.body.scrollHeight);
+                            // Scroll down a "little bit" (approx 300px) to reveal newly loaded content below the fold
+                            window.scrollBy(0, 300);
                         });
                         await new Promise(r => setTimeout(r, 2000));
-                        directorLog(sceneNum, "STEP", "✓ Scrolled to bottom");
 
                         // Get count of videos BEFORE generation completes
                         const videoCountBefore = await page.evaluate(() => {
@@ -621,14 +622,17 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         // Wait for a NEW video to appear (poll every 5s)
                         let newVideoFound = false;
                         let retryCount = 0;
-                        const maxRetries = 12; // 12 * 5s = 60s max additional wait
+                        const maxRetries = 15; // 75s max
 
                         while (!newVideoFound && retryCount < maxRetries) {
                             if (directorState.restart) break;
 
-                            // Scroll down again to ensure we see new content
+                            // Incremental Scroll to prod lazy loading
                             await page.evaluate(() => {
-                                window.scrollTo(0, document.body.scrollHeight);
+                                window.scrollBy(0, 100);
+                                // Also try to find the last loading indicator or video and scroll to it
+                                const vids = document.querySelectorAll('video');
+                                if (vids.length > 0) vids[vids.length - 1].scrollIntoView({ behavior: "smooth", block: "center" });
                             });
                             await new Promise(r => setTimeout(r, 1000));
 
@@ -934,17 +938,19 @@ app.post('/upload-audio', express.raw({ type: 'audio/wav', limit: '50mb' }), (re
         return res.status(400).json({ error: "No active job" });
     }
 
-    // Find project dir
-    const projects = fs.readdirSync(path.join(__dirname, 'public')).filter(f => fs.statSync(path.join(__dirname, 'public', f)).isDirectory());
-    // Assume most recent project is the current one (simplification, but efficient)
-    const recentProject = projects
-        .map(p => ({ name: p, time: fs.statSync(path.join(__dirname, 'public', p)).mtime.getTime() }))
-        .sort((a, b) => b.time - a.time)[0];
+    // Use the active project directory directly
+    if (!currentProjectDir || !currentProjectDir.server) {
+        return res.status(500).json({ error: "No active project directory" });
+    }
 
-    if (!recentProject) return res.status(500).json({ error: "No project folder found" });
-
-    const outputPath = path.join(__dirname, 'public', recentProject.name, `scene_${sceneNum}_audio.wav`);
+    const outputPath = path.join(currentProjectDir.server, `scene_${sceneNum}_audio.wav`);
     fs.writeFileSync(outputPath, req.body);
+
+    // Also save to public dir for playback
+    if (currentProjectDir.public) {
+        const publicPath = path.join(currentProjectDir.public, `scene_${sceneNum}_audio.wav`);
+        fs.writeFileSync(publicPath, req.body);
+    }
 
     directorLog(parseInt(sceneNum), "AUDIO", `📥 Received audio for Scene ${sceneNum}`);
     res.json({ success: true, path: outputPath });

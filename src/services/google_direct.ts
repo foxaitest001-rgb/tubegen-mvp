@@ -8,14 +8,16 @@ const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 // Single model: gemini-2.5-flash (Primary - Verified Available)
 // Fallback: gemini-2.5-pro, gemini-3-flash-preview
 // NOTE: This user has access to Next-Gen models. Legacy 1.5 models are NOT available.
+// Single model: gemini-3-flash-preview (Primary)
+// Fallback: gemini-2.0-flash, gemini-1.5-pro
+// NOTE: This user has access to Next-Gen models.
 const FALLBACK_MODELS: string[] = [
-    'gemini-2.5-pro',
-    'gemini-3-flash-preview',
-    'gemini-2.0-flash-lite',
-    'gemini-flash-latest' // Catch-all
+    'gemini-2.0-flash',
+    'gemini-1.5-pro',
+    'gemini-1.5-flash'
 ];
 
-export async function generateContentWithGoogle(systemPrompt: string, userQuery: string, primaryModel: string = 'gemini-2.0-flash') {
+export async function generateContentWithGoogle(systemPrompt: string, userQuery: string, primaryModel: string = 'gemini-3-flash-preview') {
     if (!API_KEY) throw new Error("Missing VITE_GOOGLE_API_KEY in .env");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
