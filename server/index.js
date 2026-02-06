@@ -9,11 +9,15 @@ puppeteer.use(StealthPlugin());
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v2.4';
+const VERSION = 'v2.5 (AUDIO PATCHED)';
 
 // Enable CORS/JSON
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+
+// SERVE STATIC FILES FROM OUTPUT DIRECTORIES (for video downloads)
+app.use('/output', express.static(path.join(__dirname, 'output')));
+app.use('/public-output', express.static(path.join(__dirname, '..', 'public', 'output')));
 
 // DUAL OUTPUT DIRS (Base directories)
 const PUBLIC_OUTPUT_DIR = path.join(__dirname, '..', 'public', 'output');
@@ -1055,7 +1059,7 @@ app.post('/generate-voiceover', async (req, res) => {
     try {
         const piperBinary = path.join(__dirname, 'piper', 'piper'); // User must install this
         // MODELS ARE IN ROOT PUBLIC FOLDER, NOT SERVER PUBLIC
-        const modelPath = path.join(__dirname, '..', 'public', 'piper', `${voiceId}.onnx`);
+        // Duplicate declaration removed
 
         const outputFilename = `scene_${sceneNum}_audio.wav`;
         const outputPath = path.join(currentProjectDir.server, outputFilename);
@@ -1063,10 +1067,26 @@ app.post('/generate-voiceover', async (req, res) => {
 
         directorLog(sceneNum, "AUDIO", `🎙️ Generating audio on server (Voice: ${voiceId})...`);
 
-        // Check if model exists
-        if (!fs.existsSync(modelPath)) {
-            throw new Error(`Model not found: ${modelPath}`);
+        // Robust Model Path Resolution
+        const possiblePaths = [
+            path.join(__dirname, '..', 'public', 'piper', `${voiceId}.onnx`), // Project Root (Dev/RDP)
+            path.join(__dirname, 'public', 'piper', `${voiceId}.onnx`),       // Server Local (Deployment)
+            path.join(process.cwd(), 'public', 'piper', `${voiceId}.onnx`)    // CWD fallback
+        ];
+
+        let modelPath = null;
+        for (const p of possiblePaths) {
+            if (fs.existsSync(p)) {
+                modelPath = p;
+                break;
+            }
         }
+
+        if (!modelPath) {
+            throw new Error(`Model not found in any location: ${possiblePaths.join(', ')}`);
+        }
+
+        console.log(`[AUDIO] Found model at: ${modelPath}`);
 
         // Execute Piper
         // Command: echo "text" | ./piper --model model.onnx --output_file out.wav

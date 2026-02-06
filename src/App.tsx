@@ -119,7 +119,10 @@ function App() {
 
       // Start Video Job First (to create project folder)
       addLog("[Pipeline] 🎬 Initializing Director Job...");
-      const projectName = scriptResult.title_options?.[0] || config.topic || 'video_project';
+      const rawName = scriptResult.title_options?.[0] || config.topic || 'video_project';
+      // Sanitize project name to be URL-safe (remove apostrophes, spaces, etc.)
+      const projectName = rawName.replace(/[^a-zA-Z0-9_\-]/g, '_').toLowerCase();
+
       scriptResult.title = projectName;
       scriptResult.visualStyle = config.visualStyle || 'Cinematic';
       scriptResult.aspectRatio = config.aspectRatio || '16:9';
@@ -274,6 +277,22 @@ function App() {
             </button>
           )}
 
+          {/* Manual Download - Always Visible */}
+          <button
+            onClick={() => {
+              const folder = prompt("Enter project folder name (from logs):", projectFolder || "2026-02-06_my_video");
+              if (folder) {
+                const url = `${serverUrl}/output/${folder}/final_video.mp4`;
+                window.open(url, '_blank');
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-all"
+            title="Manually download by entering folder name"
+          >
+            <Download className="w-4 h-4" />
+            Manual DL
+          </button>
+
           <button
             onClick={() => setShowServerConfig(!showServerConfig)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
@@ -331,7 +350,7 @@ function App() {
             <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm font-semibold text-white">Director Logs</span>
+                <span className="text-sm font-semibold text-white">Director Logs (v2.6 PATCHED)</span>
                 <span className="text-xs text-gray-500">({directorLogs.length} entries)</span>
               </div>
               <button
