@@ -326,36 +326,52 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
     // NEW CHAT LOGIC (Reset context)
     try {
-        // Try to find "New conversation" or "New chat" button
-        // Common selectors for Meta AI's "New" button (top-left corner)
-        const newChatSelectors = [
-            'a[href="/"]',
-            'a[href="/new"]',
-            'div[role="button"][aria-label="New chat"]',
-            'div[role="button"][aria-label="New conversation"]'
-        ];
-
-        // Wait a moment for UI to settle
         await interruptibleSleep(2000);
 
-        let clicked = false;
-        for (const sel of newChatSelectors) {
-            const btn = await page.$(sel);
-            if (btn) {
-                await btn.click();
-                directorLog(0, "STEP", "✓ Clicked 'New Chat' button");
-                clicked = true;
-                break;
+        // Robust "New Chat" clicker using page execute
+        const clicked = await page.evaluate(() => {
+            // 1. Selector approach for top-left icons
+            const selectors = [
+                'a[href="/"]',
+                'a[href="/new"]',
+                'div[role="button"][aria-label="New chat"]',
+                'div[role="button"][aria-label="New conversation"]',
+                'div[aria-label="New chat"]',
+                '[aria-label="Create new text"]',
+                'div[role="button"] svg path[d*="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"]' // Plus icon approximation?
+            ];
+
+            for (const s of selectors) {
+                const el = document.querySelector(s);
+                if (el) { el.click(); return true; }
+            }
+
+            // 2. Text Search approach (Backup)
+            const candidates = document.querySelectorAll('div, span, button, a');
+            for (const el of candidates) {
+                const txt = (el.innerText || '').trim().toLowerCase();
+                if (txt === 'new chat' || txt === 'new conversation') {
+                    el.click();
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        if (clicked) {
+            directorLog(0, "STEP", "✓ Clicked 'New Chat' button (via JS)");
+        } else {
+            // Check if we are already at root (no /c/ in URL)
+            const currentUrl = page.url();
+            if (!currentUrl.includes('/c/')) {
+                directorLog(0, "STEP", "Already at New Chat (Root URL)");
+            } else {
+                directorLog(0, "STEP", "Using fallback: Force Navigating to meta.ai root...");
+                await page.goto('https://www.meta.ai/', { waitUntil: 'domcontentloaded' });
             }
         }
 
-        if (!clicked) {
-            // Fallback: Force navigate to root
-            directorLog(0, "STEP", "Using fallback: Navigating to meta.ai root...");
-            await page.goto('https://www.meta.ai/', { waitUntil: 'domcontentloaded' });
-        }
-
-        await interruptibleSleep(3000); // Wait for new chat to load
+        await interruptibleSleep(5000); // Increased wait for new chat to load
 
     } catch (err) {
         directorLog(0, "WARN", `New Chat reset failed: ${err.message}`);
