@@ -272,9 +272,10 @@ function App() {
           </div>
         </div>
         <div className="flex gap-2">
-          {finalVideoUrl && (
+          {/* Force show download if we have a project folder and success message, OR if finalVideoUrl is set */}
+          {(finalVideoUrl || (projectFolder && directorLogs.some(l => l.includes('finished successfully')))) && (
             <button
-              onClick={() => handleDownloadVideo(finalVideoUrl)}
+              onClick={() => handleDownloadVideo(finalVideoUrl || `${serverUrl}/output/${projectFolder}/final_video.mp4`)}
               disabled={isDownloading}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-green-500 hover:bg-green-400 text-black shadow-lg shadow-green-500/20 transition-all animate-pulse-slow"
             >
@@ -294,88 +295,92 @@ function App() {
             {serverUrl.includes('localhost') ? 'Local Mode' : 'Remote Mode'}
           </button>
         </div>
-      </header>
+      </header >
 
-      {/* Server Config */}
-      {showServerConfig && (
-        <div className="relative z-10 px-6 py-4 bg-black/40 border-b border-white/5 backdrop-blur-sm">
-          <div className="max-w-2xl mx-auto">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Director Server URL</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={serverUrl}
-                onChange={(e) => setServerUrl(e.target.value)}
-                placeholder="https://xxx.trycloudflare.com"
-                className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
-              />
-              <button
-                onClick={() => setShowServerConfig(false)}
-                className="px-6 py-3 bg-purple-500 hover:bg-purple-400 text-white font-medium rounded-xl transition-colors"
-              >
-                Save
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              💡 Paste Cloudflare tunnel URL for RDP, or localhost:3001 for local testing
-            </p>
+    {/* Server Config */ }
+  {
+    showServerConfig && (
+      <div className="relative z-10 px-6 py-4 bg-black/40 border-b border-white/5 backdrop-blur-sm">
+        <div className="max-w-2xl mx-auto">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Director Server URL</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={serverUrl}
+              onChange={(e) => setServerUrl(e.target.value)}
+              placeholder="https://xxx.trycloudflare.com"
+              className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+            />
+            <button
+              onClick={() => setShowServerConfig(false)}
+              className="px-6 py-3 bg-purple-500 hover:bg-purple-400 text-white font-medium rounded-xl transition-colors"
+            >
+              Save
+            </button>
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            💡 Paste Cloudflare tunnel URL for RDP, or localhost:3001 for local testing
+          </p>
         </div>
-      )}
+      </div>
+    )
+  }
 
-      {/* Main Content */}
-      <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-hidden">
-          <ConsultantChat
-            onApplyConfig={handleApplyConfig}
-            onStartPipeline={handleStartPipeline}
-          />
-        </div>
-
-        {/* Director Logs */}
-        {directorLogs.length > 0 && (
-          <div className="h-56 border-t border-white/5 bg-black/60 backdrop-blur-sm flex flex-col">
-            <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm font-semibold text-white">Director Logs</span>
-                <span className="text-xs text-gray-500">({directorLogs.length} entries)</span>
-              </div>
-              <button
-                onClick={() => setDirectorLogs([])}
-                className="text-xs px-3 py-1 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-400 rounded-lg transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1">
-              {directorLogs.map((log, i) => (
-                <div
-                  key={i}
-                  className={`${log.includes('✅') || log.includes('🎉') ? 'text-green-400' :
-                    log.includes('⚠') ? 'text-yellow-400' :
-                      log.includes('❌') ? 'text-red-400' :
-                        log.includes('🚀') || log.includes('🎬') ? 'text-purple-400' :
-                          'text-gray-400'
-                    }`}
-                >
-                  {log}
-                </div>
-              ))}
-              <div ref={logEndRef} />
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Error Toast */}
-      {error && (
-        <div className="fixed bottom-6 right-6 z-50 bg-red-500/90 backdrop-blur text-white px-5 py-3 rounded-xl shadow-2xl shadow-red-500/20 flex items-center gap-3">
-          <span className="text-sm">{error}</span>
-          <button onClick={() => setError(null)} className="text-white/80 hover:text-white font-bold">×</button>
-        </div>
-      )}
+  {/* Main Content */ }
+  <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 overflow-hidden">
+      <ConsultantChat
+        onApplyConfig={handleApplyConfig}
+        onStartPipeline={handleStartPipeline}
+      />
     </div>
+
+    {/* Director Logs */}
+    {directorLogs.length > 0 && (
+      <div className="h-56 border-t border-white/5 bg-black/60 backdrop-blur-sm flex flex-col">
+        <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-sm font-semibold text-white">Director Logs</span>
+            <span className="text-xs text-gray-500">({directorLogs.length} entries)</span>
+          </div>
+          <button
+            onClick={() => setDirectorLogs([])}
+            className="text-xs px-3 py-1 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-400 rounded-lg transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1">
+          {directorLogs.map((log, i) => (
+            <div
+              key={i}
+              className={`${log.includes('✅') || log.includes('🎉') ? 'text-green-400' :
+                log.includes('⚠') ? 'text-yellow-400' :
+                  log.includes('❌') ? 'text-red-400' :
+                    log.includes('🚀') || log.includes('🎬') ? 'text-purple-400' :
+                      'text-gray-400'
+                }`}
+            >
+              {log}
+            </div>
+          ))}
+          <div ref={logEndRef} />
+        </div>
+      </div>
+    )}
+  </main>
+
+  {/* Error Toast */ }
+  {
+    error && (
+      <div className="fixed bottom-6 right-6 z-50 bg-red-500/90 backdrop-blur text-white px-5 py-3 rounded-xl shadow-2xl shadow-red-500/20 flex items-center gap-3">
+        <span className="text-sm">{error}</span>
+        <button onClick={() => setError(null)} className="text-white/80 hover:text-white font-bold">×</button>
+      </div>
+    )
+  }
+    </div >
   )
 }
 

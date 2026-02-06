@@ -129,6 +129,9 @@ async function assembleVideo(projectDir) {
 
     try {
         const files = fs.readdirSync(outputDir);
+        directorLog(0, "DEBUG", `📂 Assembly scanning: ${outputDir}`);
+        directorLog(0, "DEBUG", `📄 Files found: ${files.join(', ')}`);
+
         const sceneMap = new Map(); // sceneNum -> { shots: [], audio: null }
 
         // 1. Group files by Scene
@@ -952,7 +955,8 @@ app.post('/upload-audio', express.raw({ type: 'audio/wav', limit: '50mb' }), (re
         fs.writeFileSync(publicPath, req.body);
     }
 
-    directorLog(parseInt(sceneNum), "AUDIO", `📥 Received audio for Scene ${sceneNum}`);
+    console.log(`[AUDIO] Saved ${req.body.length} bytes to ${outputPath}`);
+    directorLog(parseInt(sceneNum), "AUDIO", `📥 Saved audio: ${outputPath} (${req.body.length} bytes)`);
     res.json({ success: true, path: outputPath });
 });
 
