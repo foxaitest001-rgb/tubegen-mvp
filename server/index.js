@@ -298,7 +298,19 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
     if (!connected) {
         // Fallback: Launch new browser (local mode)
-        directorLog(0, "BROWSER", "Launching NEW Browser (Visible Mode)...");
+        directorLog(0, "BROWSER", "⚠️ Connection failed/rejected. Preparing fresh launch...");
+
+        // NUKE OPTION: Kill all zombie Chromes to unlock user_data
+        try {
+            directorLog(0, "BROWSER", "🧹 Killing zombie Chrome processes...");
+            // Use 'start' to avoid waiting/hanging if it's stubborn? No, standard exec is fine.
+            // On Windows: /F (force), /IM (image name)
+            // Wrap in try/catch because if no chrome is running, it throws error.
+            await execAsync('taskkill /F /IM chrome.exe /T').catch(() => { });
+            await interruptibleSleep(2000); // Wait for file locks to release
+        } catch (e) { /* ignore */ }
+
+        directorLog(0, "BROWSER", "🚀 Launching NEW Browser (Visible Mode)...");
         browser = await puppeteer.launch({
             headless: false,
             userDataDir: "./user_data",
