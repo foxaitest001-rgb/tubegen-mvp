@@ -311,23 +311,44 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
         } catch (e) { /* ignore */ }
 
         directorLog(0, "BROWSER", "🚀 Launching NEW Browser (Visible Mode)...");
-        browser = await puppeteer.launch({
-            headless: false,
-            userDataDir: "./user_data",
-            defaultViewport: null,
-            args: [
-                '--start-maximized',
-                '--disable-web-security',
-                '--disable-features=IsolateOrigins,site-per-process',
-                '--mute-audio',
-                '--no-default-browser-check',
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--window-position=0,0'
-            ]
-        });
+        try {
+            browser = await puppeteer.launch({
+                headless: false,
+                userDataDir: "./user_data",
+                defaultViewport: null,
+                args: [
+                    '--start-maximized',
+                    '--disable-web-security',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--mute-audio',
+                    '--no-default-browser-check',
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--window-position=0,0'
+                ]
+            });
+        } catch (launchErr) {
+            directorLog(0, "WARN", `Launch with profile failed: ${launchErr.message}. Retrying with TEMPORARY profile...`);
+            // Retry without userDataDir (fresh profile)
+            browser = await puppeteer.launch({
+                headless: false,
+                defaultViewport: null,
+                args: [
+                    '--start-maximized',
+                    '--disable-web-security',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--mute-audio',
+                    '--no-default-browser-check',
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--window-position=0,0'
+                ]
+            });
+        }
     }
 
     // ENSURE PAGE IS OPEN
