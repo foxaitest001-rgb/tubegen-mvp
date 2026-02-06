@@ -282,19 +282,7 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
             browserURL: 'http://localhost:9222',
             defaultViewport: null
         });
-
-        // Get existing pages and find Meta.ai tab or create new
-        const pages = await browser.pages();
-        page = pages.find(p => p.url().includes('meta.ai'));
-
-        if (page) {
-            directorLog(0, "BROWSER", "✅ Connected to existing Meta.ai tab!");
-        } else {
-            // Use any existing page or create new
-            page = pages[0] || await browser.newPage();
-            directorLog(0, "BROWSER", "Connected to existing Chrome, opening Meta.ai...");
-            await page.goto('https://www.meta.ai', { waitUntil: 'domcontentloaded', timeout: 0 });
-        }
+        directorLog(0, "BROWSER", "✅ Connected to existing Chrome!");
     } catch (e) {
         // Fallback: Launch new browser (local mode)
         directorLog(0, "BROWSER", "No existing Chrome found, launching new browser...");
@@ -314,9 +302,24 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                 '--disable-gpu'
             ]
         });
+    }
 
-        page = await browser.newPage();
+    // ENSURE PAGE IS OPEN
+    const pages = await browser.pages();
+    page = pages.find(p => p.url().includes('meta.ai'));
+
+    if (!page) {
+        directorLog(0, "BROWSER", "Meta.ai tab not found. Opening new tab...");
+        // Use first page if available and empty, otherwise new page
+        if (pages.length > 0 && pages[0].url() === 'about:blank') {
+            page = pages[0];
+        } else {
+            page = await browser.newPage();
+        }
         await page.goto('https://www.meta.ai', { waitUntil: 'domcontentloaded', timeout: 0 });
+    } else {
+        directorLog(0, "BROWSER", "✅ Reusing existing Meta.ai tab");
+        await page.bringToFront(); // Ensure it is visible/active
     }
 
     await page.setBypassCSP(true);
