@@ -38,11 +38,26 @@ function App() {
     if (!directorLogs.length) return;
     const lastLog = directorLogs[directorLogs.length - 1];
 
-    // Capture Project Folder Name
+    // Capture Project Folder Name (Robust)
     // Log format: [SCENE 0] [PROJECT] Output folder: 2026-02-06_...
     if (lastLog.includes('Output folder:')) {
-      const match = lastLog.match(/Output folder:\s+(.*)/);
-      if (match) setProjectFolder(match[1].trim());
+      const parts = lastLog.split('Output folder:');
+      if (parts.length > 1) {
+        const folder = parts[1].trim();
+        console.log("Captured Project Folder:", folder);
+        setProjectFolder(folder);
+      }
+    }
+
+    // Also scan history if not set (in case we missed it)
+    if (!projectFolder) {
+      const folderLog = directorLogs.find(l => l.includes('Output folder:'));
+      if (folderLog) {
+        const parts = folderLog.split('Output folder:');
+        if (parts.length > 1) {
+          setProjectFolder(parts[1].trim());
+        }
+      }
     }
 
     // Capture Completion

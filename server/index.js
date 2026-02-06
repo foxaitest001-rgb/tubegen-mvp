@@ -1054,7 +1054,9 @@ app.post('/generate-voiceover', async (req, res) => {
 
     try {
         const piperBinary = path.join(__dirname, 'piper', 'piper'); // User must install this
-        const modelPath = path.join(__dirname, 'public', 'piper', `${voiceId}.onnx`);
+        // MODELS ARE IN ROOT PUBLIC FOLDER, NOT SERVER PUBLIC
+        const modelPath = path.join(__dirname, '..', 'public', 'piper', `${voiceId}.onnx`);
+
         const outputFilename = `scene_${sceneNum}_audio.wav`;
         const outputPath = path.join(currentProjectDir.server, outputFilename);
         const publicPath = path.join(currentProjectDir.public, outputFilename);
