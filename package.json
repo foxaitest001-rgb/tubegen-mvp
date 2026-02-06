@@ -4,10 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/parse_structures.js && vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "download-datasets": "node scripts/download_datasets.js",
+    "curate-prompts": "node scripts/curate_prompts.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

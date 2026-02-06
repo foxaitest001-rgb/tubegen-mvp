@@ -4,6 +4,7 @@
 import { generateContentWithGoogle } from './google_direct';
 import cinematicKnowledge from '../data/cinematic_knowledge.json';
 import viralStrategies from '../data/viral_strategies.json';
+import promptKnowledge from '../data/prompt_knowledge.json';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
@@ -88,22 +89,80 @@ export async function rankViralTopics(niche: string) {
 
 
 // Helper to summarize knowledge for the prompt
+// Helper to summarize knowledge for the prompt
 const getDirectorContext = () => {
-  const cameraShots = (cinematicKnowledge as any).a_director_s_guide_to_cinematic_ai_visuals__best_practices_for_camera__lighting__and_pose_in_2025
-    ?.slice(0, 8)
-    .map((s: any) => `${s["Camera Shot"]}: ${s["Prompt Keywords & Narrative Impact"]}`)
-    .join("; ") || "";
+  let context = "DIRECTOR'S EXTENDED KNOWLEDGE BASE (Use this for expert visual/narrative decisions):\n";
 
-  const thumbnailUtils = (cinematicKnowledge as any).high_ctr_thumbnail_knowledge_table__deep_sea___prehistoric_niche_
-    ?.[0] || {};
-  const hookPrinciples = `Hook Principles: ${thumbnailUtils["Primary Emotion Trigger"] || ""} - ${thumbnailUtils["Thumbnail Goal"] || ""}`;
+  // Dynamically load ALL knowledge files (including new ones added by user)
+  for (const [key, content] of Object.entries(cinematicKnowledge)) {
+    const title = key.replace(/_/g, ' ').toUpperCase();
+    context += `\n### GUIDE: ${title}\n`;
+
+    if (Array.isArray(content)) {
+      // Excel Data: Format as detailed records
+      // Limit to meaningful preview if huge, but modern LLMs handle large context.
+      // We'll format it as a list of "Key: Value" props
+      const formatted = content.map(row => {
+        return Object.entries(row).map(([k, v]) => `${k}: ${v}`).join(' | ');
+      }).join('\n');
+      context += formatted;
+    } else if (typeof content === 'string') {
+      // Word Doc: Raw Text
+      context += content;
+    }
+    context += '\n-------------------\n';
+  }
+
+  return context;
+};
+
+// Helper: Get matching prompts from VidProM knowledge base
+const getMatchingPromptsForContext = (topic: string, niche: string, style?: string): string => {
+  const searchTerms = `${topic} ${niche} ${style || ''}`.toLowerCase();
+  const matchedPrompts: string[] = [];
+
+  // Priority order for category matching
+  const categoryPriority: { [key: string]: string[] } = {
+    horror: ['horror', 'scary', 'dark', 'creepy'],
+    cinematic: ['cinematic', 'film', 'movie', 'dramatic'],
+    scifi: ['sci-fi', 'space', 'future', 'cyber', 'robot'],
+    fantasy: ['fantasy', 'magic', 'dragon', 'wizard'],
+    anime: ['anime', 'manga', 'japanese', '2d'],
+    nature: ['nature', 'ocean', 'forest', 'underwater', 'landscape'],
+    documentary: ['documentary', 'history', 'educational'],
+    action: ['action', 'explosion', 'fight', 'battle'],
+    emotional: ['emotional', 'sad', 'love', 'drama'],
+    aesthetic: ['aesthetic', 'beautiful', 'artistic']
+  };
+
+  // Find best matching category
+  let bestCategory = 'general';
+  for (const [category, keywords] of Object.entries(categoryPriority)) {
+    if (keywords.some(kw => searchTerms.includes(kw))) {
+      bestCategory = category;
+      break;
+    }
+  }
+
+  // Get prompts from matched category
+  const categoryPrompts = (promptKnowledge as any)[bestCategory] || [];
+  const sampledPrompts = categoryPrompts.slice(0, 5); // Get top 5
+
+  // Also get 2-3 from technical for camera/lighting references
+  const technicalPrompts = ((promptKnowledge as any).technical || []).slice(0, 3);
+
+  matchedPrompts.push(...sampledPrompts, ...technicalPrompts);
+
+  if (matchedPrompts.length === 0) {
+    return '';
+  }
 
   return `
-    DIRECTOR'S KNOWLEDGE BASE (Use this for visual descriptions):
-    [Camera Specs]: ${cameraShots}
-    [Hook Strategy]: ${hookPrinciples}
-    [Lighting]: Motivated Realism (Deakins Principle) - light must have a source.
-    `;
+## STYLE REFERENCE EXAMPLES (From VidProM - Real User Prompts)
+Use these as inspiration for your video_prompts. Match the style and detail level:
+
+${matchedPrompts.map((p, i) => `${i + 1}. "${p}"`).join('\n')}
+`;
 };
 
 // Helper: Select the best strategy based on Niche keyword
@@ -166,6 +225,8 @@ export async function generateNarrative(
   }
 
   const directorContext = getDirectorContext();
+  const promptExamples = getMatchingPromptsForContext(topic, niche, visualStyle);
+  console.log(`[Service] 🧠 VidProM Style Match: ${promptExamples ? 'Found examples' : 'Using defaults'}`);
 
   const systemPrompt = `You are a World-Class YouTube Scriptwriter, Cinematic Director, and Retention Expert.
   You specialize in the '${niche}' niche and assume the archetype of: ${strategy.structure_name}.
@@ -223,6 +284,8 @@ export async function generateNarrative(
      - The exact visual script will be generated AFTER the audio duration is confirmed.
   
   ${directorContext}
+
+  ${promptExamples}
 
   PROCESS:
   1. **ANALYSIS PHASE**: Analyze niche/reference.

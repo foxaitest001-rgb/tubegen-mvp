@@ -36,3 +36,6 @@ server/output/
 # Piper TTS models (large files)
 public/piper/*.onnx
 public/piper/*.json
+
+# Raw datasets (too large for GitHub - curated versions are used)
+datasets_raw/
