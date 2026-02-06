@@ -5,17 +5,14 @@ const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
 // --- GENERATIVE AI (GEMINI) ---
 
-// Single model: gemini-2.5-flash (Primary - Verified Available)
-// Fallback: gemini-2.5-pro, gemini-3-flash-preview
-// NOTE: This user has access to Next-Gen models. Legacy 1.5 models are NOT available.
-// Single model: gemini-3-flash-preview (Primary)
-// Fallback: gemini-2.0-flash, gemini-2.0-flash-lite-preview-02-05, gemini-1.5-flash-002
-// NOTE: This user has access to Next-Gen models.
+// WORKING MODEL: gemini-3-flash-preview (Confirmed by user logs)
+// Fallback: gemini-2.0-flash (may rate limit)
+// NOTE: Legacy models (1.5-flash, 1.5-flash-002) are 404 - DO NOT USE
 const FALLBACK_MODELS: string[] = [
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite-preview-02-05',
-    'gemini-1.5-flash-002',
-    'gemini-1.5-flash'
+    'gemini-2.0-flash'
+    // Removed: gemini-2.0-flash-lite-preview-02-05 (404)
+    // Removed: gemini-1.5-flash-002 (404)
+    // Removed: gemini-1.5-flash (404)
 ];
 
 export async function generateContentWithGoogle(systemPrompt: string, userQuery: string, primaryModel: string = 'gemini-3-flash-preview') {
