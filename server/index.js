@@ -198,15 +198,21 @@ async function assembleVideo(projectDir) {
             let sceneFinalFile = `scene_${sceneNum}_final.mp4`;
 
             if (data.audio) {
-                // Merge audio and video. Use -shortest to match lengths (stop when one ends)
-                // We use -c:v copy to avoid re-encoding video (fast), -c:a aac to ensure audio format
-                // If video is much shorter than audio, we might lose audio. 
-                // TODO: In future, loop video? For now, simplistic merge.
-                const cmd = `ffmpeg -i "${visualFile}" -i "${data.audio}" -c:v copy -c:a aac -shortest "${sceneFinalFile}" -y`;
+                // FORCE SYNC: Loop video to match audio length
+                // -stream_loop -1: Loop video infinitely
+                // -c:v libx264 -preset ultrafast: Re-encode video for reliable looping
+                // -c:a aac: Re-encode audio to AAC
+                // -shortest: Stop when audio stream ends
+                const cmd = `ffmpeg -stream_loop -1 -i "${visualFile}" -i "${data.audio}" -c:v libx264 -preset ultrafast -c:a aac -shortest "${sceneFinalFile}" -y`;
                 try {
                     await execAsync(cmd, { cwd: outputDir });
-                    finalConcatList.push(`file '${sceneFinalFile}'`);
-                    tempFiles.push(path.join(outputDir, sceneFinalFile));
+                    // Verify output
+                    if (fs.existsSync(path.join(outputDir, sceneFinalFile)) && fs.statSync(path.join(outputDir, sceneFinalFile)).size > 1000) {
+                        finalConcatList.push(`file '${sceneFinalFile}'`);
+                        tempFiles.push(path.join(outputDir, sceneFinalFile));
+                    } else {
+                        throw new Error("Merged file too small or failed");
+                    }
                 } catch (e) {
                     console.error(`Audio merge failed for scene ${sceneNum}:`, e);
                     finalConcatList.push(`file '${visualFile}'`); // Fallback to visual only
@@ -784,6 +790,29 @@ app.get('/status', (req, res) => {
         stopped: directorState.stopped,
         currentJobId: directorState.currentJobId
     });
+});
+
+// Upload Audio Endpoint (For Client -> Server audio transfer)
+app.post('/upload-audio', express.raw({ type: 'audio/wav', limit: '50mb' }), (req, res) => {
+    const { sceneNum, jobId } = req.query;
+    if (!directorState.isRunning || !directorState.currentJobId) {
+        return res.status(400).json({ error: "No active job" });
+    }
+
+    // Find project dir
+    const projects = fs.readdirSync(path.join(__dirname, 'public')).filter(f => fs.statSync(path.join(__dirname, 'public', f)).isDirectory());
+    // Assume most recent project is the current one (simplification, but efficient)
+    const recentProject = projects
+        .map(p => ({ name: p, time: fs.statSync(path.join(__dirname, 'public', p)).mtime.getTime() }))
+        .sort((a, b) => b.time - a.time)[0];
+
+    if (!recentProject) return res.status(500).json({ error: "No project folder found" });
+
+    const outputPath = path.join(__dirname, 'public', recentProject.name, `scene_${sceneNum}_audio.wav`);
+    fs.writeFileSync(outputPath, req.body);
+
+    directorLog(parseInt(sceneNum), "AUDIO", `📥 Received audio for Scene ${sceneNum}`);
+    res.json({ success: true, path: outputPath });
 });
 
 app.post('/generate-video', async (req, res) => {

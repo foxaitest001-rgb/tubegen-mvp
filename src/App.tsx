@@ -114,19 +114,39 @@ function App() {
         });
       };
 
+      // Start Video Job First (to create project folder)
+      addLog("[Pipeline] 🎬 Initializing Director Job...");
+      scriptResult.title = projectName;
+      scriptResult.visualStyle = config.visualStyle || 'Cinematic';
+      scriptResult.aspectRatio = config.aspectRatio || '16:9';
+      scriptResult.platform = config.platform || 'YouTube';
+      scriptResult.mood = config.mood || 'Cinematic';
+
+      // 1. Kickoff Job
+      await fetch(`${serverUrl}/generate-video`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptData: scriptResult })
+      });
+
+      // 2. Upload Audio Logic (Now that job exists)
+      addLog("[Pipeline] 📤 Uploading audio assets to Director...");
       for (let i = 0; i < scriptResult.structure.length; i++) {
         const scene = scriptResult.structure[i];
         if (scene.audioUrl) {
           try {
             const resp = await fetch(scene.audioUrl);
             const blob = await resp.blob();
-            const base64 = await blobToBase64(blob);
-            await fetch(`${serverUrl}/save-audio`, {
+            // POST raw wav blob
+            await fetch(`${serverUrl}/upload-audio?sceneNum=${i + 1}`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ filename: `scene_${i + 1}_audio.wav`, audioData: base64, projectName })
+              headers: { 'Content-Type': 'audio/wav' },
+              body: blob
             });
-          } catch { }
+            addLog(`[Pipeline] ✓ Uploaded audio for Scene ${i + 1}`);
+          } catch (e) {
+            console.error("Upload failed", e);
+          }
         }
       }
       addLog("[Pipeline] ✅ Assets uploaded");
