@@ -380,6 +380,22 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
         // Robust "New Chat" clicker using page execute
         const clicked = await page.evaluate(() => {
+
+            // 0. SPLASH KILLER (For fresh profiles)
+            const killSplash = () => {
+                const terms = ['accept cookies', 'allow all', 'continue without logging', 'start chatting', 'continue as guest', 'continue'];
+                const buttons = document.querySelectorAll('button, div[role="button"]');
+                for (const b of buttons) {
+                    const txt = (b.innerText || '').toLowerCase();
+                    if (terms.some(term => txt.includes(term))) {
+                        b.click();
+                        return true;
+                    }
+                }
+                return false;
+            };
+            killSplash(); // Run once to clear overlays
+
             // 1. Selector approach for top-left icons
             const selectors = [
                 'a[href="/"]',

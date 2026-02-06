@@ -15,7 +15,7 @@ const FALLBACK_MODELS: string[] = [
     'gemini-flash-latest' // Catch-all
 ];
 
-export async function generateContentWithGoogle(systemPrompt: string, userQuery: string, primaryModel: string = 'gemini-2.5-flash') {
+export async function generateContentWithGoogle(systemPrompt: string, userQuery: string, primaryModel: string = 'gemini-2.0-flash') {
     if (!API_KEY) throw new Error("Missing VITE_GOOGLE_API_KEY in .env");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
@@ -61,12 +61,12 @@ export async function generateContentWithGoogle(systemPrompt: string, userQuery:
                 console.warn(`[Google Direct] Failed with ${modelName}:`, error.message.substring(0, 100));
                 lastError = error;
 
-                // If rate limited (429), wait and RETRY the SAME model
+                // If rate limited (429), wait and RETRY the SAME model (Single Robust Retry)
                 if (error.message.includes('429') || error.message.includes('Too Many Requests') || error.message.includes('quota')) {
-                    if (retries < MAX_RETRIES) {
-                        // Exponential backoff: 5s, 10s, 15s
-                        const waitTime = 5000 * (retries + 1);
-                        console.log(`[Google Direct] ⚠️ Rate Limited (429). Waiting ${waitTime / 1000}s before retry...`);
+                    if (retries < 1) {
+                        // User Request: Skip erratic retries, go straight to long wait
+                        const waitTime = 12000; // 12 seconds
+                        console.log(`[Google Direct] ⚠️ Rate Limited (429). Waiting ${waitTime / 1000}s before FINAL retry...`);
                         await new Promise(r => setTimeout(r, waitTime));
                         retries++;
                         continue; // LOOP AGAIN with same model
