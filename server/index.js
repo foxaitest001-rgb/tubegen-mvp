@@ -125,68 +125,122 @@ async function assembleVideo(projectDir) {
     const outputDir = projectDir.server;
     const projectName = projectDir.name;
 
-    directorLog(0, "ASSEMBLE", "🎬 Starting FFmpeg Video Assembly...");
+    directorLog(0, "ASSEMBLE", "🎬 Starting Advanced Audio/Video Assembly...");
 
     try {
-        // Find all video files (scene_X_shot_Y.mp4)
         const files = fs.readdirSync(outputDir);
-        const videoFiles = files
-            .filter(f => f.endsWith('.mp4') && f.startsWith('scene_'))
-            .sort((a, b) => {
-                // Sort by scene then shot number
-                const parseNums = (name) => {
-                    const match = name.match(/scene_(\d+)_shot_(\d+)/);
-                    return match ? [parseInt(match[1]), parseInt(match[2])] : [0, 0];
-                };
-                const [as, ash] = parseNums(a);
-                const [bs, bsh] = parseNums(b);
-                return as !== bs ? as - bs : ash - bsh;
-            });
+        const sceneMap = new Map(); // sceneNum -> { shots: [], audio: null }
 
-        if (videoFiles.length === 0) {
-            directorLog(0, "WARN", "No video files found for assembly");
+        // 1. Group files by Scene
+        files.forEach(f => {
+            // Match: scene_1_shot_1.mp4
+            if (f.startsWith('scene_') && f.endsWith('.mp4') && !f.includes('_final') && !f.includes('_visual')) {
+                const match = f.match(/scene_(\d+)_shot_(\d+)/);
+                if (match) {
+                    const sceneNum = parseInt(match[1]);
+                    if (!sceneMap.has(sceneNum)) sceneMap.set(sceneNum, { shots: [], audio: null });
+                    sceneMap.get(sceneNum).shots.push(f);
+                }
+            }
+            // Match: scene_1_audio.wav
+            if (f.startsWith('scene_') && f.endsWith('_audio.wav')) {
+                const match = f.match(/scene_(\d+)_audio\.wav/);
+                if (match) {
+                    const sceneNum = parseInt(match[1]);
+                    if (!sceneMap.has(sceneNum)) sceneMap.set(sceneNum, { shots: [], audio: null });
+                    sceneMap.get(sceneNum).audio = f;
+                }
+            }
+        });
+
+        const sortedScenes = Array.from(sceneMap.keys()).sort((a, b) => a - b);
+
+        if (sortedScenes.length === 0) {
+            directorLog(0, "WARN", "No scenes found for assembly");
             return null;
         }
 
-        directorLog(0, "ASSEMBLE", `Found ${videoFiles.length} video files to assemble`);
+        directorLog(0, "ASSEMBLE", `Processing ${sortedScenes.length} scenes with audio/visuals...`);
 
-        // Create concat list file
-        const listPath = path.join(outputDir, 'concat_list.txt');
-        const listContent = videoFiles.map(f => `file '${f}'`).join('\n');
-        fs.writeFileSync(listPath, listContent);
-        directorLog(0, "ASSEMBLE", "✓ Created concat list");
+        const finalConcatList = [];
+        const tempFiles = []; // Track temp files to clean up
 
-        // Run FFmpeg concat
+        // 2. Process each scene
+        for (const sceneNum of sortedScenes) {
+            const data = sceneMap.get(sceneNum);
+
+            // Sort shots: shot_1, shot_2...
+            data.shots.sort((a, b) => {
+                const getShot = s => parseInt(s.match(/shot_(\d+)/)[1] || 999);
+                return getShot(a) - getShot(b);
+            });
+
+            if (data.shots.length === 0) continue;
+
+            directorLog(sceneNum, "ASSEMBLE", `Combining ${data.shots.length} shots + ${data.audio ? 'Audio' : 'No Audio'}`);
+
+            // Step A: Consolidate Visuals (Concat shots)
+            let visualFile = data.shots[0];
+            if (data.shots.length > 1) {
+                const shotListPath = path.join(outputDir, `scene_${sceneNum}_shots.txt`);
+                const shotListContent = data.shots.map(s => `file '${s}'`).join('\n');
+                fs.writeFileSync(shotListPath, shotListContent);
+                tempFiles.push(shotListPath);
+
+                const mergedVisual = `scene_${sceneNum}_visual.mp4`;
+                // Fast concat (copy)
+                await execAsync(`ffmpeg -f concat -safe 0 -i "${shotListPath}" -c copy "${mergedVisual}" -y`, { cwd: outputDir });
+                visualFile = mergedVisual;
+                tempFiles.push(path.join(outputDir, mergedVisual));
+            }
+
+            // Step B: Merge Visual + Audio
+            let sceneFinalFile = `scene_${sceneNum}_final.mp4`;
+
+            if (data.audio) {
+                // Merge audio and video. Use -shortest to match lengths (stop when one ends)
+                // We use -c:v copy to avoid re-encoding video (fast), -c:a aac to ensure audio format
+                // If video is much shorter than audio, we might lose audio. 
+                // TODO: In future, loop video? For now, simplistic merge.
+                const cmd = `ffmpeg -i "${visualFile}" -i "${data.audio}" -c:v copy -c:a aac -shortest "${sceneFinalFile}" -y`;
+                try {
+                    await execAsync(cmd, { cwd: outputDir });
+                    finalConcatList.push(`file '${sceneFinalFile}'`);
+                    tempFiles.push(path.join(outputDir, sceneFinalFile));
+                } catch (e) {
+                    console.error(`Audio merge failed for scene ${sceneNum}:`, e);
+                    finalConcatList.push(`file '${visualFile}'`); // Fallback to visual only
+                }
+            } else {
+                finalConcatList.push(`file '${visualFile}'`);
+            }
+        }
+
+        // 3. Final Concatenation
+        const listPath = path.join(outputDir, 'final_concat_list.txt');
+        fs.writeFileSync(listPath, finalConcatList.join('\n'));
+        directorLog(0, "ASSEMBLE", "✓ Final assembly started...");
+
         const finalPath = path.join(outputDir, 'final_video.mp4');
         const ffmpegCmd = `ffmpeg -f concat -safe 0 -i "${listPath}" -c copy "${finalPath}" -y`;
 
-        directorLog(0, "ASSEMBLE", `Running FFmpeg: ${ffmpegCmd.substring(0, 60)}...`);
-
         try {
-            const { stdout, stderr } = await execAsync(ffmpegCmd, {
-                cwd: outputDir,
-                timeout: 300000 // 5 min timeout
-            });
+            await execAsync(ffmpegCmd, { cwd: outputDir });
+
+            // Cleanup temp files
+            try {
+                fs.unlinkSync(listPath);
+                tempFiles.forEach(f => { if (fs.existsSync(f)) fs.unlinkSync(f); });
+            } catch (e) { }
 
             if (fs.existsSync(finalPath)) {
                 const stats = fs.statSync(finalPath);
                 const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
                 directorLog(0, "ASSEMBLE", `✅ Final video created: final_video.mp4 (${sizeMB}MB)`);
-
-                // Clean up list file
-                fs.unlinkSync(listPath);
-
-                return {
-                    path: finalPath,
-                    name: 'final_video.mp4',
-                    size: stats.size
-                };
-            } else {
-                directorLog(0, "ERROR", "FFmpeg completed but final video not found");
-                return null;
+                return { path: finalPath, name: 'final_video.mp4', size: stats.size };
             }
-        } catch (ffmpegErr) {
-            directorLog(0, "ERROR", `FFmpeg failed: ${ffmpegErr.message}`);
+        } catch (e) {
+            directorLog(0, "ERROR", `Final assembly failed: ${e.message}`);
             return null;
         }
 
