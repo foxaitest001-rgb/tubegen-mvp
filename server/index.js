@@ -468,9 +468,24 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                     }
 
                     if (inputElement) {
-                        directorLog(sceneNum, "STEP", "📍 Step 2: Focusing and clearing input...");
-                        await inputElement.click();
-                        await inputElement.focus();
+                        directorLog(sceneNum, "STEP", "📍 Step 2: Focusing and clearing input (Robust)...");
+
+                        // ROBUST FOCUS via JS (Bypasses "Node not clickable" errors)
+                        await page.evaluate((sel) => {
+                            // 1. Kill overlays/modals blocking the view
+                            const blockers = document.querySelectorAll('div[role="dialog"], div[role="banner"], div[aria-modal="true"], [class*="overlay"]');
+                            blockers.forEach(el => el.remove());
+
+                            // 2. Focus directly
+                            const el = document.querySelector(sel);
+                            if (el) {
+                                el.focus();
+                                el.click(); // Soft click logic
+                            }
+                        }, inputSelector);
+
+                        // Ensure we are focused before typing
+                        await interruptibleSleep(500);
 
                         // CLEAR TEXT
                         await page.keyboard.down('Control');
