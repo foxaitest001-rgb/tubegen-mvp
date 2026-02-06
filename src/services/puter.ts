@@ -5,6 +5,8 @@ import { generateContentWithGoogle } from './google_direct';
 import cinematicKnowledge from '../data/cinematic_knowledge.json';
 import viralStrategies from '../data/viral_strategies.json';
 import promptKnowledge from '../data/prompt_knowledge.json';
+import voiceKnowledge from '../data/voice_knowledge.json';
+import audioKnowledge from '../data/audio_knowledge.json';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
@@ -165,6 +167,65 @@ ${matchedPrompts.map((p, i) => `${i + 1}. "${p}"`).join('\n')}
 `;
 };
 
+// Helper: Get Voice suggestions from Taxonomy
+const getVoiceSuggestions = (niche: string, visualStyle: string): string => {
+  const searchTerms = `${niche} ${visualStyle}`.toLowerCase();
+
+  // 1. Find best mapping
+  let mappedStyle = 'youtube_casual'; // default
+  const mappings = (voiceKnowledge as any).mappings.visual_to_voice;
+
+  for (const [key, value] of Object.entries(mappings)) {
+    if (searchTerms.includes(key)) {
+      mappedStyle = value as string;
+      break;
+    }
+  }
+
+  // 2. Get details
+  const styleDetails = (voiceKnowledge as any).styles[mappedStyle];
+  if (!styleDetails) return '';
+
+  return `
+## VOICE DIRECTION (From Taxonomy Matching '${mappedStyle}'):
+- **Recommended Style**: ${mappedStyle}
+- **Piper Model ID**: ${styleDetails.piper_model} (${styleDetails.model_type})
+- **Speed**: ${styleDetails.speed}
+- **Pitch Shift**: ${styleDetails.pitch_shift}
+- **Tone**: ${styleDetails.description}
+`;
+};
+
+// Helper: Get Audio suggestions from Taxonomy
+const getAudioSuggestions = (niche: string, visualStyle: string): string => {
+  const searchTerms = `${niche} ${visualStyle}`.toLowerCase();
+
+  // 1. Find best mapping
+  let mappingKey = 'vlog'; // default fallback
+  const mappings = (audioKnowledge as any).mappings.visual_to_audio;
+
+  for (const key of Object.keys(mappings)) {
+    if (searchTerms.includes(key)) {
+      mappingKey = key;
+      break;
+    }
+  }
+
+  const map = mappings[mappingKey] || mappings['vlog'];
+
+  // 2. Get details
+  const ambianceKeywords = (audioKnowledge as any).ambience[map.ambience] || [];
+  const musicDetails = (audioKnowledge as any).music[map.music] || {};
+
+  return `
+## AUDIO DIRECTION (From Taxonomy Matching '${mappingKey}'):
+- **Ambiance Mood**: ${map.ambience.toUpperCase().replace('_', ' ')}
+- **Ambiance Keywords (Use in [SOUND] tags)**: ${ambianceKeywords.join(', ')}
+- **Music Mood**: ${map.music.toUpperCase().replace('_', ' ')}
+- **Music Style**: ${musicDetails.mood} (${musicDetails.tempo}, ${musicDetails.instruments})
+`;
+};
+
 // Helper: Select the best strategy based on Niche keyword
 const getRetentionStrategy = (niche: string) => {
   const lowerNiche = niche.toLowerCase();
@@ -226,7 +287,10 @@ export async function generateNarrative(
 
   const directorContext = getDirectorContext();
   const promptExamples = getMatchingPromptsForContext(topic, niche, visualStyle);
-  console.log(`[Service] 🧠 VidProM Style Match: ${promptExamples ? 'Found examples' : 'Using defaults'}`);
+  const voiceDirection = getVoiceSuggestions(niche, effectiveVisualStyle);
+  const audioDirection = getAudioSuggestions(niche, effectiveVisualStyle);
+
+  console.log(`[Service] 🧠 Taxonomy Match - VidProM: ${!!promptExamples}, Voice: ${!!voiceDirection}, Audio: ${!!audioDirection}`);
 
   const systemPrompt = `You are a World-Class YouTube Scriptwriter, Cinematic Director, and Retention Expert.
   You specialize in the '${niche}' niche and assume the archetype of: ${strategy.structure_name}.
@@ -286,6 +350,10 @@ export async function generateNarrative(
   ${directorContext}
 
   ${promptExamples}
+
+  ${voiceDirection}
+
+  ${audioDirection}
 
   PROCESS:
   1. **ANALYSIS PHASE**: Analyze niche/reference.

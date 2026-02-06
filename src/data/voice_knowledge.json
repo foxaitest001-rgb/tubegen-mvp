@@ -1,0 +1,109 @@
+{
+    "styles": {
+        "cinematic_trailer": {
+            "piper_model": "en_US-ryan-medium",
+            "model_type": "high_quality",
+            "speed": 0.9,
+            "pitch_shift": -5,
+            "description": "Deep, resonant, slow-paced, authoritative. Ideal for epic intros and dramatic moments."
+        },
+        "cinematic_noir": {
+            "piper_model": "en_US-ryan-medium",
+            "model_type": "high_quality",
+            "speed": 0.85,
+            "pitch_shift": -3,
+            "description": "Gritty, slow, slightly whispery tone. Ideal for mystery and noir."
+        },
+        "horror_whisper": {
+            "piper_model": "en_US-ryan-medium",
+            "model_type": "high_quality",
+            "speed": 0.75,
+            "pitch_shift": -8,
+            "description": "Very slow, unsettling, deep pitch. Ideal for creepypastas and scares."
+        },
+        "youtube_fast": {
+            "piper_model": "en_US-joe-medium",
+            "model_type": "medium_quality",
+            "speed": 1.15,
+            "pitch_shift": 0,
+            "description": "Energetic, fast-paced, high engagement. Ideal for vlogs and challenges."
+        },
+        "youtube_casual": {
+            "piper_model": "en_US-joe-medium",
+            "model_type": "medium_quality",
+            "speed": 1.05,
+            "pitch_shift": 0,
+            "description": "Friendly, conversational, normal pace. Ideal for daily vlogs."
+        },
+        "documentary_serious": {
+            "piper_model": "en_US-norman-medium",
+            "model_type": "high_quality",
+            "speed": 0.95,
+            "pitch_shift": -2,
+            "description": "Neutral, highly articulate, steady pace. Ideal for educational and history content."
+        },
+        "news_reporter": {
+            "piper_model": "en_US-lessac-medium",
+            "model_type": "high_quality",
+            "speed": 1.1,
+            "pitch_shift": 0,
+            "description": "Clear, concise, professional broadcast tone."
+        },
+        "tech_review": {
+            "piper_model": "en_US-lessac-medium",
+            "model_type": "high_quality",
+            "speed": 1.1,
+            "pitch_shift": 2,
+            "description": "Crisp, modern, intelligent tone. Ideal for gadget reviews."
+        },
+        "gaming_hype": {
+            "piper_model": "en_US-joe-medium",
+            "model_type": "medium_quality",
+            "speed": 1.25,
+            "pitch_shift": 3,
+            "description": "Very fast, excited, higher pitch. Ideal for highlight reels."
+        },
+        "meditation_calm": {
+            "piper_model": "en_US-danny-low",
+            "model_type": "low_quality",
+            "speed": 0.7,
+            "pitch_shift": -2,
+            "description": "Soft, extremely slow, soothing. Ideal for ASMR and relaxation."
+        },
+        "storytime_friendly": {
+            "piper_model": "en_US-amy-medium",
+            "model_type": "medium_quality",
+            "speed": 1.0,
+            "pitch_shift": 2,
+            "description": "Warm, engaging, sweet tone. Ideal for lifestyle and stories."
+        },
+        "corporate_pro": {
+            "piper_model": "en_US-hfc_female-medium",
+            "model_type": "medium_quality",
+            "speed": 1.0,
+            "pitch_shift": 0,
+            "description": "Polished, confident, neutral female voice. Ideal for business."
+        }
+    },
+    "mappings": {
+        "visual_to_voice": {
+            "cinematic": "cinematic_trailer",
+            "noir": "cinematic_noir",
+            "horror": "horror_whisper",
+            "spooky": "horror_whisper",
+            "vlog": "youtube_casual",
+            "lifestyle": "storytime_friendly",
+            "gaming": "gaming_hype",
+            "tech": "tech_review",
+            "documentary": "documentary_serious",
+            "history": "documentary_serious",
+            "news": "news_reporter",
+            "asmr": "meditation_calm",
+            "meditation": "meditation_calm",
+            "business": "corporate_pro",
+            "finance": "corporate_pro",
+            "action": "youtube_fast",
+            "anime": "gaming_hype"
+        }
+    }
+}

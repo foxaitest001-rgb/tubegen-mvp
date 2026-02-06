@@ -1,0 +1,151 @@
+{
+    "ambience": {
+        "cinematic_noir": [
+            "rain_city_street_night",
+            "distant_police_sirens",
+            "neon_light_hum",
+            "wet_pavement_footsteps",
+            "underground_subway_rumble"
+        ],
+        "horror": [
+            "low_frequency_drones",
+            "howling_wind_through_trees",
+            "old_house_creaking_floors",
+            "distant_ghostly_whispers",
+            "heartbeat_slow_thud"
+        ],
+        "nature_calm": [
+            "forest_birds_morning",
+            "gentle_stream_water",
+            "rustling_leaves_light_wind",
+            "crickets_night_summer",
+            "ocean_waves_distant"
+        ],
+        "nature_extreme": [
+            "heavy_thunderstorm_rolling",
+            "blizzard_wind_howl",
+            "desert_wind_sand",
+            "jungle_dense_insects"
+        ],
+        "scifi_futuristic": [
+            "spaceship_engine_idle_hum",
+            "computer_interface_beeps_soft",
+            "cyberpunk_city_crowd_distant",
+            "airlock_hiss",
+            "robot_servomotors"
+        ],
+        "fantasy_magical": [
+            "ethereal_chimes_wind",
+            "magical_forest_glitter",
+            "cave_dripping_water_echo",
+            "dragon_distant_roar"
+        ],
+        "urban_busy": [
+            "city_traffic_honking",
+            "crowd_talking_restaurant",
+            "construction_jackhammer_distant",
+            "subway_announcements"
+        ],
+        "indoor_quiet": [
+            "room_tone_silence_hvac",
+            "clock_ticking_wall",
+            "keyboard_typing_mechanical",
+            "fireplace_crackling"
+        ]
+    },
+    "music": {
+        "epic_action": {
+            "tempo": "Fast (120+ BPM)",
+            "instruments": "Orchestral Brass, Heavy Percussion, Hybrid Synth, Choir",
+            "energy": "High",
+            "mood": "Heroic, Tense, Driving",
+            "reference_style": "Hans Zimmer, Two Steps From Hell"
+        },
+        "emotional_sad": {
+            "tempo": "Slow (60-80 BPM)",
+            "instruments": "Solo Cello, Piano, Strings",
+            "energy": "Low",
+            "mood": "Melancholic, Reflective, Sorrowful",
+            "reference_style": "Max Richter, Ludovico Einaudi"
+        },
+        "horror_tension": {
+            "tempo": "Variable / Drone",
+            "instruments": "Dissonant Strings, Waterphone, Sub-bass Hits",
+            "energy": "Medium",
+            "mood": "Unsettling, Scary, Suspenseful",
+            "reference_style": "Hildur Guðnadóttir, Silent Hill OST"
+        },
+        "cyberpunk_synth": {
+            "tempo": "Medium (90-110 BPM)",
+            "instruments": "Analog Synths, Arpeggiators, Drum Machines",
+            "energy": "High",
+            "mood": "Futuristic, Gritty, Neon",
+            "reference_style": "Blade Runner 2049, Perturbator"
+        },
+        "lofi_chill": {
+            "tempo": "Medium (80-90 BPM)",
+            "instruments": "Rhodes Piano, Vinyl Crackle, Hip Hop Beat",
+            "energy": "Low",
+            "mood": "Relaxed, Nostalgic, Studying",
+            "reference_style": "Lofi Girl"
+        },
+        "corporate_upbeat": {
+            "tempo": "Medium (110 BPM)",
+            "instruments": "Ukulele, Whistle, Acoustic Guitar, Light Drums",
+            "energy": "Medium",
+            "mood": "Happy, Optimistic, Clean",
+            "reference_style": "Stock Commercial Music"
+        },
+        "fantasy_adventure": {
+            "tempo": "Medium-Fast",
+            "instruments": "Flute, Harp, Full Orchestra",
+            "energy": "Medium-High",
+            "mood": "Magical, Wonder, Journey",
+            "reference_style": "Lord of the Rings, Harry Potter"
+        }
+    },
+    "mappings": {
+        "visual_to_audio": {
+            "dark_forest": {
+                "ambience": "horror",
+                "music": "horror_tension"
+            },
+            "city_night": {
+                "ambience": "cinematic_noir",
+                "music": "emotional_sad"
+            },
+            "cyber_city": {
+                "ambience": "scifi_futuristic",
+                "music": "cyberpunk_synth"
+            },
+            "space": {
+                "ambience": "scifi_futuristic",
+                "music": "epic_action"
+            },
+            "fantasy": {
+                "ambience": "fantasy_magical",
+                "music": "fantasy_adventure"
+            },
+            "war": {
+                "ambience": "nature_extreme",
+                "music": "epic_action"
+            },
+            "vlog": {
+                "ambience": "urban_busy",
+                "music": "lofi_chill"
+            },
+            "tutorial": {
+                "ambience": "indoor_quiet",
+                "music": "corporate_upbeat"
+            },
+            "nature": {
+                "ambience": "nature_calm",
+                "music": "emotional_sad"
+            },
+            "meditation": {
+                "ambience": "nature_calm",
+                "music": "lofi_chill"
+            }
+        }
+    }
+}
