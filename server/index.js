@@ -1083,7 +1083,11 @@ app.post('/generate-voiceover', async (req, res) => {
         }
 
         if (!modelPath) {
-            throw new Error(`Model not found in any location: ${possiblePaths.join(', ')}`);
+            // Graceful fallback: Skip audio generation if models not installed
+            const msg = `Voice models not found. Audio skipped. (Checked: ${possiblePaths[0]})`;
+            console.warn(`[AUDIO] ${msg}`);
+            directorLog(sceneNum, "AUDIO", `⚠️ ${msg}`);
+            return res.json({ success: false, skipped: true, reason: "Voice models not installed on server" });
         }
 
         console.log(`[AUDIO] Found model at: ${modelPath}`);

@@ -7,12 +7,10 @@ const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
 // WORKING MODEL: gemini-3-flash-preview (Confirmed by user logs)
 // Fallback: gemini-2.0-flash (may rate limit)
-// NOTE: Legacy models (1.5-flash, 1.5-flash-002) are 404 - DO NOT USE
+// Fallback: gemini-1.5-pro (Try as last resort for quota)
 const FALLBACK_MODELS: string[] = [
-    'gemini-2.0-flash'
-    // Removed: gemini-2.0-flash-lite-preview-02-05 (404)
-    // Removed: gemini-1.5-flash-002 (404)
-    // Removed: gemini-1.5-flash (404)
+    'gemini-2.0-flash',
+    'gemini-1.5-pro'
 ];
 
 export async function generateContentWithGoogle(systemPrompt: string, userQuery: string, primaryModel: string = 'gemini-3-flash-preview') {
@@ -65,7 +63,7 @@ export async function generateContentWithGoogle(systemPrompt: string, userQuery:
                 if (error.message.includes('429') || error.message.includes('503') || error.message.includes('quota')) {
                     if (retries < 1) {
                         // User Request: Skip erratic retries, go straight to long wait
-                        const waitTime = 20000; // 20 seconds
+                        const waitTime = 30000; // 30 seconds (Quota limits usually reset in 60s window)
                         console.log(`[Google Direct] ⚠️ High Traffic (429/503). Waiting ${waitTime / 1000}s before FINAL retry...`);
                         await new Promise(r => setTimeout(r, waitTime));
                         retries++;

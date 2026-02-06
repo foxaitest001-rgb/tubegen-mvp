@@ -54,6 +54,22 @@ jobs:
           chmod +x server/piper/piper
           echo "✅ Piper TTS installed in server/piper"
 
+      - name: 🎤 Download Voice Models
+        run: |
+          mkdir -p public/piper
+          cd public/piper
+          # Ryan (Male - Medium Quality)
+          wget -q -O en_US-ryan-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/medium/en_US-ryan-medium.onnx
+          wget -q -O en_US-ryan-medium.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/medium/en_US-ryan-medium.onnx.json
+          # Lessac (Female - Medium Quality)
+          wget -q -O en_US-lessac-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx
+          wget -q -O en_US-lessac-medium.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json
+          # Joe (Male - Medium Quality)
+          wget -q -O en_US-joe-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/joe/medium/en_US-joe-medium.onnx
+          wget -q -O en_US-joe-medium.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/joe/medium/en_US-joe-medium.onnx.json
+          ls -la
+          echo "✅ Voice models downloaded to public/piper"
+
       - name: 📦 Install Node.js
         uses: actions/setup-node@v4
         with:
