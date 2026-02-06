@@ -322,8 +322,46 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
     await page.setBypassCSP(true);
 
     directorLog(0, "STEP", "✓ Browser connected, CSP bypassed");
-    directorLog(0, "STEP", "⏳ Waiting 5s for page warmup...");
-    await interruptibleSleep(5000);
+    directorLog(0, "STEP", "⏳ Resetting session (New Chat)...");
+
+    // NEW CHAT LOGIC (Reset context)
+    try {
+        // Try to find "New conversation" or "New chat" button
+        // Common selectors for Meta AI's "New" button (top-left corner)
+        const newChatSelectors = [
+            'a[href="/"]',
+            'a[href="/new"]',
+            'div[role="button"][aria-label="New chat"]',
+            'div[role="button"][aria-label="New conversation"]'
+        ];
+
+        // Wait a moment for UI to settle
+        await interruptibleSleep(2000);
+
+        let clicked = false;
+        for (const sel of newChatSelectors) {
+            const btn = await page.$(sel);
+            if (btn) {
+                await btn.click();
+                directorLog(0, "STEP", "✓ Clicked 'New Chat' button");
+                clicked = true;
+                break;
+            }
+        }
+
+        if (!clicked) {
+            // Fallback: Force navigate to root
+            directorLog(0, "STEP", "Using fallback: Navigating to meta.ai root...");
+            await page.goto('https://www.meta.ai/', { waitUntil: 'domcontentloaded' });
+        }
+
+        await interruptibleSleep(3000); // Wait for new chat to load
+
+    } catch (err) {
+        directorLog(0, "WARN", `New Chat reset failed: ${err.message}`);
+    }
+
+    directorLog(0, "STEP", "⏳ Waiting for input box...");
 
     const inputSelector = 'textarea, div[contenteditable="true"], div[role="textbox"]';
 
