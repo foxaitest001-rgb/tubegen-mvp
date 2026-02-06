@@ -276,16 +276,29 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
     let page;
 
     // Try to connect to existing Chrome first (RDP mode)
+    let connected = false;
     try {
         directorLog(0, "BROWSER", "Trying to connect to existing Chrome...");
         browser = await puppeteer.connect({
             browserURL: 'http://localhost:9222',
             defaultViewport: null
         });
-        directorLog(0, "BROWSER", "✅ Connected to existing Chrome!");
+
+        // 🔍 HEALTH CHECK: Can we actually control this browser?
+        // (Fixes "Zombie Chrome" issue where background process accepts connection but has no windows)
+        const testPage = await browser.newPage();
+        await testPage.close();
+
+        directorLog(0, "BROWSER", "✅ Connected to existing Chrome (and verified)!");
+        connected = true;
     } catch (e) {
+        directorLog(0, "WARN", `Could not connect to existing Chrome: ${e.message}`);
+        if (browser) { try { browser.disconnect(); } catch (err) { } }
+    }
+
+    if (!connected) {
         // Fallback: Launch new browser (local mode)
-        directorLog(0, "BROWSER", "No existing Chrome found, launching new browser...");
+        directorLog(0, "BROWSER", "Launching NEW Browser (Visible Mode)...");
         browser = await puppeteer.launch({
             headless: false,
             userDataDir: "./user_data",
@@ -299,7 +312,8 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
-                '--disable-gpu'
+                '--disable-gpu',
+                '--window-position=0,0'
             ]
         });
     }
