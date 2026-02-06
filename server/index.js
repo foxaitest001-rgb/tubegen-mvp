@@ -306,16 +306,14 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
     // ENSURE PAGE IS OPEN
     const pages = await browser.pages();
+    directorLog(0, "BROWSER", `Found ${pages.length} existing tabs.`);
+
     page = pages.find(p => p.url().includes('meta.ai'));
 
     if (!page) {
-        directorLog(0, "BROWSER", "Meta.ai tab not found. Opening new tab...");
-        // Use first page if available and empty, otherwise new page
-        if (pages.length > 0 && pages[0].url() === 'about:blank') {
-            page = pages[0];
-        } else {
-            page = await browser.newPage();
-        }
+        directorLog(0, "BROWSER", "Meta.ai tab not found. Opening NEW tab...");
+        // Always open a new tab to ensure visibility (don't recycle background pages)
+        page = await browser.newPage();
         await page.goto('https://www.meta.ai', { waitUntil: 'domcontentloaded', timeout: 0 });
     } else {
         directorLog(0, "BROWSER", "✅ Reusing existing Meta.ai tab");
