@@ -511,23 +511,18 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                     directorLog(sceneNum, "RETRY", `🔄 Retry ${attempt}/${MAX_RETRIES} for Shot ${shotNum}...`);
 
                     // RETRY STRATEGY:
-                    // Attempt 2: "Soft Clean" - Remove technical args but keep description
+                    // Attempt 2: "Pure Retry" - Sometimes it's just a random server glitch. Change nothing.
                     if (attempt === 2) {
-                        currentPrompt = currentPrompt
-                            .replace(/--ar \d+:\d+/gi, '') // Remove AR args (handled by prefix)
-                            .trim();
+                        // Do nothing to the prompt, just wait longer.
                     }
-                    // Attempt 3: "Aggressive Safety" - Remove capitalized words (potential proper nouns/copyright)
+                    // Attempt 3: "Copyright Safety Only" - Lowercase potential proper nouns but KEEP description length.
                     else if (attempt === 3) {
-                        // Remove words starting with capital letters that aren't at start of sentence (crude copyright filter)
-                        // But for now, let's just do a heavy simplification to save the shot
-                        currentPrompt = "A cinematic shot of " + currentPrompt
-                            .replace(/[A-Z][a-z]+/g, (match) => match.toLowerCase()) // Lowercase everything to bypass some filters
-                            .split(',').slice(0, 3).join(','); // Keep first 3 clauses
+                        currentPrompt = currentPrompt
+                            .replace(/[A-Z][a-z]+/g, (match) => match.toLowerCase()); // Lowercase everything
                     }
 
-                    directorLog(sceneNum, "RETRY", `📝 Adjusted prompt (${currentPrompt.length} chars)`);
-                    await interruptibleSleep(3000); // Brief pause before retry
+                    directorLog(sceneNum, "RETRY", `📝 Retrying with prompt (${currentPrompt.length} chars)`);
+                    await interruptibleSleep(4000); // Longer pause
                 }
 
                 directorLog(sceneNum, "ACTION", `🎬 Starting Shot ${shotNum} (Progress: ${currentShotIndex + 1}/${shotQueue.length})${attempt > 1 ? ` [Attempt ${attempt}]` : ''}`);
