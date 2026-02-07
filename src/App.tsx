@@ -1,6 +1,8 @@
 
 import { useState, useRef, useEffect } from 'react'
-import { Settings, Zap, Download } from 'lucide-react';
+import { Settings, Zap, Download, Play } from 'lucide-react';
+import { Player } from '@remotion/player';
+import { MyComposition } from './remotion/Composition';
 import { ConsultantChat } from './components/ConsultantChat'
 import { generateNarrative } from './services/puter'
 
@@ -305,6 +307,32 @@ function App() {
           </button>
         </div>
       </header >
+
+      {/* Remotion Preview (Quick Test) */}
+      <div className="bg-black/90 border-b border-white/10 p-4 flex justify-center">
+        <div className="w-[480px] h-[270px] bg-black rounded-lg overflow-hidden border border-white/20 shadow-2xl relative group">
+          <Player
+            component={MyComposition}
+            durationInFrames={150}
+            fps={30}
+            compositionWidth={1920}
+            compositionHeight={1080}
+            style={{
+              width: '100%',
+              height: '100%',
+            }}
+            controls
+            inputProps={{
+              titleText: topic || 'Welcome to FoxTube',
+              subtitleText: niche || 'Your AI Video Generator',
+              backgroundImage: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?ixlib=rb-4.0.3&w=1000&q=80'
+            }}
+          />
+          <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-[10px] text-white/70">
+            Remotion Preview
+          </div>
+        </div>
+      </div>
 
       {/* Server Config */}
       {
