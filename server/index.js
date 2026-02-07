@@ -559,13 +559,18 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         // Ensure we are focused before typing
                         await interruptibleSleep(500);
 
-                        // CLEAR TEXT
+                        // CLEAR TEXT (Robust Method: Triple Click to Select All)
+                        await inputElement.click({ clickCount: 3 });
+                        await page.keyboard.press('Backspace');
+                        await new Promise(r => setTimeout(r, 200));
+
+                        // Fallback: Ctrl+A just in case
                         await page.keyboard.down('Control');
                         await page.keyboard.press('A');
                         await page.keyboard.up('Control');
                         await page.keyboard.press('Backspace');
-                        await new Promise(r => setTimeout(r, 200));
-                        directorLog(sceneNum, "STEP", "✓ Input cleared");
+
+                        directorLog(sceneNum, "STEP", "✓ Input cleared (Triple-Click)");
                     }
 
                     if (await checkControlState()) continue shotLoop;
@@ -590,10 +595,16 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         stylePrefix = 'Create a documentary-style video (16:9, raw footage, natural lighting)';
                     }
 
-                    const fullPrompt = `${stylePrefix}: ${cleanPrompt}`;
+                    // Fix: Avoid double colons if prompts already start with one
+                    const safeCleanPrompt = cleanPrompt.startsWith(':') ? cleanPrompt.substring(1).trim() : cleanPrompt;
+                    const fullPrompt = `${stylePrefix}: ${safeCleanPrompt}`;
 
                     directorLog(sceneNum, "STEP", `📍 Step 3: Typing prompt (${fullPrompt.length} chars)...`);
-                    await page.keyboard.type(fullPrompt, { delay: 30 });
+
+                    // SLOW TYPING IS SAFER for React apps than Paste
+                    // But we increased delay slightly to avoid character skipping
+                    await page.keyboard.type(fullPrompt, { delay: 10 });
+
                     await new Promise(r => setTimeout(r, 500));
                     directorLog(sceneNum, "STEP", "✓ Prompt typed");
 
