@@ -303,6 +303,12 @@ export async function generateNarrative(
   - Every "video_prompts" entry must explicitly include this style in the description.
   - Do NOT generate photorealistic prompts if user asked for 2D/anime.
   - Do NOT generate animated prompts if user asked for cinematic.
+
+  ## SAFETY & COPYRIGHT (CRITICAL):
+  - **Do NOT use specific copyrighted names** (e.g., "Mario", "Pikachu", "Iron Man", "Blue-Eyes White Dragon").
+  - **INSTEAD, use descriptive physical traits** (e.g., "red capped plumber", "yellow electric mouse", "armored red superhero", "massive white crystalline dragon").
+  - **Avoid brand names** like "Nintendo", "Disney", "Pixar". Use "Pixar-style" or "Disney-style" only if describing a generic art style, but prefer descriptive terms like "3D CGI, smooth textures, expressive animation".
+  - **Meta AI Policy**: Avoid words that trigger safety filters. Keep prompts PG-13 and description-focused.
   
   ## ASPECT RATIO (CRITICAL):
   **ALL prompts MUST use this aspect ratio: ${effectiveAspectRatio}**
