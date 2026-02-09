@@ -9,7 +9,7 @@ puppeteer.use(StealthPlugin());
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v3.0 (STYLE DNA + META.AI V3)';
+const VERSION = 'v3.1 (PURE JS AUTOMATION)';
 
 // ═══════════════════════════════════════════════════════════════
 // STYLE DNA ARCHITECTURE - Helper Functions
