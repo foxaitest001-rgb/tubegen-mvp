@@ -9,7 +9,7 @@ puppeteer.use(StealthPlugin());
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v3.1 (PURE JS AUTOMATION)';
+const VERSION = 'v3.2 (RESTORED SIMPLE INPUT)';
 
 // ═══════════════════════════════════════════════════════════════
 // STYLE DNA ARCHITECTURE - Helper Functions
