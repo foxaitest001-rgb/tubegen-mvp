@@ -7,6 +7,16 @@ import viralStrategies from '../data/viral_strategies.json';
 import promptKnowledge from '../data/prompt_knowledge.json';
 import voiceKnowledge from '../data/voice_knowledge.json';
 import audioKnowledge from '../data/audio_knowledge.json';
+// NEW: Style DNA Knowledge Files
+import directorsGuide from '../data/directors_guide.json';
+import styleIntelligence from '../data/style_intelligence.json';
+import cinematicFramework from '../data/cinematic_framework.json';
+import thumbnailKnowledge from '../data/thumbnail_knowledge.json';
+import aiPromptKnowledge from '../data/ai_prompt_knowledge.json';
+import styleCompositionRules from '../data/style_composition_rules.json';
+import obscureStyles from '../data/obscure_styles.json';
+// TypeScript Types
+import type { StyleDNA, ConsultantOutput, Scene, StructuredShot } from '../types/StyleDNA';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
@@ -115,6 +125,47 @@ const getDirectorContext = () => {
     context += '\n-------------------\n';
   }
 
+  return context;
+};
+
+// NEW: Helper for Style DNA Knowledge Base
+const getStyleDNAContext = (niche: string, visualStyle: string): string => {
+  let context = `
+═══════════════════════════════════════════════════════════════
+STYLE DNA KNOWLEDGE BASE (CRITICAL - Use for visual consistency)
+═══════════════════════════════════════════════════════════════
+
+## AVAILABLE STYLES (from style_intelligence.json):
+${Object.entries((styleIntelligence as any).styles || {}).map(([key, style]: [string, any]) =>
+    `• ${key.toUpperCase()}: ${style.description || ''} | Keywords: ${(style.prompt_keywords || []).slice(0, 5).join(', ')}`
+  ).join('\n')}
+
+## AUTO-FILL RULES (Apply automatically based on niche/style):
+${JSON.stringify((styleIntelligence as any).auto_fill_rules || {}, null, 2)}
+
+## FORBIDDEN KEYWORDS BY STYLE:
+${JSON.stringify((styleIntelligence as any).forbidden_by_style || {}, null, 2)}
+
+## 5-PART PROMPT FORMULA (from ai_prompt_knowledge.json):
+${(aiPromptKnowledge as any).prompt_formula?.structure || '[Cinematography] + [Subject] + [Action] + [Context] + [Style]'}
+
+## CAMERA SHOTS (from directors_guide.json):
+${Object.entries((directorsGuide as any).camera_shots || {}).map(([key, shot]: [string, any]) =>
+    `• ${key}: ${shot.impact || ''}`
+  ).join('\n')}
+
+## LIGHTING STYLES (from directors_guide.json):
+${Object.entries((directorsGuide as any).lighting_styles || {}).map(([key, light]: [string, any]) =>
+    `• ${key}: ${light.characteristics || ''}`
+  ).join('\n')}
+
+## STYLE COMPATIBILITY MATRIX (from style_composition_rules.json):
+${JSON.stringify((styleCompositionRules as any).style_compatibility_matrix || {}, null, 2)}
+
+## KELVIN CONSISTENCY RULE:
+${(styleCompositionRules as any).kelvin_consistency?.description || 'Do not mix conflicting lighting temperatures'}
+Blending Ratio: ${(styleCompositionRules as any).kelvin_consistency?.blending_ratio || '80% Dominant / 20% Accent'}
+`;
   return context;
 };
 
@@ -828,7 +879,7 @@ export async function consultWithUser(history: { role: string, content: string }
        - 9:16 → "--ar 9:16" in prompts, vertical compositions, subjects centered
        - The Director and Script Generator will use this EXACT ratio.
     
-    4. **OUTPUT FORMAT**: When you have enough info, output JSON:
+    4. **OUTPUT FORMAT**: When you have enough info, output JSON with Style DNA:
        \`\`\`json
        {
          "ready": true,
@@ -839,7 +890,24 @@ export async function consultWithUser(history: { role: string, content: string }
          "visualStyle": "Anime",
          "aspectRatio": "9:16",
          "platform": "TikTok",
-         "mood": "Epic"
+         "mood": "Epic",
+         "style_dna": {
+           "visual_identity": {
+             "art_style": "Anime Cel-Shaded with vibrant saturation",
+             "color_palette": "Cool Blue 9000K with Neon accents",
+             "lighting_setup": "Dramatic backlit silhouettes, rim lighting",
+             "texture_quality": "2D hand-painted with film grain overlay"
+           },
+           "cinematography": {
+             "default_lens": "35mm anamorphic",
+             "default_angle": "Low angle hero shots",
+             "motion_style": "Slow tracking, dynamic whip pans on action"
+           },
+           "constraints": {
+             "forbidden_keywords": ["photorealistic", "3D CGI", "morphing"],
+             "required_keywords": ["anime style", "cel-shaded", "Japanese animation"]
+           }
+         }
        }
        \`\`\`
     
@@ -877,13 +945,29 @@ export async function consultWithUser(history: { role: string, content: string }
       // Try 1: Markdown code block format ```json ... ```
       let jsonMatch = result.match(/```json\n([\s\S]*?)\n```/);
 
-      // Try 2: Raw inline JSON object { ... } at the end of the message
+      // Try 2: Raw inline JSON object { ... } - use brace counting for nested objects
       if (!jsonMatch) {
-        // Match JSON object that starts with { "ready": and ends with }
-        jsonMatch = result.match(/\{\s*"ready"\s*:\s*(true|false)[\s\S]*?\}/);
-        if (jsonMatch) {
-          // Wrap in array format for consistent handling
-          jsonMatch = [jsonMatch[0], jsonMatch[0]];
+        // Find the start of JSON with "ready":
+        const jsonStartMatch = result.match(/\{\s*"ready"\s*:/);
+        if (jsonStartMatch && jsonStartMatch.index !== undefined) {
+          const startIdx = jsonStartMatch.index;
+          let braceCount = 0;
+          let endIdx = startIdx;
+
+          // Count braces to find the complete JSON object
+          for (let i = startIdx; i < result.length; i++) {
+            if (result[i] === '{') braceCount++;
+            if (result[i] === '}') braceCount--;
+            if (braceCount === 0 && i > startIdx) {
+              endIdx = i + 1;
+              break;
+            }
+          }
+
+          if (endIdx > startIdx) {
+            const extractedJson = result.substring(startIdx, endIdx);
+            jsonMatch = [extractedJson, extractedJson];
+          }
         }
       }
 

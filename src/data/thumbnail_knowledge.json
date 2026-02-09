@@ -1,0 +1,75 @@
+{
+    "ctr_optimization": {
+        "primary_emotions": [
+            "Curiosity",
+            "Fear/danger",
+            "Shock/surprise"
+        ],
+        "creature_visibility": "Partial reveal (silhouette, eyes, blurred) to create mystery",
+        "scale_contrast": "Juxtapose massive creatures against tiny subjects (human silhouettes, submarines)",
+        "subject_position": "Rule of Thirds intersections or centered; 40-50% of frame",
+        "camera_framing": "Tight crop or extreme close-up on faces/eyes",
+        "contrast_ratio": "Minimum 4.5:1; use shadows or bright borders to separate subject",
+        "color_palette": "Deep blues/blacks + neon accents (Cyan/Teal/Orange); red for urgency",
+        "background_simplicity": "High simplicity (empty abyss or blurred); max 3 elements total",
+        "text_rules": {
+            "max_words": 3,
+            "examples": [
+                "The Truth",
+                "Secrets",
+                "Discovered"
+            ],
+            "fonts": [
+                "Impact",
+                "Montserrat",
+                "Anton"
+            ],
+            "placement": "Upper-left or top-right; AVOID bottom-right timestamp zone"
+        },
+        "mobile_check": "Must be legible at 120p-150p width (70% of views are mobile)",
+        "psychology": [
+            "Information Gap Theory",
+            "Amygdala response (fear)",
+            "N170 facial recognition"
+        ]
+    },
+    "avoid": [
+        "Full creature reveal (kills mystery)",
+        "Clutter (more than 3 elements)",
+        "Low-resolution images",
+        "Muted contrast",
+        "YouTube red (clashes with UI)"
+    ],
+    "niche_specific": {
+        "deep_sea": {
+            "emotions": [
+                "Fear of the unknown",
+                "Claustrophobia"
+            ],
+            "colors": [
+                "Deep navy",
+                "Bioluminescent cyan",
+                "Black"
+            ],
+            "subjects": [
+                "Partial creature silhouettes",
+                "Glowing eyes in darkness"
+            ]
+        },
+        "prehistoric": {
+            "emotions": [
+                "Awe",
+                "Primal fear"
+            ],
+            "colors": [
+                "Earthy browns",
+                "Volcanic reds",
+                "Jungle greens"
+            ],
+            "subjects": [
+                "Scale comparison",
+                "Teeth/claws close-up"
+            ]
+        }
+    }
+}

@@ -1,0 +1,153 @@
+{
+    "prompt_formula": {
+        "structure": "[Cinematography] + [Subject] + [Action] + [Context] + [Style & Ambiance]",
+        "example": "Slow dolly-in toward character, female warrior in tactical suit, looking determined, dark ship interior, Hollywood realism with Hero Glow lighting"
+    },
+    "shot_types": {
+        "extreme_close_up": {
+            "focal_ratio": "Eyeline/lip detail",
+            "emotion": "Overwhelming emotion, vulnerability, intimacy",
+            "prompt": "extreme close-up of eyes"
+        },
+        "close_up": {
+            "focal_ratio": "Face + shoulders",
+            "emotion": "Emotional state revelation, performance emphasis",
+            "prompt": "tight close-up, 50mm lens, character's expression fills frame"
+        },
+        "medium_shot": {
+            "focal_ratio": "Waist up",
+            "emotion": "Balanced character-environment relationship",
+            "prompt": "medium shot, character positioned on frame-left third"
+        },
+        "full_shot": {
+            "focal_ratio": "Head to toe",
+            "emotion": "Character as physical agent within space",
+            "prompt": "full-body shot, character standing alone in cavernous warehouse"
+        },
+        "wide_shot": {
+            "focal_ratio": "Landscape context",
+            "emotion": "Environmental storytelling, isolation scale",
+            "prompt": "wide shot from 100mm telephoto, character tiny against landscape"
+        },
+        "extreme_wide": {
+            "focal_ratio": "Drone/landscape scale",
+            "emotion": "Epic scope, character insignificance",
+            "prompt": "vast aerial view, cinematic 2.39:1 anamorphic aspect ratio"
+        }
+    },
+    "camera_movements": {
+        "static": {
+            "effect": "Stability, observation, inevitability",
+            "motivation": "Scene requires viewer to absorb composition",
+            "prompt": "static camera from fixed position, no movement"
+        },
+        "dolly_in": {
+            "effect": "Intensifying focus, emotional approach",
+            "motivation": "Building tension or intimacy; gradual realization",
+            "prompt": "slow dolly-in toward character's face, subtle emphasis of emotion"
+        },
+        "dolly_out": {
+            "effect": "Expanding context, emotional withdrawal",
+            "motivation": "Revealing consequences or isolation",
+            "prompt": "dolly-out revealing character alone in vast space"
+        },
+        "pan": {
+            "effect": "Attention redirection, environmental reveal",
+            "motivation": "Following action or discovering narrative info",
+            "prompt": "slow pan-left revealing the destruction behind the character"
+        },
+        "tilt": {
+            "effect": "Height relationship, power dynamics",
+            "motivation": "Reveal of threat above or safety below",
+            "prompt": "tilt-down from threatening sky to vulnerable character"
+        },
+        "tracking": {
+            "effect": "Intimate following, embedded perspective",
+            "motivation": "Narrative immediacy; we are present cinema",
+            "prompt": "tracking shot following character through corridor, fluid motion"
+        },
+        "handheld": {
+            "effect": "Documentary urgency, emotional chaos",
+            "motivation": "Psychological disorientation or real-time intensity",
+            "prompt": "handheld camera, slight shake, POV intimacy, urgent pace"
+        },
+        "orbit": {
+            "effect": "Spatial exploration, three-dimensionality",
+            "motivation": "Reveal character from multiple perspectives",
+            "prompt": "camera arcs around seated character, slow 180° orbit"
+        },
+        "crane": {
+            "effect": "Epic scale reveal, fate's overview",
+            "motivation": "Establishing environmental context or climactic shift",
+            "prompt": "crane shot rising from interior scene to reveal exterior landscape"
+        },
+        "dolly_zoom": {
+            "effect": "Psychological vertigo, reality destabilization",
+            "motivation": "Moment of revelation or psychological break",
+            "prompt": "push-in while zooming-out, maintaining character size while background distorts"
+        }
+    },
+    "composition_rules": {
+        "rule_of_thirds": {
+            "description": "Place subjects on intersecting lines for natural visual harmony",
+            "prompt_harmony": "subject positioned on rule-of-thirds intersection, balanced composition",
+            "prompt_vulnerable": "character pushed toward frame-left edge, isolated by negative space",
+            "prompt_claustrophobic": "character centered in frame, symmetrical composition that feels confining"
+        },
+        "depth_of_field": {
+            "shallow": {
+                "f_stop": "f/1.4-2.0",
+                "emotion": "Emotional isolation, intimate focus",
+                "prompt": "shallow depth of field, background bokeh-blurred, soft focus on character's face"
+            },
+            "medium": {
+                "f_stop": "f/2.8-5.6",
+                "emotion": "Character + immediate environment visible",
+                "prompt": "medium depth of field, character sharp, background slightly diffused"
+            },
+            "deep": {
+                "f_stop": "f/11+",
+                "emotion": "Environmental storytelling, spatial awareness",
+                "prompt": "deep depth of field, entire space in sharp focus, environment as co-character"
+            }
+        }
+    },
+    "aspect_ratios": {
+        "4:3": {
+            "name": "Academy Ratio",
+            "emotion": "Retro formality, contained intimacy"
+        },
+        "16:9": {
+            "name": "Contemporary",
+            "emotion": "Standard, modern, accessible"
+        },
+        "2.39:1": {
+            "name": "Anamorphic",
+            "emotion": "Epic, cinematic, widescreen",
+            "keywords": [
+                "2.39:1 cinematic aspect ratio",
+                "oval bokeh",
+                "widescreen composition",
+                "horizontal lens flare"
+            ]
+        }
+    },
+    "ai_consistency_framework": {
+        "character_consistency": [
+            "Generate reference image for each character using image-to-image AI",
+            "Feed reference as 'first frame' or 'style reference'",
+            "Embed character description in every prompt",
+            "Repeat exact character descriptors in every prompt"
+        ],
+        "lighting_consistency": [
+            "Maintain consistent lighting philosophy across acts",
+            "Use identical color temperature keywords across scenes",
+            "If Act I uses warm practical light, continue into Act II unless psychological shift"
+        ],
+        "version_control": [
+            "Generate 3-5 variations of each scene",
+            "Evaluate lighting, character, camera, composition",
+            "Select strongest version, refine prompt, regenerate if necessary"
+        ]
+    }
+}

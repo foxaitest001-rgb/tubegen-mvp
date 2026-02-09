@@ -13,14 +13,11 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@remotion/player": "^4.0.419",
-    "@remotion/renderer": "^4.0.419",
     "lucide-react": "^0.563.0",
     "mammoth": "^1.11.0",
     "piper-tts-web": "^1.1.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "remotion": "^4.0.419",
     "xlsx": "^0.18.5",
     "z": "^1.0.9",
     "zod": "^4.3.6"

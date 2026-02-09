@@ -1,0 +1,168 @@
+{
+    "camera_shots": {
+        "wide_establishing_shot": {
+            "keywords": [
+                "wide establishing shot",
+                "panoramic shot",
+                "long shot"
+            ],
+            "impact": "Captures a large area to provide context, establish the setting, and show the subject's relationship to their environment."
+        },
+        "full_shot": {
+            "keywords": [
+                "full shot",
+                "long shot"
+            ],
+            "impact": "Frames a character from head to toe. Ideal for capturing full-body action and physical performance."
+        },
+        "medium_shot": {
+            "keywords": [
+                "medium shot",
+                "waist-up framing"
+            ],
+            "impact": "Frames the subject from the waist up. Balances character detail with environmental context. Standard for dialogue scenes."
+        },
+        "close_up": {
+            "keywords": [
+                "close-up",
+                "tight framing"
+            ],
+            "impact": "Highlights fine details and captures subtle emotions. Creates intimacy and directs focus to a critical element."
+        },
+        "extreme_close_up": {
+            "keywords": [
+                "extreme close-up",
+                "macro shot"
+            ],
+            "impact": "Focuses on intense detail, such as an eye or texture, to convey heightened emotion, tension, or significance."
+        },
+        "over_the_shoulder": {
+            "keywords": [
+                "over-the-shoulder shot",
+                "OTS"
+            ],
+            "impact": "Frames a conversation from behind one character, establishing intimacy and connection for dialogue scenes."
+        },
+        "eye_level": {
+            "keywords": [
+                "eye-level shot",
+                "neutral perspective"
+            ],
+            "impact": "Positions the camera at the subject's eye level, creating connection, relatability, and conversational realism."
+        },
+        "low_angle": {
+            "keywords": [
+                "low angle shot",
+                "from below"
+            ],
+            "impact": "Makes the subject appear powerful, dominant, heroic, or larger-than-life."
+        },
+        "high_angle": {
+            "keywords": [
+                "high angle shot",
+                "from above",
+                "looking down"
+            ],
+            "impact": "Implies vulnerability, insignificance, or smallness. Can provide broader geographic context."
+        },
+        "dutch_angle": {
+            "keywords": [
+                "dutch angle",
+                "tilt shot",
+                "canted angle"
+            ],
+            "impact": "Tilts the camera's horizon line to evoke tension, psychological unease, disorientation, or danger."
+        },
+        "birds_eye_view": {
+            "keywords": [
+                "bird's eye view",
+                "overhead shot",
+                "top-down view"
+            ],
+            "impact": "Positions the camera directly above the scene, offering an objective, map-like perspective."
+        },
+        "ground_level": {
+            "keywords": [
+                "ground level view",
+                "worm's-eye view"
+            ],
+            "impact": "Positions the camera extremely low, looking up. Creates dramatic perspective that exaggerates scale."
+        }
+    },
+    "lighting_styles": {
+        "golden_hour": {
+            "keywords": [
+                "warm golden-hour light",
+                "sunset glow",
+                "magic hour"
+            ],
+            "effect": "Creates a soft, hopeful, and romantic atmosphere with warm, diffused light and long shadows."
+        },
+        "film_noir": {
+            "keywords": [
+                "harsh noir shadows",
+                "high contrast between light and dark",
+                "chiaroscuro style"
+            ],
+            "effect": "Evokes suspense, mystery, and dramatic tension using stark contrasts."
+        },
+        "rim_lighting": {
+            "keywords": [
+                "rim lighting",
+                "dramatic backlighting",
+                "glowing edges"
+            ],
+            "effect": "Creates a glowing outline around a subject by placing light behind them. Adds dramatic, mystical quality."
+        },
+        "soft_box": {
+            "keywords": [
+                "soft box lighting",
+                "clean professional studio lighting",
+                "soft even illumination"
+            ],
+            "effect": "Mimics clean, flattering light of a professional photo studio. Conveys clarity and professionalism."
+        },
+        "high_key": {
+            "keywords": [
+                "bright afternoon light",
+                "minimal shadows",
+                "high-key"
+            ],
+            "effect": "Conveys optimism, clarity, and an open, airy feeling. Brightly lit with minimal shadows."
+        },
+        "low_key": {
+            "keywords": [
+                "dark dramatic shadows",
+                "single light",
+                "low-key"
+            ],
+            "effect": "Creates intimacy, seriousness, or foreboding. Dark with selective lighting."
+        }
+    },
+    "platform_guide": {
+        "google_imagen": {
+            "strength": "Multimodal editing & world knowledge",
+            "photorealism": "High, with detailed organic textures",
+            "consistency": "High, preserves identity across scenes",
+            "differentiator": "Physics-aware reasoning engine for logical consistency"
+        },
+        "midjourney": {
+            "strength": "Artistic, cinematic aesthetic",
+            "photorealism": "High, but often stylized",
+            "consistency": "Very high, via --cref parameter",
+            "differentiator": "Deep creative control via parameters; personalization profile"
+        },
+        "veo": {
+            "strength": "Coherent, long-form video generation",
+            "photorealism": "Good, with realistic physics & motion",
+            "consistency": "High, via Ingredients to Video feature",
+            "differentiator": "First-frame/last-frame interpolation for smooth transitions"
+        },
+        "meta_ai": {
+            "strength": "Personalized & social-ready content",
+            "photorealism": "High, especially for photorealistic selfies",
+            "consistency": "Very high, preserves identity across poses",
+            "differentiator": "Imagine Me feature for self-portraits; advanced pose engines"
+        }
+    }
+}

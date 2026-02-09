@@ -1,0 +1,154 @@
+{
+    "experimental_cinematic": {
+        "surrealist_montage": {
+            "description": "Dream-logic image collisions",
+            "characteristics": [
+                "Eyeball slicing",
+                "Impossible objects",
+                "Rapid dissolves"
+            ],
+            "prompts": {
+                "base": "Floating clocks melt in desert, surrealist montage, hazy diffused light, jittery crossfade, disorienting dream, 4K warped frames.",
+                "cinematic": "Ants crawl from razor-cut eye, Dali Buñuel style, chiaroscuro overlays pulse, erratic iris wipe transitions, subconscious dread, vintage film grain 60fps.",
+                "stylized": "Improbable piano legs scuttle, irrational cut frenzy, phosphorescent glow glitches, hallucinatory zoom bursts, psyche unravel artifact."
+            }
+        },
+        "liminal_spaces_film": {
+            "description": "Backrooms-like empty architecture",
+            "characteristics": [
+                "Infinite beige voids",
+                "Fluorescent hum flicker",
+                "No actors"
+            ],
+            "prompts": {
+                "base": "Endless office hallways empty, liminal spaces style, buzzing fluorescent, slow creep forward, eerie isolation, HD uncanny.",
+                "cinematic": "Infinite carpeted voids hum, backrooms aesthetic, pooling shadows flicker, perpetual dolly drift, nostalgic unease, ray-traced desaturation.",
+                "stylized": "Glitch-trapped hotel corridors warp, liminal hum distortion, analog TV static bleeds, nauseous fisheye loop, existential void fever."
+            }
+        },
+        "czech_new_wave": {
+            "description": "Dadaist structural play",
+            "characteristics": [
+                "Found footage loops",
+                "Non-sync sound",
+                "Geometric cuts"
+            ],
+            "related": "Japanese New Wave, Daisies (1966)"
+        },
+        "page_of_madness": {
+            "description": "Expressionist asylum frenzy",
+            "characteristics": [
+                "Overlay prints",
+                "Distorted faces",
+                "Lost footage chaos"
+            ],
+            "related": "Kinugasa 1926 Japanese avant-garde"
+        }
+    },
+    "regional_indigenous": {
+        "warlukurlangu_dots": {
+            "description": "Australian Aboriginal evolved dotting",
+            "characteristics": [
+                "Loose brush trails",
+                "Iconography outlines",
+                "Acrylic kaleidoscope"
+            ],
+            "prompts": {
+                "base": "Dreamtime lizard hunts emu, Warlukurlangu loose dots, warm earth tones, static ritual framing, mythic reverence, 1080p textured.",
+                "cinematic": "Ancestral beings traverse outback, Aboriginal loose dot trails, sunset rim on icons, slow pan across canvas, spiritual eternity, high-res acrylic sim.",
+                "stylized": "Kaleidoscopic dot spirits dissolve, trailed brush chaos, prismatic color bursts, hypnotic spin ritual, otherworldly icon pulse."
+            }
+        },
+        "shadow_puppet": {
+            "description": "Southeast Asian flat silhouettes",
+            "characteristics": [
+                "Rod-operated figures",
+                "Gamelan shadows",
+                "Intricate perforations"
+            ],
+            "prompts": {
+                "base": "Epic Ramayana battle silhouettes, shadow puppet style, lantern backlight, side-scroll epic, heroic tension, HD perforations.",
+                "cinematic": "Wayang kulit warriors clash, flat shadow play gamelan glow, flickering flame projections, orchestrated dolly along screen, mythical fervor, detailed cutouts.",
+                "stylized": "Perforated gods warp in wind, gamelan distortion shadows, ethereal leak light, frenetic rod-jerk motion, transcultural trance haze."
+            }
+        }
+    },
+    "niche_animation": {
+        "harold_halibut_clay": {
+            "description": "Full puppet clay in CG space",
+            "characteristics": [
+                "Bulky deformations",
+                "Studio-lit sets",
+                "Hyper-detailed fingerprints"
+            ],
+            "use_cases": [
+                "Narrative indies",
+                "Children's media"
+            ]
+        },
+        "rubber_hose_1930s": {
+            "description": "Ultra-exaggerated pre-war bounce",
+            "characteristics": [
+                "Hyperextended limbs",
+                "Pie-eyed faces",
+                "Impossible physics"
+            ],
+            "use_cases": [
+                "Cuphead precursors",
+                "Nostalgic retro"
+            ]
+        }
+    },
+    "rare_rendering": {
+        "pencil_sketch_raw": {
+            "description": "Loose graphite studies",
+            "characteristics": [
+                "Hatching variance",
+                "Eraser ghosts",
+                "Incomplete lines"
+            ],
+            "prompts": {
+                "base": "Rough figure sketches animate walk, pencil sketch raw, soft diffused paper light, steady track, contemplative mood, 4K graphite.",
+                "cinematic": "Conceptual wanderer in fog, loose hatching NPR, vignette shadows build, slow push-in on eraser marks, introspective grit, hyper-detailed stroke sim.",
+                "stylized": "Dissolving lead ghosts scribble, hatching frenzy distortion, paper crumple warps, erratic line bloom, unfinished reverie chaos."
+            }
+        },
+        "firewatch_stylized": {
+            "description": "Minimalist poster wilderness",
+            "characteristics": [
+                "Warm palette shifts",
+                "Flat-shaded volumes",
+                "Horizon emphasis"
+            ],
+            "use_cases": [
+                "Walking sims",
+                "Contemplative games"
+            ]
+        },
+        "journey_minimalism": {
+            "description": "Shape-driven deserts",
+            "characteristics": [
+                "Cloth sim dunes",
+                "Color mood floods",
+                "No outlines"
+            ],
+            "use_cases": [
+                "Emotional indies",
+                "Art games"
+            ]
+        },
+        "glitch_art_video": {
+            "description": "Intentional digital corruption",
+            "characteristics": [
+                "Datamosh blocks",
+                "RGB shifts",
+                "Scanline tears"
+            ],
+            "prompts": {
+                "base": "Cityscape corrupts in storm, glitch art style, interference flashes, turbulent shake, chaotic energy, HD datamosh.",
+                "cinematic": "Analog breakdown metropolis, VHS glitch cascade, RGB split lightning, bullet-time stutter frames, nostalgic rupture, AI procedural tears 60fps.",
+                "stylized": "Quantum video flesh melts, hyper-glitch moiré waves, fractal block implosion, epileptic sync failure, post-digital apocalypse dream."
+            }
+        }
+    }
+}

@@ -9,7 +9,99 @@ puppeteer.use(StealthPlugin());
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v2.5 (AUDIO PATCHED)';
+const VERSION = 'v3.0 (STYLE DNA + META.AI V3)';
+
+// ═══════════════════════════════════════════════════════════════
+// STYLE DNA ARCHITECTURE - Helper Functions
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Build natural language prompt from frozen Style DNA + structured shot
+ * The Style DNA is LOCKED - only the action phrase can change on retry
+ */
+function buildNaturalPrompt(styleDNA, shot, actionOverride = null) {
+    if (!styleDNA) {
+        // Fallback to legacy behavior if no Style DNA
+        return shot;
+    }
+
+    const visual = styleDNA.visual_identity || {};
+    const cinema = styleDNA.cinematography || {};
+    const constraints = styleDNA.constraints || {};
+
+    // Style prefix from DNA (LOCKED - never changes on retry)
+    const stylePrefix = [
+        visual.art_style,
+        cinema.default_lens ? `${cinema.default_lens} lens` : null,
+        visual.lighting_setup,
+        visual.texture_quality
+    ].filter(Boolean).join(", ");
+
+    // Action from shot (this CAN change on retry)
+    let actionPart = actionOverride || shot;
+
+    // Clean up the action (remove Shot X: prefix if present)
+    actionPart = actionPart.replace(/^Shot\s+\d+(\s*\(.*?\))?:?\s*/i, "").trim();
+
+    // Required keywords from DNA
+    const requiredKeywords = (constraints.required_keywords || []).join(", ");
+
+    // Build final prompt
+    const parts = [stylePrefix, actionPart];
+    if (requiredKeywords) parts.push(requiredKeywords);
+
+    return parts.filter(Boolean).join(", ");
+}
+
+/**
+ * Reword action for retry - ONLY changes the action, preserves DNA
+ * Simple synonym substitution to avoid re-triggering the same filter
+ */
+function rewordAction(originalAction) {
+    const synonyms = {
+        "walks": ["strides", "moves", "trudges", "traverses", "approaches"],
+        "runs": ["sprints", "dashes", "rushes", "races", "hurries"],
+        "stands": ["poses", "waits", "remains", "lingers", "hovers"],
+        "looks": ["gazes", "stares", "peers", "glances", "observes"],
+        "speaks": ["talks", "whispers", "addresses", "delivers", "murmurs"],
+        "fights": ["battles", "clashes", "struggles", "confronts", "engages"],
+        "flies": ["soars", "glides", "hovers", "drifts", "floats"],
+        "swims": ["glides", "drifts", "navigates", "flows", "moves through water"],
+        "rises": ["ascends", "emerges", "lifts", "elevates", "climbs"],
+        "falls": ["descends", "drops", "plummets", "sinks", "tumbles"]
+    };
+
+    let newAction = originalAction;
+    for (const [verb, alternatives] of Object.entries(synonyms)) {
+        const regex = new RegExp(`\\b${verb}\\b`, 'gi');
+        if (regex.test(newAction)) {
+            const randomAlt = alternatives[Math.floor(Math.random() * alternatives.length)];
+            newAction = newAction.replace(regex, randomAlt);
+            break; // Only replace one verb per retry
+        }
+    }
+
+    return newAction;
+}
+
+/**
+ * Validate prompt against forbidden keywords
+ */
+function validateAgainstForbidden(styleDNA, prompt) {
+    if (!styleDNA || !styleDNA.constraints || !styleDNA.constraints.forbidden_keywords) {
+        return { valid: true, violations: [] };
+    }
+
+    const lowerPrompt = prompt.toLowerCase();
+    const violations = styleDNA.constraints.forbidden_keywords.filter(
+        keyword => lowerPrompt.includes(keyword.toLowerCase())
+    );
+
+    return {
+        valid: violations.length === 0,
+        violations
+    };
+}
 
 // Enable CORS/JSON
 app.use(cors());
@@ -264,7 +356,7 @@ async function assembleVideo(projectDir) {
 }
 
 // --- THE DIRECTOR AGENT (V2: Flat Queue Architecture) ---
-async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photorealistic', aspectRatio = '16:9', jobId = null) {
+async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photorealistic', aspectRatio = '16:9', jobId = null, styleDNA = null) {
     // Use provided project dir or current
     const outputPublic = projectDir?.public || currentProjectDir.public;
     const outputServer = projectDir?.server || currentProjectDir.server;
@@ -278,6 +370,15 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
     directorLog(0, "INIT", `Initializing Director Agent (Job: ${myJobId})...`);
     directorLog(0, "PROJECT", `Output folder: ${projectDir?.name || 'default'}`);
     directorLog(0, "STYLE", `Visual Style: ${visualStyle} | Aspect Ratio: ${aspectRatio}`);
+
+    // STYLE DNA ARCHITECTURE: Log and freeze DNA
+    if (styleDNA) {
+        directorLog(0, "DNA", `✨ Style DNA LOCKED: ${styleDNA.visual_identity?.art_style || 'Not specified'}`);
+        directorLog(0, "DNA", `   Forbidden: [${(styleDNA.constraints?.forbidden_keywords || []).join(', ')}]`);
+        directorLog(0, "DNA", `   Required: [${(styleDNA.constraints?.required_keywords || []).join(', ')}]`);
+    } else {
+        directorLog(0, "DNA", `⚠️ No Style DNA provided (legacy mode)`);
+    }
 
     let browser;
     let page;
@@ -403,15 +504,14 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
             };
             killSplash(); // Run once to clear overlays
 
-            // 1. Selector approach for top-left icons
+            // 1. Selector approach for top-left icons (V3 Updated)
             const selectors = [
+                '[title="New chat"]',           // META.AI V3: title attribute
+                'div[title="New chat"]',        // Div with title
                 'a[href="/"]',
                 'a[href="/new"]',
                 'div[role="button"][aria-label="New chat"]',
-                'div[role="button"][aria-label="New conversation"]',
-                'div[aria-label="New chat"]',
-                '[aria-label="Create new text"]',
-                'div[role="button"] svg path[d*="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"]' // Plus icon approximation?
+                'div[role="button"][aria-label="New conversation"]'
             ];
 
             for (const s of selectors) {
@@ -452,13 +552,37 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
     directorLog(0, "STEP", "⏳ Waiting for input box...");
 
-    const inputSelector = 'textarea, div[contenteditable="true"], div[role="textbox"]';
+    // META.AI V3 SELECTOR: Uses <p> tags for input
+    const inputSelector = [
+        'p.x1oj8htv',                        // META.AI V3: Exact class from user
+        'p[dir="auto"]',                     // P tag with dir attribute
+        'div[contenteditable="true"] p',    // P inside contenteditable
+        '[contenteditable="true"]',          // Any contenteditable
+        'div[role="textbox"]',
+        'div[role="textbox"] p',             // P inside textbox
+        'textarea',
+        '[data-lexical-editor="true"]',
+        '[data-lexical-editor="true"] p'    // P inside Lexical
+    ].join(', ');
 
     try {
-        await page.waitForSelector(inputSelector, { timeout: 5000 });
+        await page.waitForSelector(inputSelector, { timeout: 10000 });
         directorLog(0, "STEP", "✓ Input box detected - Meta.ai ready!");
     } catch (e) {
-        directorLog(0, "WARN", "⚠️ Input box not detected. You may need to log in via VNC.");
+        directorLog(0, "WARN", "⚠️ Input box not detected. Attempting fallback...");
+
+        // DEBUG: Log all visible interactive elements
+        const foundElements = await page.evaluate(() => {
+            const elements = document.querySelectorAll('textarea, div[contenteditable], input[type="text"], [role="textbox"]');
+            return Array.from(elements).map(el => ({
+                tag: el.tagName,
+                id: el.id,
+                class: el.className.slice(0, 50),
+                role: el.getAttribute('role'),
+                contenteditable: el.getAttribute('contenteditable')
+            }));
+        });
+        directorLog(0, "DEBUG", `Found ${foundElements.length} potential inputs: ${JSON.stringify(foundElements)}`);
     }
 
     try {
@@ -510,15 +634,22 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                 if (attempt > 1) {
                     directorLog(sceneNum, "RETRY", `🔄 Retry ${attempt}/${MAX_RETRIES} for Shot ${shotNum}...`);
 
-                    // RETRY STRATEGY:
-                    // Attempt 2: "Pure Retry" - Sometimes it's just a random server glitch. Change nothing.
-                    if (attempt === 2) {
+                    // STYLE DNA RETRY STRATEGY:
+                    // Attempt 2: "Reword Action" - Use synonyms to bypass filter, KEEP style locked
+                    if (attempt === 2 && styleDNA) {
+                        const originalAction = currentPrompt;
+                        currentPrompt = rewordAction(originalAction);
+                        directorLog(sceneNum, "DNA", `🔄 Reworded action (Style DNA preserved)`);
+                    }
+                    // Attempt 2 (Legacy mode - no DNA): Pure retry
+                    else if (attempt === 2) {
                         // Do nothing to the prompt, just wait longer.
                     }
-                    // Attempt 3: "Copyright Safety Only" - Lowercase potential proper nouns but KEEP description length.
+                    // Attempt 3: "Reword + Lowercase" - Last resort
                     else if (attempt === 3) {
-                        currentPrompt = currentPrompt
-                            .replace(/[A-Z][a-z]+/g, (match) => match.toLowerCase()); // Lowercase everything
+                        currentPrompt = rewordAction(currentPrompt)
+                            .replace(/[A-Z][a-z]+/g, (match) => match.toLowerCase());
+                        directorLog(sceneNum, "RETRY", `📝 Applied reword + lowercase fallback`);
                     }
 
                     directorLog(sceneNum, "RETRY", `📝 Retrying with prompt (${currentPrompt.length} chars)`);
@@ -528,49 +659,53 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                 directorLog(sceneNum, "ACTION", `🎬 Starting Shot ${shotNum} (Progress: ${currentShotIndex + 1}/${shotQueue.length})${attempt > 1 ? ` [Attempt ${attempt}]` : ''}`);
 
                 try {
-                    directorLog(sceneNum, "STEP", "📍 Step 1: Finding input box...");
+                    directorLog(sceneNum, "STEP", "📍 Step 1: Finding and focusing input (Pure JS)...");
 
-                    // FOCUS & CLEAR INPUT
-                    let inputElement = null;
-                    try {
-                        inputElement = await page.waitForSelector(inputSelector, { timeout: 5000 });
-                        directorLog(sceneNum, "STEP", "✓ Input box found");
-                    } catch (e) {
-                        directorLog(sceneNum, "WARN", "⚠️ Input box not found, retrying...");
-                    }
+                    // META.AI V3: Use pure page.evaluate - NO Puppeteer element handles
+                    const inputFound = await page.evaluate((sel) => {
+                        // Kill overlays/modals first
+                        const blockers = document.querySelectorAll('div[role="dialog"], div[role="banner"], div[aria-modal="true"], [class*="overlay"]');
+                        blockers.forEach(el => el.remove());
 
-                    if (inputElement) {
-                        directorLog(sceneNum, "STEP", "📍 Step 2: Focusing and clearing input (Robust)...");
+                        // Find the input element
+                        const el = document.querySelector(sel);
+                        if (!el) return false;
 
-                        // ROBUST FOCUS via JS (Bypasses "Node not clickable" errors)
-                        await page.evaluate((sel) => {
-                            // 1. Kill overlays/modals blocking the view
-                            const blockers = document.querySelectorAll('div[role="dialog"], div[role="banner"], div[aria-modal="true"], [class*="overlay"]');
-                            blockers.forEach(el => el.remove());
+                        // Focus the element or its parent contenteditable
+                        let target = el;
+                        if (!el.isContentEditable) {
+                            // Look for parent contenteditable
+                            const parent = el.closest('[contenteditable="true"]') || el.closest('[role="textbox"]');
+                            if (parent) target = parent;
+                        }
 
-                            // 2. Focus directly
-                            const el = document.querySelector(sel);
-                            if (el) {
-                                el.focus();
-                                el.click(); // Soft click logic
-                            }
-                        }, inputSelector);
+                        target.focus();
+                        target.click();
 
-                        // Ensure we are focused before typing
-                        await interruptibleSleep(500);
+                        // Clear content via innerText for <p> tags
+                        if (el.tagName === 'P') {
+                            el.innerHTML = '<br>';
+                        }
 
-                        // CLEAR TEXT (Robust Method: Triple Click to Select All)
-                        await inputElement.click({ clickCount: 3 });
-                        await page.keyboard.press('Backspace');
-                        await new Promise(r => setTimeout(r, 200));
+                        return true;
+                    }, inputSelector);
 
-                        // Fallback: Ctrl+A just in case
+                    if (inputFound) {
+                        directorLog(sceneNum, "STEP", "✓ Input focused (Pure JS)");
+
+                        // Brief pause for focus
+                        await interruptibleSleep(300);
+
+                        // Clear via keyboard (backup)
                         await page.keyboard.down('Control');
                         await page.keyboard.press('A');
                         await page.keyboard.up('Control');
                         await page.keyboard.press('Backspace');
+                        await new Promise(r => setTimeout(r, 100));
 
-                        directorLog(sceneNum, "STEP", "✓ Input cleared (Triple-Click)");
+                        directorLog(sceneNum, "STEP", "✓ Input ready");
+                    } else {
+                        directorLog(sceneNum, "WARN", "⚠️ Input element not found on page");
                     }
 
                     if (await checkControlState()) continue shotLoop;
@@ -578,26 +713,45 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                     // TYPE - Use currentPrompt (may be simplified on retries)
                     const cleanPrompt = currentPrompt.replace(/^Shot\s+\d+(\s*\(.*?\))?:?\s*/i, "").trim();
 
-                    // Build prompt prefix based on visual style
-                    let stylePrefix = 'Create a photorealistic video (16:9 cinematic)';
-                    const lowerStyle = visualStyle.toLowerCase();
-                    if (lowerStyle.includes('2d') || lowerStyle.includes('animated')) {
-                        stylePrefix = 'Create a 2D animated video (16:9, motion graphics, vibrant colors)';
-                    } else if (lowerStyle.includes('anime')) {
-                        stylePrefix = 'Create an anime-style video (16:9, Japanese animation, cel-shaded)';
-                    } else if (lowerStyle.includes('3d') || lowerStyle.includes('cgi')) {
-                        stylePrefix = 'Create a 3D CGI video (16:9, Pixar-quality, smooth textures)';
-                    } else if (lowerStyle.includes('horror')) {
-                        stylePrefix = 'Create a dark atmospheric video (16:9, horror style, unsettling)';
-                    } else if (lowerStyle.includes('retro')) {
-                        stylePrefix = 'Create a retro-style video (16:9, vintage 80s aesthetic, film grain)';
-                    } else if (lowerStyle.includes('documentary')) {
-                        stylePrefix = 'Create a documentary-style video (16:9, raw footage, natural lighting)';
-                    }
+                    // STYLE DNA ARCHITECTURE: Build prompt from frozen DNA
+                    let fullPrompt;
+                    if (styleDNA) {
+                        // Use buildNaturalPrompt for deterministic, style-locked prompts
+                        fullPrompt = buildNaturalPrompt(styleDNA, cleanPrompt);
 
-                    // Fix: Avoid double colons if prompts already start with one
-                    const safeCleanPrompt = cleanPrompt.startsWith(':') ? cleanPrompt.substring(1).trim() : cleanPrompt;
-                    const fullPrompt = `${stylePrefix}: ${safeCleanPrompt}`;
+                        // Validate against forbidden keywords
+                        const validation = validateAgainstForbidden(styleDNA, fullPrompt);
+                        if (!validation.valid) {
+                            directorLog(sceneNum, "DNA", `⚠️ Forbidden keywords detected: [${validation.violations.join(', ')}]`);
+                            // Remove forbidden keywords from prompt
+                            for (const forbidden of validation.violations) {
+                                fullPrompt = fullPrompt.replace(new RegExp(forbidden, 'gi'), '');
+                            }
+                        }
+
+                        directorLog(sceneNum, "DNA", `✨ Style DNA prompt built (${fullPrompt.length} chars)`);
+                    } else {
+                        // LEGACY: Build prompt prefix based on visual style string
+                        let stylePrefix = 'Create a photorealistic video (16:9 cinematic)';
+                        const lowerStyle = visualStyle.toLowerCase();
+                        if (lowerStyle.includes('2d') || lowerStyle.includes('animated')) {
+                            stylePrefix = 'Create a 2D animated video (16:9, motion graphics, vibrant colors)';
+                        } else if (lowerStyle.includes('anime')) {
+                            stylePrefix = 'Create an anime-style video (16:9, Japanese animation, cel-shaded)';
+                        } else if (lowerStyle.includes('3d') || lowerStyle.includes('cgi')) {
+                            stylePrefix = 'Create a 3D CGI video (16:9, Pixar-quality, smooth textures)';
+                        } else if (lowerStyle.includes('horror')) {
+                            stylePrefix = 'Create a dark atmospheric video (16:9, horror style, unsettling)';
+                        } else if (lowerStyle.includes('retro')) {
+                            stylePrefix = 'Create a retro-style video (16:9, vintage 80s aesthetic, film grain)';
+                        } else if (lowerStyle.includes('documentary')) {
+                            stylePrefix = 'Create a documentary-style video (16:9, raw footage, natural lighting)';
+                        }
+
+                        // Fix: Avoid double colons if prompts already start with one
+                        const safeCleanPrompt = cleanPrompt.startsWith(':') ? cleanPrompt.substring(1).trim() : cleanPrompt;
+                        fullPrompt = `${stylePrefix}: ${safeCleanPrompt}`;
+                    }
 
                     directorLog(sceneNum, "STEP", `📍 Step 3: Typing prompt (${fullPrompt.length} chars)...`);
 
@@ -1004,10 +1158,19 @@ app.post('/generate-video', async (req, res) => {
     const platform = scriptData.platform || 'YouTube';
     const mood = scriptData.mood || 'Cinematic';
 
+    // STYLE DNA ARCHITECTURE: Extract Style DNA from Consultant output
+    const styleDNA = scriptData.style_dna || null;
+
     directorLog(0, "NEW_JOB", `🚀 Starting Job: ${newJobId}`);
     directorLog(0, "CONFIG", `Visual: ${visualStyle} | Aspect: ${aspectRatio} | Platform: ${platform} | Mood: ${mood}`);
 
-    generateVideo(scriptData.structure, projectDir, visualStyle, aspectRatio, newJobId)
+    if (styleDNA) {
+        directorLog(0, "DNA", `✨ Style DNA detected: ${styleDNA.visual_identity?.art_style || 'Unknown'}`);
+    } else {
+        directorLog(0, "DNA", `⚠️ No Style DNA in request (legacy mode)`);
+    }
+
+    generateVideo(scriptData.structure, projectDir, visualStyle, aspectRatio, newJobId, styleDNA)
         .then(() => {
             directorState.isRunning = false;
             directorLog(0, "COMPLETE", "🎉 Director job finished successfully!");

@@ -1,0 +1,270 @@
+{
+    "styles": {
+        "hollywood": {
+            "id": "ST_HOLLYWOOD_01",
+            "category": "Cinematic",
+            "description": "Glossy, high-production narrative film look with epic scale and star power.",
+            "visual_features": "Dramatic lighting; seamless editing; golden hour key light; rim glow.",
+            "motion": "Smooth 60fps; steady tracking shots; crane shots; orbiting dolly zooms.",
+            "lighting": "Bright dramatic lights; triumphant atmosphere; cinematic glamour.",
+            "camera": "Epic scale framing; tracking and crane shots; dolly zooms.",
+            "rendering": "8K ray-traced; high-fidelity CGI blend; 4K realistic motion.",
+            "prompts": {
+                "base": "Epic battle in ancient Rome, Hollywood style, bright dramatic lights, steady tracking shot, heroic mood, 4K realistic motion.",
+                "cinematic": "Gladiator arena clash with thousands extras, Hollywood blockbuster, golden hour key light rim glow, crane shot rising over chaos, triumphant atmosphere, 8K ray-traced, smooth 60fps.",
+                "stylized": "Coliseum warriors in hyper-saturated colors, Hollywood glamour filter, orbiting dolly zoom, epic orchestral vibe, high-fidelity CGI blend."
+            },
+            "modifiers": [
+                "8K ray-traced",
+                "golden hour",
+                "rim glow",
+                "crane shot"
+            ],
+            "compatible": [
+                "Photorealistic",
+                "3D CGI"
+            ],
+            "incompatible": [
+                "Lo-fi",
+                "2D Traditional"
+            ]
+        },
+        "noir": {
+            "id": "ST_NOIR_01",
+            "category": "Cinematic",
+            "description": "Shadowy crime drama aesthetic with high contrast and fatalistic mood.",
+            "visual_features": "Chiaroscuro lighting; wet reflections; venetian blinds shadows; silhouettes.",
+            "motion": "Slow pan; Dutch angle tracking; vertigo spin.",
+            "lighting": "Low-key lighting; moody tension; existential haze; flickering streetlamps.",
+            "camera": "Dutch angles; tracking shots; silhouette framing.",
+            "rendering": "Grainy film stock; sharp HD; stylized monochrome with color pops.",
+            "prompts": {
+                "base": "Detective in rainy alley, noir style, shadowy low-key light, slow pan, moody tension, HD sharp.",
+                "cinematic": "Hard-boiled PI under neon signs, classic film noir, chiaroscuro lighting wet reflections, Dutch angle tracking, fatalistic dread, 4K grainy film stock.",
+                "stylized": "Silhouette gumshoe chase, noir ink wash, flickering streetlamp strobes, vertigo spin, existential haze, stylized monochrome with color pops."
+            },
+            "modifiers": [
+                "chiaroscuro",
+                "grainy film stock",
+                "Dutch angle",
+                "wet reflections"
+            ],
+            "compatible": [
+                "Cyberpunk",
+                "Indie",
+                "Arthouse"
+            ],
+            "incompatible": [
+                "Psychedelic Nature",
+                "Vibrant Pop"
+            ]
+        },
+        "cyberpunk": {
+            "id": "ST_CYBERPUNK_01",
+            "category": "Cultural",
+            "description": "High-tech dystopia characterized by neon grids and rain-slick urban environments.",
+            "visual_features": "Neon grids; holograms; chrome reflections; vivid colors (pink, cyan); rain-slick streets.",
+            "motion": "Fast fly-through; bullet-time dash cam; glitch-fused motion.",
+            "lighting": "Neon drench; lens flares; gritty mood; high contrast.",
+            "camera": "Fast camera movement; dash cam perspectives; close-ups on tech.",
+            "rendering": "Ray-traced 8K; chrome reflections; digital glitches.",
+            "prompts": {
+                "base": "Neon hacker in megacity, cyberpunk style, chrome reflections, fast fly-through, gritty mood, 4K high contrast.",
+                "cinematic": "Blade Runner streets pulse, cyberpunk neon drench, lens flares rain-slick, bullet-time dash cam, dystopian pulse, ray-traced 8K.",
+                "stylized": "Glitch-fused cyborg swarm, vaporwave cyber, holographic distortions warp, epileptic strobe chase, post-human ecstasy."
+            },
+            "modifiers": [
+                "neon-lit",
+                "rain-slick",
+                "4K",
+                "high contrast"
+            ],
+            "compatible": [
+                "Noir",
+                "Glitch Art",
+                "Retro Futurism"
+            ],
+            "incompatible": [
+                "Solarpunk",
+                "Watercolor"
+            ]
+        },
+        "anime": {
+            "id": "ST_ANIME_01",
+            "category": "Animation",
+            "description": "Japanese stylized cel animation with exaggerated expressions and speed lines.",
+            "visual_features": "Large eyes; exaggerated expressions; speed lines; vibrant colors; cel-shaded.",
+            "motion": "Dynamic action lines; freeze frames; dramatic pauses.",
+            "lighting": "Dramatic rim lighting; glowing effects; color-coded emotions.",
+            "camera": "Dynamic angles; sweep pans; impact zoom.",
+            "rendering": "Cel-shaded; clean lines; limited shadows; flat colors.",
+            "prompts": {
+                "base": "Anime hero in dramatic pose, Japanese animation style, cel-shaded, vibrant colors, speed lines, dynamic action.",
+                "cinematic": "Epic anime battle scene, Studio Ghibli lighting, sweeping camera pan, emotional climax, sakura petals falling, 4K cel-shaded.",
+                "stylized": "Shounen protagonist power-up, glowing aura, exaggerated speed lines, impact frames, dramatic freeze moment."
+            },
+            "modifiers": [
+                "cel-shaded",
+                "speed lines",
+                "vibrant colors",
+                "dynamic angles"
+            ],
+            "compatible": [
+                "2D Traditional",
+                "Motion Graphics"
+            ],
+            "incompatible": [
+                "Photorealistic",
+                "Documentary"
+            ]
+        },
+        "liminal_spaces": {
+            "id": "ST_LIMINAL_01",
+            "category": "Experimental",
+            "description": "Eerie, empty architecture creating a sense of nostalgic unease.",
+            "visual_features": "Infinite beige voids; carpeted rooms; fluorescent lights; empty hallways; no actors.",
+            "motion": "Slow creep forward; perpetual dolly drift; nauseous fisheye loop.",
+            "lighting": "Fluorescent hum flicker; pooling shadows; eerie isolation; nostalgic unease.",
+            "camera": "Slow push-in; dolly drift; fisheye lens; claustrophobic framing.",
+            "rendering": "Ray-traced desaturation; analog TV static; glitch distortions.",
+            "prompts": {
+                "base": "Endless office hallways empty, liminal spaces style, buzzing fluorescent, slow creep forward, eerie isolation, HD uncanny.",
+                "cinematic": "Infinite carpeted voids hum, backrooms aesthetic, pooling shadows flicker, perpetual dolly drift, nostalgic unease, ray-traced desaturation.",
+                "stylized": "Glitch-trapped hotel corridors warp, liminal hum distortion, analog TV static bleeds, nauseous fisheye loop, existential void fever."
+            },
+            "modifiers": [
+                "liminal hum",
+                "fluorescent flicker",
+                "beige palette"
+            ],
+            "compatible": [
+                "Glitch Art",
+                "Noir"
+            ],
+            "incompatible": [
+                "Hollywood",
+                "Western Cartoon"
+            ]
+        },
+        "spectral_phantasmagoria": {
+            "id": "ST_SPECTRAL_01",
+            "category": "Dark Fantasy",
+            "description": "A textured, misty environment where light is treated as a narrative character.",
+            "visual_features": "Misty overlays; translucent steam; ornate cathedral linework; bioluminescence; textured shadows.",
+            "motion": "Steam rising slowly; gentle handheld camera shake; subtle drift.",
+            "lighting": "Deep moonlight 8000K; volumetric God rays; Gobo projections; ethereal mystery.",
+            "camera": "Slow dolly forward; low angle looking up; shallow depth of field.",
+            "rendering": "35mm film grain; high contrast; chiaroscuro effects; ray tracing.",
+            "prompts": {
+                "base": "Gothic cathedral interior with ornate linework, Spectral Noir, phantasmagoria, ethereal mystery.",
+                "cinematic": "Slow dolly forward through the nave, low angle looking up, dramatic cold night, 8000K deep moonlight blue, volumetric God rays from stained glass.",
+                "stylized": "Shadow texture using Gobo projection of venetian blinds, 8000K light piercing through smoke."
+            },
+            "modifiers": [
+                "volumetric rays",
+                "8000K",
+                "Gobo projection",
+                "misty",
+                "gothic"
+            ],
+            "compatible": [
+                "Spectral Noir",
+                "Dark Fantasy"
+            ],
+            "incompatible": [
+                "High-Key Commercial"
+            ]
+        },
+        "neo_brutalist": {
+            "id": "ST_NEOBRUTALIST_01",
+            "category": "Graphic Design",
+            "description": "Raw, unfinished design emphasizing bold contrasts and functional aesthetics.",
+            "visual_features": "Raw geometric blocks; chunky overlapping letters; stark shadows; monochrome with one accent color.",
+            "motion": "Static or precise mechanical movements; no fluid transitions.",
+            "lighting": "High contrast; harsh lighting; industrial atmosphere; raw feel.",
+            "camera": "Geometric framing; direct front-on shots; asymmetry.",
+            "rendering": "Visible digital glitches; deliberate crudeness; attention-grabbing typography.",
+            "prompts": {
+                "base": "Neo-brutalist style, raw geometric blocks, chunky overlapping letters, stark shadows, monochrome with electric blue accent.",
+                "stylized": "Neo-brutalism design, rough design elements, asymmetry, attention-grabbing typography, vibrant color contrast.",
+                "experimental": "Industrial minimalism, visible digital glitches, raw unrefined forms."
+            },
+            "modifiers": [
+                "raw",
+                "geometric",
+                "chunky typography",
+                "high contrast",
+                "industrial"
+            ],
+            "compatible": [
+                "Minimalist Typography",
+                "Industrial Design"
+            ],
+            "incompatible": [
+                "Dreamy Pastel Gradients"
+            ]
+        }
+    },
+    "auto_fill_rules": {
+        "detective": {
+            "cinematography": "Low angle, Dutch tilt, 35mm",
+            "lighting": "Film Noir chiaroscuro"
+        },
+        "sci_fi": {
+            "color_palette": "Cool Blue 9000K, cyan accents",
+            "lighting": "Neon reflections"
+        },
+        "horror": {
+            "motion_style": "Slow, unsettling dolly",
+            "lighting": "Low-key, 8000K cold"
+        },
+        "fantasy": {
+            "lighting": "Volumetric God rays",
+            "camera": "Sweeping crane shots"
+        },
+        "documentary": {
+            "camera": "Handheld, intimate",
+            "lighting": "Natural, available light"
+        },
+        "action": {
+            "motion": "Fast tracking, bullet-time",
+            "camera": "Dynamic angles"
+        },
+        "romance": {
+            "lighting": "Golden hour, warm tones",
+            "camera": "Close-ups, soft focus"
+        }
+    },
+    "forbidden_by_style": {
+        "Realism": [
+            "morphing",
+            "floating",
+            "cartoon",
+            "cel-shaded"
+        ],
+        "Anime": [
+            "photorealistic",
+            "film grain",
+            "shallow DOF",
+            "raw footage"
+        ],
+        "Horror": [
+            "bright",
+            "cheerful",
+            "sunny",
+            "colorful",
+            "warm tones"
+        ],
+        "Documentary": [
+            "stylized",
+            "exaggerated",
+            "neon",
+            "fantasy elements"
+        ],
+        "Noir": [
+            "high-key",
+            "vibrant colors",
+            "bright sunlight"
+        ]
+    }
+}

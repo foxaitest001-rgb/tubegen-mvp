@@ -1,8 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Settings, Zap, Download, Play } from 'lucide-react';
-import { Player } from '@remotion/player';
-import { MyComposition } from './remotion/Composition';
+// Remotion removed - using Style DNA Architecture
 import { ConsultantChat } from './components/ConsultantChat'
 import { generateNarrative } from './services/puter'
 
@@ -260,10 +259,15 @@ function App() {
             <Zap className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-              FoxTubeGen
-            </h1>
-            <p className="text-xs text-gray-500">AI Video Production</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                FoxTubeGen
+              </h1>
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30">
+                V3
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">AI Video Production • Style DNA Architecture</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -308,31 +312,7 @@ function App() {
         </div>
       </header >
 
-      {/* Remotion Preview (Quick Test) */}
-      <div className="bg-black/90 border-b border-white/10 p-4 flex justify-center">
-        <div className="w-[480px] h-[270px] bg-black rounded-lg overflow-hidden border border-white/20 shadow-2xl relative group">
-          <Player
-            component={MyComposition}
-            durationInFrames={150}
-            fps={30}
-            compositionWidth={1920}
-            compositionHeight={1080}
-            style={{
-              width: '100%',
-              height: '100%',
-            }}
-            controls
-            inputProps={{
-              titleText: topic || 'Welcome to FoxTube',
-              subtitleText: niche || 'Your AI Video Generator',
-              backgroundImage: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?ixlib=rb-4.0.3&w=1000&q=80'
-            }}
-          />
-          <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-[10px] text-white/70">
-            Remotion Preview
-          </div>
-        </div>
-      </div>
+      {/* Style DNA Architecture - Video preview handled by Director */}
 
       {/* Server Config */}
       {

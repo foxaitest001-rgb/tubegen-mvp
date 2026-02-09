@@ -1,0 +1,113 @@
+{
+    "story_structure": {
+        "act_1_setup": {
+            "purpose": "Introduction of world, characters (Who, Where, What, Why), and inciting incident",
+            "duration_percent": 25,
+            "technical": "Longer takes, spatial establishment shots",
+            "emotion": "Allows audience to settle, establishes empathy and backstory",
+            "guidelines": "Express story beats as spatial shifts. Use 'prolog' style for transportation."
+        },
+        "act_2_complication": {
+            "purpose": "Confrontation and escalation of obstacles; shifting relationships",
+            "duration_percent": 50,
+            "technical": "Tighter framing, shorter cuts, contradictory visuals",
+            "emotion": "Contains the 'darkest moment' (lowest emotional point) at 3/4 mark",
+            "guidelines": "Use conversational density (60% of shots) to carry conflict"
+        },
+        "act_3_climax": {
+            "purpose": "Convergence of tensions; character transformation made visible",
+            "duration_percent": 25,
+            "technical": "Rapid-fire cuts, sustained tension through static composition",
+            "emotion": "Maximum expressive contrast; physiological arousal",
+            "guidelines": "Converge 'narration time' with 'narrative time' for urgency"
+        }
+    },
+    "focal_length_guide": {
+        "21mm": {
+            "name": "Ultra-Wide",
+            "effect": "Distortion for environmental threat/alienation",
+            "emotion": "Unease, disorientation"
+        },
+        "35mm": {
+            "name": "Wide Standard",
+            "effect": "Naturalism, environmental context",
+            "emotion": "Neutral, grounded"
+        },
+        "50mm": {
+            "name": "Normal",
+            "effect": "Intimacy and contemplation",
+            "emotion": "Connection, relatability"
+        },
+        "85mm": {
+            "name": "Telephoto",
+            "effect": "Isolation, abstracts subject for intense focus",
+            "emotion": "Voyeuristic, compressed"
+        }
+    },
+    "blocking_techniques": {
+        "triangle_method": {
+            "description": "Arranging characters in triangular formation",
+            "points": [
+                "Speaker (A)",
+                "Listener (B)",
+                "Observer (C)"
+            ],
+            "impact": "Intensifies connection; dynamic tension; represents group hierarchies",
+            "prompt": "Three characters in a triangular formation, shifting focus, power struggle"
+        },
+        "power_dynamics": {
+            "dominant": {
+                "angle": "low angle",
+                "position": "center-frame",
+                "stance": "standing/elevation"
+            },
+            "submissive": {
+                "angle": "high angle",
+                "position": "frame-edge",
+                "stance": "sitting, excess headroom"
+            },
+            "prompt_dominant": "character center-frame, low-angle, commanding presence",
+            "prompt_submissive": "character off-center, small in frame, looking up"
+        }
+    },
+    "lighting_techniques": {
+        "motivated_realism": {
+            "principle": "Every light source should appear to originate from a visible source (Deakins Principle)",
+            "examples": [
+                "desk lamp",
+                "window",
+                "monitor glow",
+                "fire"
+            ],
+            "prompt": "dim interior lit by a single desk lamp, matching practical lamp color"
+        },
+        "color_temperature": {
+            "3200K": {
+                "name": "Tungsten/Warm",
+                "emotion": "Nostalgia, comfort, happiness, intimacy"
+            },
+            "5600K": {
+                "name": "Daylight/Cool",
+                "emotion": "Clinical sterility, isolation, mystery, detachment"
+            },
+            "mixing": "Suggests psychological conflict when warm and cool are combined"
+        },
+        "negative_fill": {
+            "technique": "Subtracting light to create shape, mood, and dimension",
+            "impact": "Enhances brooding atmosphere; adds contours; noir intensity",
+            "prompt": "Deep shadows, low-key lighting, heavy negative fill, high contrast"
+        }
+    },
+    "sound_design": {
+        "motifs": "Recurring sounds build subconscious associations",
+        "silence_rule": "Silence after high-density sound creates weight and suspense",
+        "layers": [
+            "Diegetic (world-based)",
+            "Non-diegetic (score)",
+            "Foley",
+            "Ambient (AC hum)",
+            "Effects (glitches)"
+        ],
+        "guideline": "Avoid clichés; use silence to let emotional weight settle"
+    }
+}

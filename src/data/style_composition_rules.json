@@ -1,0 +1,149 @@
+{
+    "physics_aesthetic_alignment": {
+        "rule_id": "RULE_PHYS_ALIGN",
+        "description": "If aesthetic is 'Realism', motion must adhere to Newtonian physics. If 'Surrealism', internal logic must be consistent.",
+        "compatible": [
+            [
+                "Photorealistic",
+                "Physics-Aware Motion"
+            ],
+            [
+                "Bio-Digital Surrealism",
+                "Fluid Dynamics"
+            ]
+        ],
+        "incompatible": [
+            [
+                "Hyper-Realistic 3D",
+                "Unstructured/Jittery Motion"
+            ],
+            [
+                "Phygital Art",
+                "Hand-painted Textures"
+            ]
+        ],
+        "failure_mode": "Uncanny valley when realistic textures move with generative morphing artifacts"
+    },
+    "kelvin_consistency": {
+        "rule_id": "RULE_KELVIN_CONST",
+        "description": "Do not mix conflicting lighting temperatures without a clear Key/Rim relationship.",
+        "compatible": [
+            [
+                "Cool Night 8000K",
+                "Warm Candle 3000K"
+            ],
+            [
+                "Daylight 5600K",
+                "Cool Fill 6500K"
+            ]
+        ],
+        "high_risk": [
+            [
+                "Vintage Sepia",
+                "Cyberpunk Neon"
+            ],
+            [
+                "Flat White Light",
+                "Film Noir"
+            ]
+        ],
+        "blending_ratio": "80% Dominant Atmosphere / 20% Accent Light"
+    },
+    "pattern_rhythm_constraint": {
+        "rule_id": "RULE_PATTERN_RHYTHM",
+        "description": "Maximalist styles require a repeated motif or underlying structure to prevent 'Visual Slop'.",
+        "compatible": [
+            [
+                "Maximalism",
+                "Geometric Grids"
+            ],
+            [
+                "Abstract Narratives",
+                "Rhythmic Pacing"
+            ]
+        ],
+        "incompatible": [
+            [
+                "Maximalist Typography",
+                "Bio-Digital Surrealism"
+            ],
+            [
+                "Glitch Art",
+                "Watercolor"
+            ]
+        ],
+        "failure_mode": "Viewer fatigue; AI generating chaotic noise instead of detail"
+    },
+    "blending_ratios": {
+        "cinematic_stylized": "70% Cinematic Realism + 30% Stylized Abstraction",
+        "animation_realism": "60% Material Texture + 40% Motion Physics",
+        "narrative_abstract": "80% Visual Coherence + 20% Background Abstraction"
+    },
+    "style_compatibility_matrix": {
+        "noir": {
+            "compatible": [
+                "Cyberpunk",
+                "Spectral Phantasmagoria",
+                "Gothic"
+            ],
+            "incompatible": [
+                "Psychedelic Nature",
+                "Vibrant Pop",
+                "High-Key Commercial"
+            ]
+        },
+        "cyberpunk": {
+            "compatible": [
+                "Noir",
+                "Glitch Art",
+                "Retro Futurism"
+            ],
+            "incompatible": [
+                "Solarpunk",
+                "Watercolor",
+                "Pastoral"
+            ]
+        },
+        "anime": {
+            "compatible": [
+                "2D Traditional",
+                "Motion Graphics",
+                "Manga"
+            ],
+            "incompatible": [
+                "Photorealistic",
+                "Documentary",
+                "Film Grain"
+            ]
+        },
+        "photorealistic": {
+            "compatible": [
+                "Hollywood",
+                "3D CGI",
+                "Documentary"
+            ],
+            "incompatible": [
+                "Cel-Shaded",
+                "Flat Vector",
+                "Lo-fi"
+            ]
+        },
+        "claymation": {
+            "compatible": [
+                "Stop-Motion",
+                "Handcrafted",
+                "Whimsical"
+            ],
+            "incompatible": [
+                "Smooth CGI",
+                "Motion Blur",
+                "Hyperrealism"
+            ]
+        }
+    },
+    "prompt_intensity_mapping": {
+        "subtle": "Use Cinematic prompt variant",
+        "moderate": "Use Stylized prompt variant",
+        "extreme": "Use Experimental prompt variant"
+    }
+}
