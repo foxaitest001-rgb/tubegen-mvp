@@ -703,13 +703,6 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         // Brief pause for focus
                         await interruptibleSleep(300);
 
-                        // Clear via keyboard (backup)
-                        await page.keyboard.down('Control');
-                        await page.keyboard.press('A');
-                        await page.keyboard.up('Control');
-                        await page.keyboard.press('Backspace');
-                        await new Promise(r => setTimeout(r, 100));
-
                         directorLog(sceneNum, "STEP", "✓ Input ready");
                     } else {
                         directorLog(sceneNum, "WARN", "⚠️ Input element not found on page");
