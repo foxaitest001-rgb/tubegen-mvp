@@ -555,7 +555,7 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
     // META.AI V3 SELECTOR: Uses <p> tags for input
     const inputSelector = [
         'p.x1oj8htv',                        // META.AI V3: Exact class from user
-        'p[dir="auto"]',                     // P tag with dir attribute
+        'p[dir="auto"]',                     // P tag with dir attribute  
         'div[contenteditable="true"] p',    // P inside contenteditable
         '[contenteditable="true"]',          // Any contenteditable
         'div[role="textbox"]',
@@ -565,19 +565,26 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
         '[data-lexical-editor="true"] p'    // P inside Lexical
     ].join(', ');
 
-    try {
-        await page.waitForSelector(inputSelector, { timeout: 10000 });
-        directorLog(0, "STEP", "✓ Input box detected - Meta.ai ready!");
-    } catch (e) {
-        directorLog(0, "WARN", "⚠️ Input box not detected. Attempting fallback...");
+    // Wait for input using pure JS (no element handles)
+    let inputReady = false;
+    for (let waitAttempt = 0; waitAttempt < 20 && !inputReady; waitAttempt++) {
+        inputReady = await page.evaluate((sel) => {
+            return document.querySelector(sel) !== null;
+        }, inputSelector);
+        if (!inputReady) await interruptibleSleep(500);
+    }
 
-        // DEBUG: Log all visible interactive elements
+    if (inputReady) {
+        directorLog(0, "STEP", "✓ Input box detected - Meta.ai ready!");
+    } else {
+        directorLog(0, "WARN", "⚠️ Input box not detected after 10s. Attempting to continue anyway...");
+
+        // DEBUG: Log what elements ARE found
         const foundElements = await page.evaluate(() => {
-            const elements = document.querySelectorAll('textarea, div[contenteditable], input[type="text"], [role="textbox"]');
-            return Array.from(elements).map(el => ({
+            const elements = document.querySelectorAll('textarea, div[contenteditable], input[type="text"], [role="textbox"], p[dir]');
+            return Array.from(elements).slice(0, 5).map(el => ({
                 tag: el.tagName,
-                id: el.id,
-                class: el.className.slice(0, 50),
+                class: (el.className || '').slice(0, 30),
                 role: el.getAttribute('role'),
                 contenteditable: el.getAttribute('contenteditable')
             }));
