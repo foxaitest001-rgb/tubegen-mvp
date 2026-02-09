@@ -947,6 +947,23 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                             directorLog(sceneNum, "STEP", `❌ Download button not found after 30s`);
                         }
 
+                        // Re-focus the input textbox for the next prompt
+                        directorLog(sceneNum, "STEP", "📍 Re-focusing input for next prompt...");
+                        await page.evaluate((sel) => {
+                            const el = document.querySelector(sel);
+                            if (el) {
+                                let target = el;
+                                if (!el.isContentEditable) {
+                                    const parent = el.closest('[contenteditable="true"]') || el.closest('[role="textbox"]');
+                                    if (parent) target = parent;
+                                }
+                                target.focus();
+                                target.click();
+                                if (el.tagName === 'P') el.innerHTML = '<br>';
+                            }
+                        }, inputSelector);
+                        await interruptibleSleep(500);
+
                     } catch (dlErr) {
                         directorLog(sceneNum, `WARN`, `Download failed: ${dlErr.message}`);
                     }
