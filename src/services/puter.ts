@@ -431,6 +431,22 @@ export async function generateNarrative(
     "hook": "First 15s lines...",
     "voice_style_recommendation": "...",
     "estimated_duration": "...",
+    "style_dna": {
+      "visual_identity": {
+        "art_style": "${effectiveVisualStyle}",
+        "color_palette": ["#hex1", "#hex2", "#hex3"],
+        "mood_keywords": ["word1", "word2", "word3"]
+      },
+      "lighting": {
+        "primary": "e.g. dramatic rim lighting",
+        "secondary": "e.g. soft ambient fill"
+      },
+      "camera": {
+        "default_lens": "e.g. 35mm",
+        "default_movement": "e.g. slow dolly"
+      },
+      "forbidden_keywords": ["words that trigger Meta AI safety filters"]
+    },
     "structure": [
       { 
         "timestamp": "0:00-0:15", 
