@@ -9,7 +9,7 @@ puppeteer.use(StealthPlugin());
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v3.4 (EVALUATE FOCUS)';
+const VERSION = 'v3.5 (SCROLL+BBOX+CLICK)';
 
 // ═══════════════════════════════════════════════════════════════
 // STYLE DNA ARCHITECTURE - Helper Functions
@@ -664,12 +664,21 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                     } catch (e) { /* ignore */ }
 
                     if (inputElement) {
-                        // Use evaluate to bypass Puppeteer's "not clickable" checks on RDP/Xvfb
-                        await inputElement.evaluate(el => {
-                            el.scrollIntoView({ block: 'center' });
-                            el.focus();
-                        });
+                        // Step A: Scroll into view (safe, always works)
+                        await inputElement.evaluate(el => el.scrollIntoView({ block: 'center' }));
                         await new Promise(r => setTimeout(r, 300));
+
+                        // Step B: Get coordinates (now accurate since element is in viewport)
+                        const box = await inputElement.boundingBox();
+                        if (box) {
+                            // Step C: REAL mouse click - activates Lexical editor
+                            await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+                            await new Promise(r => setTimeout(r, 300));
+                        } else {
+                            // Fallback: DOM focus
+                            await inputElement.evaluate(el => el.focus());
+                            await new Promise(r => setTimeout(r, 300));
+                        }
 
                         // Clear text with Ctrl+A → Backspace
                         await page.keyboard.down('Control');
@@ -678,7 +687,7 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         await page.keyboard.press('Backspace');
                         await new Promise(r => setTimeout(r, 200));
 
-                        directorLog(sceneNum, "STEP", "✓ Input focused & cleared");
+                        directorLog(sceneNum, "STEP", `✓ Input activated & cleared${box ? ` at (${Math.round(box.x + box.width / 2)}, ${Math.round(box.y + box.height / 2)})` : ' (fallback)'}`);
                     } else {
                         directorLog(sceneNum, "WARN", "⚠️ Input element not found on page");
                     }
@@ -929,18 +938,22 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         } catch (e) { /* ignore */ }
 
                         if (refocusElement) {
-                            // Use evaluate to bypass "not clickable" checks
-                            await refocusElement.evaluate(el => {
-                                el.scrollIntoView({ block: 'center' });
-                                el.focus();
-                            });
+                            // Same 3-step pattern: scroll → boundingBox → real click
+                            await refocusElement.evaluate(el => el.scrollIntoView({ block: 'center' }));
+                            await new Promise(r => setTimeout(r, 300));
+                            const rBox = await refocusElement.boundingBox();
+                            if (rBox) {
+                                await page.mouse.click(rBox.x + rBox.width / 2, rBox.y + rBox.height / 2);
+                            } else {
+                                await refocusElement.evaluate(el => el.focus());
+                            }
                             await new Promise(r => setTimeout(r, 300));
                             await page.keyboard.down('Control');
                             await page.keyboard.press('A');
                             await page.keyboard.up('Control');
                             await page.keyboard.press('Backspace');
                             await new Promise(r => setTimeout(r, 200));
-                            directorLog(sceneNum, "STEP", "✓ Input re-focused & cleared");
+                            directorLog(sceneNum, "STEP", "✓ Input re-activated & cleared");
                         } else {
                             directorLog(sceneNum, "WARN", "⚠️ Could not find input for re-focus");
                         }
