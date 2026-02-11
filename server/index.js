@@ -9,7 +9,7 @@ puppeteer.use(StealthPlugin());
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v3.3 (V2 INPUT RESTORED)';
+const VERSION = 'v3.4 (EVALUATE FOCUS)';
 
 // ═══════════════════════════════════════════════════════════════
 // STYLE DNA ARCHITECTURE - Helper Functions
@@ -664,17 +664,21 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                     } catch (e) { /* ignore */ }
 
                     if (inputElement) {
-                        await inputElement.click();
-                        await inputElement.focus();
+                        // Use evaluate to bypass Puppeteer's "not clickable" checks on RDP/Xvfb
+                        await inputElement.evaluate(el => {
+                            el.scrollIntoView({ block: 'center' });
+                            el.focus();
+                        });
+                        await new Promise(r => setTimeout(r, 300));
 
-                        // V2 RESTORED: Clear text with Ctrl+A → Backspace
+                        // Clear text with Ctrl+A → Backspace
                         await page.keyboard.down('Control');
                         await page.keyboard.press('A');
                         await page.keyboard.up('Control');
                         await page.keyboard.press('Backspace');
                         await new Promise(r => setTimeout(r, 200));
 
-                        directorLog(sceneNum, "STEP", "✓ Input focused & cleared (V2)");
+                        directorLog(sceneNum, "STEP", "✓ Input focused & cleared");
                     } else {
                         directorLog(sceneNum, "WARN", "⚠️ Input element not found on page");
                     }
@@ -925,14 +929,18 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         } catch (e) { /* ignore */ }
 
                         if (refocusElement) {
-                            await refocusElement.click();
-                            await refocusElement.focus();
+                            // Use evaluate to bypass "not clickable" checks
+                            await refocusElement.evaluate(el => {
+                                el.scrollIntoView({ block: 'center' });
+                                el.focus();
+                            });
+                            await new Promise(r => setTimeout(r, 300));
                             await page.keyboard.down('Control');
                             await page.keyboard.press('A');
                             await page.keyboard.up('Control');
                             await page.keyboard.press('Backspace');
                             await new Promise(r => setTimeout(r, 200));
-                            directorLog(sceneNum, "STEP", "✓ Input re-focused & cleared (V2)");
+                            directorLog(sceneNum, "STEP", "✓ Input re-focused & cleared");
                         } else {
                             directorLog(sceneNum, "WARN", "⚠️ Could not find input for re-focus");
                         }
