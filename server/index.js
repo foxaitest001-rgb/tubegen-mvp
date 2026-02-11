@@ -666,44 +666,39 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                 directorLog(sceneNum, "ACTION", `🎬 Starting Shot ${shotNum} (Progress: ${currentShotIndex + 1}/${shotQueue.length})${attempt > 1 ? ` [Attempt ${attempt}]` : ''}`);
 
                 try {
-                    directorLog(sceneNum, "STEP", "📍 Step 1: Finding and focusing input (Pure JS)...");
+                    directorLog(sceneNum, "STEP", "📍 Step 1: Clicking input textbox (Real Mouse)...");
 
-                    // META.AI V3: Use pure page.evaluate - NO Puppeteer element handles
-                    const inputFound = await page.evaluate((sel) => {
-                        // Kill overlays/modals first
+                    // Kill overlays first
+                    await page.evaluate(() => {
                         const blockers = document.querySelectorAll('div[role="dialog"], div[role="banner"], div[aria-modal="true"], [class*="overlay"]');
                         blockers.forEach(el => el.remove());
+                    });
 
-                        // Find the input element
+                    // Get the bounding box of the input element
+                    const inputBox = await page.evaluate((sel) => {
                         const el = document.querySelector(sel);
-                        if (!el) return false;
-
-                        // Focus the element or its parent contenteditable
+                        if (!el) return null;
                         let target = el;
                         if (!el.isContentEditable) {
-                            // Look for parent contenteditable
                             const parent = el.closest('[contenteditable="true"]') || el.closest('[role="textbox"]');
                             if (parent) target = parent;
                         }
-
-                        target.focus();
-                        target.click();
-
-                        // Clear content via innerText for <p> tags
-                        if (el.tagName === 'P') {
-                            el.innerHTML = '<br>';
-                        }
-
-                        return true;
+                        const rect = target.getBoundingClientRect();
+                        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, found: true };
                     }, inputSelector);
 
-                    if (inputFound) {
-                        directorLog(sceneNum, "STEP", "✓ Input focused (Pure JS)");
+                    if (inputBox && inputBox.found) {
+                        // REAL mouse click at element center - this activates Lexical editor
+                        await page.mouse.click(inputBox.x, inputBox.y);
+                        await interruptibleSleep(500);
 
-                        // Brief pause for focus
-                        await interruptibleSleep(300);
+                        // Clear any existing text
+                        await page.evaluate((sel) => {
+                            const el = document.querySelector(sel);
+                            if (el && el.tagName === 'P') el.innerHTML = '<br>';
+                        }, inputSelector);
 
-                        directorLog(sceneNum, "STEP", "✓ Input ready");
+                        directorLog(sceneNum, "STEP", `✓ Input clicked at (${Math.round(inputBox.x)}, ${Math.round(inputBox.y)})`);
                     } else {
                         directorLog(sceneNum, "WARN", "⚠️ Input element not found on page");
                     }
@@ -947,22 +942,33 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                             directorLog(sceneNum, "STEP", `❌ Download button not found after 30s`);
                         }
 
-                        // Re-focus the input textbox for the next prompt
-                        directorLog(sceneNum, "STEP", "📍 Re-focusing input for next prompt...");
-                        await page.evaluate((sel) => {
+                        // Re-focus the input textbox for the next prompt (REAL mouse click)
+                        directorLog(sceneNum, "STEP", "📍 Re-clicking input textbox for next prompt...");
+                        const refocusBox = await page.evaluate((sel) => {
                             const el = document.querySelector(sel);
-                            if (el) {
-                                let target = el;
-                                if (!el.isContentEditable) {
-                                    const parent = el.closest('[contenteditable="true"]') || el.closest('[role="textbox"]');
-                                    if (parent) target = parent;
-                                }
-                                target.focus();
-                                target.click();
-                                if (el.tagName === 'P') el.innerHTML = '<br>';
+                            if (!el) return null;
+                            let target = el;
+                            if (!el.isContentEditable) {
+                                const parent = el.closest('[contenteditable="true"]') || el.closest('[role="textbox"]');
+                                if (parent) target = parent;
                             }
+                            const rect = target.getBoundingClientRect();
+                            return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
                         }, inputSelector);
-                        await interruptibleSleep(500);
+
+                        if (refocusBox) {
+                            await page.mouse.click(refocusBox.x, refocusBox.y);
+                            await interruptibleSleep(500);
+                            // Clear any leftover text
+                            await page.evaluate((sel) => {
+                                const el = document.querySelector(sel);
+                                if (el && el.tagName === 'P') el.innerHTML = '<br>';
+                            }, inputSelector);
+                            directorLog(sceneNum, "STEP", `✓ Input re-clicked at (${Math.round(refocusBox.x)}, ${Math.round(refocusBox.y)})`);
+                        } else {
+                            directorLog(sceneNum, "WARN", "⚠️ Could not find input for re-focus");
+                        }
+                        await interruptibleSleep(300);
 
                     } catch (dlErr) {
                         directorLog(sceneNum, `WARN`, `Download failed: ${dlErr.message}`);
