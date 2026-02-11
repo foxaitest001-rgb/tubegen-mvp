@@ -9,7 +9,7 @@ puppeteer.use(StealthPlugin());
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v3.2 (RESTORED SIMPLE INPUT)';
+const VERSION = 'v3.3 (V2 INPUT RESTORED)';
 
 // ═══════════════════════════════════════════════════════════════
 // STYLE DNA ARCHITECTURE - Helper Functions
@@ -552,31 +552,14 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
     directorLog(0, "STEP", "⏳ Waiting for input box...");
 
-    // META.AI V3 SELECTOR: Uses <p> tags for input
-    const inputSelector = [
-        'p.x1oj8htv',                        // META.AI V3: Exact class from user
-        'p[dir="auto"]',                     // P tag with dir attribute  
-        'div[contenteditable="true"] p',    // P inside contenteditable
-        '[contenteditable="true"]',          // Any contenteditable
-        'div[role="textbox"]',
-        'div[role="textbox"] p',             // P inside textbox
-        'textarea',
-        '[data-lexical-editor="true"]',
-        '[data-lexical-editor="true"] p'    // P inside Lexical
-    ].join(', ');
+    // V2 RESTORED: Simple proven selector
+    const inputSelector = 'textarea, div[contenteditable="true"], div[role="textbox"]';
 
-    // Wait for input using pure JS (no element handles)
-    let inputReady = false;
-    for (let waitAttempt = 0; waitAttempt < 20 && !inputReady; waitAttempt++) {
-        inputReady = await page.evaluate((sel) => {
-            return document.querySelector(sel) !== null;
-        }, inputSelector);
-        if (!inputReady) await interruptibleSleep(500);
-    }
-
-    if (inputReady) {
+    // V2 RESTORED: Use waitForSelector (Puppeteer handles scroll/visibility)
+    try {
+        await page.waitForSelector(inputSelector, { timeout: 10000 });
         directorLog(0, "STEP", "✓ Input box detected - Meta.ai ready!");
-    } else {
+    } catch (e) {
         directorLog(0, "WARN", "⚠️ Input box not detected after 10s. Attempting to continue anyway...");
 
         // DEBUG: Log what elements ARE found
@@ -666,7 +649,7 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                 directorLog(sceneNum, "ACTION", `🎬 Starting Shot ${shotNum} (Progress: ${currentShotIndex + 1}/${shotQueue.length})${attempt > 1 ? ` [Attempt ${attempt}]` : ''}`);
 
                 try {
-                    directorLog(sceneNum, "STEP", "📍 Step 1: Clicking input textbox (Real Mouse)...");
+                    directorLog(sceneNum, "STEP", "📍 Step 1: Focus & clear input (V2 Pattern)...");
 
                     // Kill overlays first
                     await page.evaluate(() => {
@@ -674,31 +657,24 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         blockers.forEach(el => el.remove());
                     });
 
-                    // Get the bounding box of the input element
-                    const inputBox = await page.evaluate((sel) => {
-                        const el = document.querySelector(sel);
-                        if (!el) return null;
-                        let target = el;
-                        if (!el.isContentEditable) {
-                            const parent = el.closest('[contenteditable="true"]') || el.closest('[role="textbox"]');
-                            if (parent) target = parent;
-                        }
-                        const rect = target.getBoundingClientRect();
-                        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, found: true };
-                    }, inputSelector);
+                    // V2 RESTORED: waitForSelector + element.click() + element.focus()
+                    let inputElement = null;
+                    try {
+                        inputElement = await page.waitForSelector(inputSelector, { timeout: 5000 });
+                    } catch (e) { /* ignore */ }
 
-                    if (inputBox && inputBox.found) {
-                        // REAL mouse click at element center - this activates Lexical editor
-                        await page.mouse.click(inputBox.x, inputBox.y);
-                        await interruptibleSleep(500);
+                    if (inputElement) {
+                        await inputElement.click();
+                        await inputElement.focus();
 
-                        // Clear any existing text
-                        await page.evaluate((sel) => {
-                            const el = document.querySelector(sel);
-                            if (el && el.tagName === 'P') el.innerHTML = '<br>';
-                        }, inputSelector);
+                        // V2 RESTORED: Clear text with Ctrl+A → Backspace
+                        await page.keyboard.down('Control');
+                        await page.keyboard.press('A');
+                        await page.keyboard.up('Control');
+                        await page.keyboard.press('Backspace');
+                        await new Promise(r => setTimeout(r, 200));
 
-                        directorLog(sceneNum, "STEP", `✓ Input clicked at (${Math.round(inputBox.x)}, ${Math.round(inputBox.y)})`);
+                        directorLog(sceneNum, "STEP", "✓ Input focused & cleared (V2)");
                     } else {
                         directorLog(sceneNum, "WARN", "⚠️ Input element not found on page");
                     }
@@ -750,9 +726,8 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
                     directorLog(sceneNum, "STEP", `📍 Step 3: Typing prompt (${fullPrompt.length} chars)...`);
 
-                    // SLOW TYPING IS SAFER for React apps than Paste
-                    // But we increased delay slightly to avoid character skipping
-                    await page.keyboard.type(fullPrompt, { delay: 10 });
+                    // V2 RESTORED: delay: 30 is safe for React/Lexical editors
+                    await page.keyboard.type(fullPrompt, { delay: 30 });
 
                     await new Promise(r => setTimeout(r, 500));
                     directorLog(sceneNum, "STEP", "✓ Prompt typed");
@@ -942,33 +917,25 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                             directorLog(sceneNum, "STEP", `❌ Download button not found after 30s`);
                         }
 
-                        // Re-focus the input textbox for the next prompt (REAL mouse click)
-                        directorLog(sceneNum, "STEP", "📍 Re-clicking input textbox for next prompt...");
-                        const refocusBox = await page.evaluate((sel) => {
-                            const el = document.querySelector(sel);
-                            if (!el) return null;
-                            let target = el;
-                            if (!el.isContentEditable) {
-                                const parent = el.closest('[contenteditable="true"]') || el.closest('[role="textbox"]');
-                                if (parent) target = parent;
-                            }
-                            const rect = target.getBoundingClientRect();
-                            return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-                        }, inputSelector);
+                        // V2 RESTORED: Re-focus textbox using waitForSelector + click
+                        directorLog(sceneNum, "STEP", "📍 Re-focusing input for next prompt (V2)...");
+                        let refocusElement = null;
+                        try {
+                            refocusElement = await page.waitForSelector(inputSelector, { timeout: 5000 });
+                        } catch (e) { /* ignore */ }
 
-                        if (refocusBox) {
-                            await page.mouse.click(refocusBox.x, refocusBox.y);
-                            await interruptibleSleep(500);
-                            // Clear any leftover text
-                            await page.evaluate((sel) => {
-                                const el = document.querySelector(sel);
-                                if (el && el.tagName === 'P') el.innerHTML = '<br>';
-                            }, inputSelector);
-                            directorLog(sceneNum, "STEP", `✓ Input re-clicked at (${Math.round(refocusBox.x)}, ${Math.round(refocusBox.y)})`);
+                        if (refocusElement) {
+                            await refocusElement.click();
+                            await refocusElement.focus();
+                            await page.keyboard.down('Control');
+                            await page.keyboard.press('A');
+                            await page.keyboard.up('Control');
+                            await page.keyboard.press('Backspace');
+                            await new Promise(r => setTimeout(r, 200));
+                            directorLog(sceneNum, "STEP", "✓ Input re-focused & cleared (V2)");
                         } else {
                             directorLog(sceneNum, "WARN", "⚠️ Could not find input for re-focus");
                         }
-                        await interruptibleSleep(300);
 
                     } catch (dlErr) {
                         directorLog(sceneNum, `WARN`, `Download failed: ${dlErr.message}`);
