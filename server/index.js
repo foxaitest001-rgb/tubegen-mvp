@@ -9,7 +9,7 @@ puppeteer.use(StealthPlugin());
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v3.5 (SCROLL+BBOX+CLICK)';
+const VERSION = 'v4.0 (GROK + META DUAL SOURCE)';
 
 // ═══════════════════════════════════════════════════════════════
 // STYLE DNA ARCHITECTURE - Helper Functions
@@ -353,6 +353,478 @@ async function assembleVideo(projectDir) {
         directorLog(0, "ERROR", `Assembly error: ${e.message}`);
         return null;
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// THE GROK DIRECTOR AGENT — Grok.com Imagine → Video → Upscale → Download
+// ═══════════════════════════════════════════════════════════════
+async function generateVideoGrok(tasks, projectDir, visualStyle = 'Cinematic photorealistic', aspectRatio = '16:9', jobId = null, styleDNA = null) {
+    const outputPublic = projectDir.public;
+    const outputServer = projectDir.server;
+
+    directorLog(0, "GROK", `🚀 Grok Director ${VERSION} starting...`);
+    directorLog(0, "PROJECT", `Output folder: ${projectDir.name}`);
+
+    if (styleDNA) {
+        directorLog(0, "DNA", `✨ Style DNA: ${styleDNA.visual_identity?.art_style || 'Unknown'}`);
+    }
+
+    // ── Build flat shot queue ──
+    const shotQueue = [];
+    for (let sceneIdx = 0; sceneIdx < tasks.length; sceneIdx++) {
+        const scene = tasks[sceneIdx];
+        const shots = scene.shots || scene.visual_prompts || [scene.visual_prompt || scene.description];
+        for (let shotIdx = 0; shotIdx < shots.length; shotIdx++) {
+            shotQueue.push({
+                sceneNum: sceneIdx + 1,
+                shotNum: shotIdx + 1,
+                prompt: typeof shots[shotIdx] === 'string' ? shots[shotIdx] : shots[shotIdx]?.prompt || shots[shotIdx]?.description || ''
+            });
+        }
+    }
+
+    directorLog(0, "PLAN", `📋 Blueprint: ${shotQueue.length} Total Shots queued (Grok).`);
+
+    // ── Browser Setup ──
+    let browser, page;
+
+    // Try connecting to existing Chrome
+    try {
+        const response = await fetch('http://127.0.0.1:9222/json/version');
+        const data = await response.json();
+        if (data.webSocketDebuggerUrl) {
+            browser = await puppeteer.connect({ browserWSEndpoint: data.webSocketDebuggerUrl, defaultViewport: null });
+            directorLog(0, "BROWSER", "✅ Connected to existing Chrome (Grok)");
+        }
+    } catch (e) {
+        directorLog(0, "BROWSER", "Chrome not running. Launching new instance...");
+    }
+
+    if (!browser) {
+        try {
+            browser = await puppeteer.launch({
+                headless: false,
+                defaultViewport: null,
+                args: [
+                    '--start-maximized', '--disable-web-security',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--mute-audio', '--no-default-browser-check',
+                    '--no-sandbox', '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage', '--disable-gpu',
+                    '--window-position=0,0'
+                ]
+            });
+        } catch (launchErr) {
+            directorLog(0, "ERROR", `Failed to launch Chrome: ${launchErr.message}`);
+            return;
+        }
+    }
+
+    // Find or open Grok.com tab
+    const pages = await browser.pages();
+    page = pages.find(p => p.url().includes('grok.com'));
+
+    if (!page) {
+        directorLog(0, "BROWSER", "Grok tab not found. Opening NEW tab...");
+        page = await browser.newPage();
+        await page.goto('https://grok.com', { waitUntil: 'domcontentloaded', timeout: 0 });
+    } else {
+        directorLog(0, "BROWSER", "✅ Reusing existing Grok tab");
+        await page.bringToFront();
+    }
+
+    await page.setBypassCSP(true);
+
+    // ── Navigate to Imagine mode ──
+    directorLog(0, "STEP", "⏳ Navigating to Imagine mode...");
+    await interruptibleSleep(2000);
+
+    // Click "Imagine" in sidebar
+    const clickedImagine = await page.evaluate(() => {
+        // Look for "Imagine" link in sidebar
+        const links = document.querySelectorAll('a, button, div[role="button"], span');
+        for (const el of links) {
+            const txt = (el.textContent || '').trim().toLowerCase();
+            if (txt === 'imagine') {
+                el.click();
+                return true;
+            }
+        }
+        // Fallback: navigate directly
+        return false;
+    });
+
+    if (clickedImagine) {
+        directorLog(0, "STEP", "✓ Clicked 'Imagine' in sidebar");
+    } else {
+        directorLog(0, "STEP", "Navigating directly to grok.com/imagine...");
+        await page.goto('https://grok.com/imagine', { waitUntil: 'domcontentloaded', timeout: 0 });
+    }
+
+    await interruptibleSleep(3000);
+
+    // ── Select Video mode ──
+    directorLog(0, "STEP", "⏳ Selecting Video mode...");
+    const clickedVideo = await page.evaluate(() => {
+        // Look for "Video" button/option near the input
+        const candidates = document.querySelectorAll('button, div[role="button"], span, label');
+        for (const el of candidates) {
+            const txt = (el.textContent || '').trim().toLowerCase();
+            if (txt === 'video' || txt.includes('video')) {
+                el.click();
+                return true;
+            }
+        }
+        return false;
+    });
+
+    if (clickedVideo) {
+        directorLog(0, "STEP", "✓ Video mode selected");
+    } else {
+        directorLog(0, "WARN", "⚠️ Could not find Video mode button, may already be selected");
+    }
+
+    await interruptibleSleep(1000);
+
+    // ── Input selector for Grok's Imagine input ──
+    const grokInputSelector = 'textarea, input[type="text"], div[contenteditable="true"], div[role="textbox"]';
+
+    try {
+        await page.waitForSelector(grokInputSelector, { timeout: 10000 });
+        directorLog(0, "STEP", "✓ Input box detected - Grok Imagine ready!");
+    } catch (e) {
+        directorLog(0, "WARN", "⚠️ Input box not detected after 10s");
+    }
+
+    // ── Process each shot ──
+    const MAX_RETRIES = 3;
+    let currentShotIndex = 0;
+
+    while (currentShotIndex < shotQueue.length) {
+        if (await checkControlState()) break;
+
+        const shot = shotQueue[currentShotIndex];
+        const { sceneNum, shotNum, prompt: originalPrompt } = shot;
+        let shotSuccess = false;
+
+        for (let attempt = 1; attempt <= MAX_RETRIES && !shotSuccess; attempt++) {
+            if (await checkControlState()) break;
+
+            let currentPrompt = originalPrompt;
+            if (attempt > 1) {
+                currentPrompt = rewordAction(currentPrompt);
+                directorLog(sceneNum, "RETRY", `🔄 Retry ${attempt}/${MAX_RETRIES} for Shot ${shotNum}`);
+            }
+
+            directorLog(sceneNum, "ACTION", `🎬 Starting Shot ${shotNum} (${currentShotIndex + 1}/${shotQueue.length})${attempt > 1 ? ` [Attempt ${attempt}]` : ''} [GROK]`);
+
+            try {
+                // ── Step 1: Focus & clear Grok input ──
+                directorLog(sceneNum, "STEP", "📍 Step 1: Focus Grok input...");
+
+                let inputElement = null;
+                try {
+                    inputElement = await page.waitForSelector(grokInputSelector, { timeout: 5000 });
+                } catch (e) { /* ignore */ }
+
+                if (inputElement) {
+                    await inputElement.evaluate(el => el.scrollIntoView({ block: 'center' }));
+                    await new Promise(r => setTimeout(r, 300));
+
+                    const box = await inputElement.boundingBox();
+                    if (box) {
+                        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+                        await new Promise(r => setTimeout(r, 300));
+                    } else {
+                        await inputElement.evaluate(el => el.focus());
+                        await new Promise(r => setTimeout(r, 300));
+                    }
+
+                    // Clear existing text
+                    await page.keyboard.down('Control');
+                    await page.keyboard.press('A');
+                    await page.keyboard.up('Control');
+                    await page.keyboard.press('Backspace');
+                    await new Promise(r => setTimeout(r, 200));
+
+                    directorLog(sceneNum, "STEP", "✓ Grok input focused & cleared");
+                } else {
+                    directorLog(sceneNum, "WARN", "⚠️ Grok input not found");
+                }
+
+                if (await checkControlState()) continue;
+
+                // ── Step 2: Build and type prompt ──
+                const cleanPrompt = currentPrompt.replace(/^Shot\s+\d+(\s*\(.*?\))?:?\s*/i, "").trim();
+
+                let fullPrompt;
+                if (styleDNA) {
+                    fullPrompt = buildNaturalPrompt(styleDNA, cleanPrompt);
+                    const validation = validateAgainstForbidden(styleDNA, fullPrompt);
+                    if (!validation.valid) {
+                        for (const forbidden of validation.violations) {
+                            fullPrompt = fullPrompt.replace(new RegExp(forbidden, 'gi'), '');
+                        }
+                    }
+                } else {
+                    fullPrompt = `${cleanPrompt}, ${visualStyle}, aspect ratio ${aspectRatio}`;
+                }
+
+                directorLog(sceneNum, "STEP", `📍 Step 2: Typing prompt (${fullPrompt.length} chars)...`);
+                await page.keyboard.type(fullPrompt, { delay: 30 });
+                await new Promise(r => setTimeout(r, 500));
+
+                // ── Step 3: Send prompt (Enter or click send button) ──
+                directorLog(sceneNum, "STEP", "📍 Step 3: Sending prompt...");
+
+                // Try clicking send button first, else press Enter
+                const clickedSend = await page.evaluate(() => {
+                    // Look for send/submit button
+                    const buttons = document.querySelectorAll('button[type="submit"], button[aria-label="Send"], button[aria-label="Submit"]');
+                    for (const b of buttons) {
+                        b.click();
+                        return true;
+                    }
+                    // Look for button with send icon (arrow up icon)
+                    const allBtns = document.querySelectorAll('button');
+                    for (const b of allBtns) {
+                        if (b.querySelector('svg') && b.closest('form, [class*="input"], [class*="composer"]')) {
+                            b.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+
+                if (clickedSend) {
+                    directorLog(sceneNum, "STEP", "✓ Clicked send button");
+                } else {
+                    await page.keyboard.press('Enter');
+                    directorLog(sceneNum, "STEP", "✓ Pressed Enter to send");
+                }
+
+                // ── Step 4: Wait for video generation ──
+                directorLog(sceneNum, "STEP", "📍 Step 4: Waiting for video to generate (up to 120s)...");
+
+                let videoGenerated = false;
+                for (let waitSec = 0; waitSec < 120 && !videoGenerated; waitSec += 5) {
+                    if (await checkControlState()) break;
+                    await interruptibleSleep(5000);
+
+                    videoGenerated = await page.evaluate(() => {
+                        // Look for a video element on the page
+                        const videos = document.querySelectorAll('video');
+                        if (videos.length > 0) return true;
+                        // Also check for loading indicators clearing
+                        const loading = document.querySelector('[class*="loading"], [class*="spinner"], [class*="generating"]');
+                        return !loading && document.querySelector('img[src*="blob:"], video[src*="blob:"]') !== null;
+                    });
+
+                    if (!videoGenerated) {
+                        directorLog(sceneNum, "STEP", `  ⏳ Still generating... (${waitSec + 5}s)`);
+                    }
+                }
+
+                if (!videoGenerated) {
+                    directorLog(sceneNum, "WARN", "⚠️ Video didn't appear after 120s");
+                    continue;
+                }
+
+                directorLog(sceneNum, "STEP", "✓ Video generated!");
+
+                // ── Step 5: Click on the video to open detail view ──
+                directorLog(sceneNum, "STEP", "📍 Step 5: Opening video detail...");
+                await page.evaluate(() => {
+                    const video = document.querySelector('video');
+                    if (video) {
+                        const parent = video.closest('a, div[role="button"], [class*="card"]') || video;
+                        parent.click();
+                    }
+                });
+                await interruptibleSleep(2000);
+
+                // ── Step 6: Click "..." (three dots) menu ──
+                directorLog(sceneNum, "STEP", "📍 Step 6: Clicking '...' menu for upscale...");
+                const clickedDots = await page.evaluate(() => {
+                    // Look for three dots / more menu button
+                    const candidates = document.querySelectorAll('button, div[role="button"]');
+                    for (const el of candidates) {
+                        const text = (el.textContent || '').trim();
+                        const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+                        // Match: "...", "•••", ellipsis, "more", "options"
+                        if (text === '...' || text === '•••' || text === '⋯' ||
+                            ariaLabel.includes('more') || ariaLabel.includes('option') || ariaLabel.includes('menu')) {
+                            el.click();
+                            return true;
+                        }
+                        // Check for SVG with 3 dots pattern (common icon)
+                        const svg = el.querySelector('svg');
+                        if (svg && (svg.querySelectorAll('circle').length >= 3 || svg.querySelectorAll('path').length >= 3)) {
+                            el.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+
+                if (clickedDots) {
+                    directorLog(sceneNum, "STEP", "✓ Opened '...' menu");
+                    await interruptibleSleep(1000);
+
+                    // ── Step 7: Click "Upscale" ──
+                    directorLog(sceneNum, "STEP", "📍 Step 7: Clicking 'Upscale'...");
+                    const clickedUpscale = await page.evaluate(() => {
+                        const items = document.querySelectorAll('button, div[role="menuitem"], li, a, span');
+                        for (const el of items) {
+                            const txt = (el.textContent || '').trim().toLowerCase();
+                            if (txt.includes('upscale')) {
+                                el.click();
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+
+                    if (clickedUpscale) {
+                        directorLog(sceneNum, "STEP", "✓ Upscale clicked! Waiting for upscale (up to 60s)...");
+
+                        // Wait for upscale to complete
+                        for (let waitSec = 0; waitSec < 60; waitSec += 5) {
+                            if (await checkControlState()) break;
+                            await interruptibleSleep(5000);
+
+                            const upscaleComplete = await page.evaluate(() => {
+                                // Check if upscale is still loading
+                                const loading = document.querySelector('[class*="upscal"][class*="loading"], [class*="progress"]');
+                                return !loading;
+                            });
+
+                            if (upscaleComplete) {
+                                directorLog(sceneNum, "STEP", "✓ Upscale complete!");
+                                break;
+                            }
+                            directorLog(sceneNum, "STEP", `  ⏳ Upscaling... (${waitSec + 5}s)`);
+                        }
+                    } else {
+                        directorLog(sceneNum, "WARN", "⚠️ Upscale button not found, proceeding with standard quality");
+                    }
+                } else {
+                    directorLog(sceneNum, "WARN", "⚠️ '...' menu not found, skipping upscale");
+                }
+
+                // ── Step 8: Download the video ──
+                directorLog(sceneNum, "STEP", "📍 Step 8: Looking for download button...");
+                await interruptibleSleep(1000);
+
+                const clickedDownload = await page.evaluate(() => {
+                    // Grok download button - yellow/gold download icon at bottom
+                    const buttons = document.querySelectorAll('button, a, div[role="button"]');
+                    for (const el of buttons) {
+                        const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+                        const title = (el.getAttribute('title') || '').toLowerCase();
+                        const text = (el.textContent || '').trim().toLowerCase();
+
+                        if (ariaLabel.includes('download') || title.includes('download') || text === 'download') {
+                            el.click();
+                            return true;
+                        }
+
+                        // Check for download SVG icon (arrow pointing down into tray)
+                        const svg = el.querySelector('svg');
+                        if (svg) {
+                            const paths = svg.querySelectorAll('path');
+                            const hasDownloadIcon = Array.from(paths).some(p => {
+                                const d = p.getAttribute('d') || '';
+                                return d.includes('M12') && (d.includes('19') || d.includes('download'));
+                            });
+                            if (hasDownloadIcon && el.closest('[class*="action"], [class*="download"], [class*="toolbar"]')) {
+                                el.click();
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                });
+
+                if (clickedDownload) {
+                    directorLog(sceneNum, "STEP", "✓ Download clicked! Waiting 10s for file...");
+                    await interruptibleSleep(10000);
+
+                    // Rename downloaded file
+                    try {
+                        const files = fs.readdirSync(outputPublic);
+                        const sortedFiles = files
+                            .map(fileName => ({ name: fileName, time: fs.statSync(path.join(outputPublic, fileName)).mtime.getTime() }))
+                            .sort((a, b) => b.time - a.time);
+                        const candidates = sortedFiles.filter(f => !f.name.startsWith('scene_'));
+
+                        if (candidates.length > 0) {
+                            const newestFile = candidates[0];
+                            if (Date.now() - newestFile.time < 60000) {
+                                const oldPath = path.join(outputPublic, newestFile.name);
+                                const extension = path.extname(newestFile.name);
+                                const newFilename = `scene_${sceneNum}_shot_${shotNum}${extension}`;
+
+                                const publicPath = path.join(outputPublic, newFilename);
+                                const serverPath = path.join(outputServer, newFilename);
+
+                                if (fs.existsSync(publicPath)) fs.unlinkSync(publicPath);
+                                fs.renameSync(oldPath, publicPath);
+                                fs.copyFileSync(publicPath, serverPath);
+
+                                directorLog(sceneNum, "STEP", `✅ COMPLETE: Saved ${newFilename}`);
+                                shotSuccess = true;
+                            } else {
+                                directorLog(sceneNum, "WARN", "⚠️ Downloaded file too old");
+                            }
+                        } else {
+                            directorLog(sceneNum, "WARN", "⚠️ No new files found to rename");
+                        }
+                    } catch (e) {
+                        directorLog(sceneNum, "ERROR", `Rename failed: ${e.message}`);
+                    }
+                } else {
+                    directorLog(sceneNum, "STEP", "❌ Download button not found");
+                }
+
+                // ── Step 9: Go back for next prompt ──
+                directorLog(sceneNum, "STEP", "📍 Step 9: Returning for next prompt...");
+                await page.evaluate(() => {
+                    // Click back button if in detail view
+                    const backBtn = document.querySelector('button[aria-label="Back"], a[aria-label="Back"], button[aria-label="Go back"]');
+                    if (backBtn) backBtn.click();
+                });
+                await interruptibleSleep(2000);
+
+            } catch (shotError) {
+                directorLog(sceneNum, "ERROR", `Shot attempt failed: ${shotError.message}`);
+            }
+        } // End retry loop
+
+        if (shotSuccess) {
+            currentShotIndex++;
+        } else {
+            directorLog(sceneNum, "ERROR", `❌ Shot ${shotNum} failed after ${MAX_RETRIES} attempts. Skipping.`);
+            currentShotIndex++;
+        }
+    }
+
+    directorLog(0, "DONE", "All scenes completed (Grok).");
+
+    // Run FFmpeg assembly
+    const finalVideo = await assembleVideo(projectDir);
+    if (finalVideo) {
+        directorLog(0, "ASSEMBLE", `✅ Final video created: ${path.basename(finalVideo)}`);
+    }
+
+    // Send completion event
+    const outputFiles = fs.readdirSync(outputServer).map(f => ({
+        name: f,
+        path: `/output/${projectDir.name}/${f}`,
+        isFinal: f === 'final_video.mp4'
+    }));
+    directorLog(0, "FILES", `📦 ${outputFiles.length} files ready for download`);
+    sendEvent({ type: 'completed', message: 'Grok Director finished!', files: outputFiles });
 }
 
 // --- THE DIRECTOR AGENT (V2: Flat Queue Architecture) ---
@@ -1176,10 +1648,16 @@ app.post('/generate-video', async (req, res) => {
         directorLog(0, "DNA", `⚠️ No Style DNA in request (legacy mode)`);
     }
 
-    generateVideo(scriptData.structure, projectDir, visualStyle, aspectRatio, newJobId, styleDNA)
+    // Route to Grok or Meta.ai Director based on videoSource
+    const videoSource = scriptData.videoSource || 'meta';
+    directorLog(0, "SOURCE", `🎯 Video source: ${videoSource === 'grok' ? 'Grok.com' : 'Meta.ai'}`);
+
+    const directorFn = videoSource === 'grok' ? generateVideoGrok : generateVideo;
+
+    directorFn(scriptData.structure, projectDir, visualStyle, aspectRatio, newJobId, styleDNA)
         .then(() => {
             directorState.isRunning = false;
-            directorLog(0, "COMPLETE", "🎉 Director job finished successfully!");
+            directorLog(0, "COMPLETE", `🎉 ${videoSource === 'grok' ? 'Grok' : 'Meta.ai'} Director job finished successfully!`);
         })
         .catch(err => {
             directorState.isRunning = false;

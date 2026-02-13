@@ -10,10 +10,11 @@ interface Message {
 
 interface ConsultantChatProps {
     onApplyConfig: (config: any) => void;
-    onStartPipeline?: (config: any) => void; // NEW: Auto-start generation when ready=true
+    onStartPipeline?: (config: any) => void;
+    videoSource?: 'meta' | 'grok';
 }
 
-export const ConsultantChat: React.FC<ConsultantChatProps> = ({ onApplyConfig, onStartPipeline }) => {
+export const ConsultantChat: React.FC<ConsultantChatProps> = ({ onApplyConfig, onStartPipeline, videoSource = 'meta' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         { role: 'assistant', content: "Hi! I'm your Creative Consultant. Tell me about the video you want to make, and I'll set everything up for you." }
@@ -41,25 +42,21 @@ export const ConsultantChat: React.FC<ConsultantChatProps> = ({ onApplyConfig, o
         setMessages(newHistory);
 
         try {
-            // Call AI
             const result = await consultWithUser(newHistory);
 
             const assistantMsg = result.message;
             setMessages(prev => [...prev, { role: 'assistant', content: assistantMsg }]);
 
             if (result.config) {
-                // Always apply config to form
                 onApplyConfig(result.config);
 
-                // Check if ready=true → auto-start the pipeline
                 if (result.config.ready === true && onStartPipeline) {
-                    setMessages(prev => [...prev, { role: 'assistant', content: "🚀 Starting the Director Pipeline now! Generating script, voiceover, and visuals..." }]);
-                    // Close chat and trigger pipeline
+                    const sourceLabel = videoSource === 'grok' ? 'Grok' : 'Meta.ai';
+                    setMessages(prev => [...prev, { role: 'assistant', content: `🚀 Starting Director via ${sourceLabel}! Generating script, voiceover, and visuals...` }]);
                     setIsOpen(false);
                     onStartPipeline(result.config);
                 } else {
-                    // Just update form
-                    setMessages(prev => [...prev, { role: 'assistant', content: "✅ I've updated the form with these settings. Say 'send to director' when you're ready!" }]);
+                    setMessages(prev => [...prev, { role: 'assistant', content: "✅ Settings updated. Say 'send to director' when you're ready!" }]);
                 }
             }
 
@@ -70,55 +67,52 @@ export const ConsultantChat: React.FC<ConsultantChatProps> = ({ onApplyConfig, o
         }
     };
 
+    const sourceLabel = videoSource === 'grok' ? 'Grok' : 'Meta.ai';
+
     return (
         <>
             {/* Floating Button */}
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full shadow-lg hover:shadow-purple-500/50 transition-all hover:scale-105"
+                    className="ftg-chat-fab"
                 >
                     <MessageSquare className="w-5 h-5" />
-                    <span className="font-semibold">Ask the Expert</span>
+                    <span>Ask the Expert</span>
                 </button>
             )}
 
             {/* Chat Window */}
             {isOpen && (
-                <div className="fixed bottom-6 right-6 z-50 w-96 h-[500px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
-
+                <div className="ftg-chat-window">
                     {/* Header */}
-                    <div className="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
-                        <div className="flex items-center gap-2 text-white font-semibold">
-                            <Sparkles className="w-4 h-4 text-purple-400" />
+                    <div className="ftg-chat-header">
+                        <div className="ftg-chat-title">
+                            <Sparkles className="w-4 h-4" />
                             Creative Consultant
+                            <span className="ftg-source-badge">{sourceLabel}</span>
                         </div>
                         <button
                             onClick={() => setIsOpen(false)}
-                            className="text-slate-400 hover:text-white transition-colors"
+                            className="ftg-chat-close"
                         >
                             <X className="w-5 h-5" />
                         </button>
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/50">
+                    <div className="ftg-chat-messages">
                         {messages.map((m, i) => (
-                            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div
-                                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${m.role === 'user'
-                                        ? 'bg-purple-600 text-white'
-                                        : 'bg-slate-800 text-slate-200 border border-slate-700'
-                                        }`}
-                                >
+                            <div key={i} className={`ftg-msg-row ${m.role === 'user' ? 'ftg-msg-row-user' : 'ftg-msg-row-ai'}`}>
+                                <div className={`ftg-msg-bubble ${m.role === 'user' ? 'ftg-msg-user' : 'ftg-msg-ai'}`}>
                                     {m.content}
                                 </div>
                             </div>
                         ))}
                         {isLoading && (
-                            <div className="flex justify-start">
-                                <div className="bg-slate-800 rounded-lg px-3 py-2 border border-slate-700">
-                                    <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                            <div className="ftg-chat-loading">
+                                <div className="ftg-chat-loader">
+                                    <Loader2 className="w-4 h-4" />
                                 </div>
                             </div>
                         )}
@@ -126,24 +120,23 @@ export const ConsultantChat: React.FC<ConsultantChatProps> = ({ onApplyConfig, o
                     </div>
 
                     {/* Input */}
-                    <div className="p-3 bg-slate-800 border-t border-slate-700 flex gap-2">
+                    <div className="ftg-chat-input-bar">
                         <input
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                             placeholder="Describe your video idea..."
-                            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                            className="ftg-chat-input"
                         />
                         <button
                             onClick={handleSend}
                             disabled={isLoading || !input.trim()}
-                            className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+                            className="ftg-chat-send"
                         >
                             <Send className="w-4 h-4" />
                         </button>
                     </div>
-
                 </div>
             )}
         </>

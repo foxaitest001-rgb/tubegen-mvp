@@ -1,16 +1,16 @@
 
 import { useState, useRef, useEffect } from 'react'
-import { Settings, Zap, Download, Play } from 'lucide-react';
-// Remotion removed - using Style DNA Architecture
+import { Settings, Download, Play, Monitor, Zap } from 'lucide-react';
 import { ConsultantChat } from './components/ConsultantChat'
 import { generateNarrative } from './services/puter'
 
+type VideoSource = 'meta' | 'grok';
+
 function App() {
-  // const [step, setStep] = useState<'input' | 'generating' | 'result'>('input') // Unused
-  // const [result, setResult] = useState<any>(null) // Unused
   const [niche, setNiche] = useState('')
   const [topic, setTopic] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [videoSource, setVideoSource] = useState<VideoSource>('meta')
 
   // State for director logs
   const [directorLogs, setDirectorLogs] = useState<string[]>([]);
@@ -39,8 +39,6 @@ function App() {
     if (!directorLogs.length) return;
     const lastLog = directorLogs[directorLogs.length - 1];
 
-    // Capture Project Folder Name (Robust)
-    // Log format: [SCENE 0] [PROJECT] Output folder: 2026-02-06_...
     if (lastLog.includes('Output folder:')) {
       const parts = lastLog.split('Output folder:');
       if (parts.length > 1) {
@@ -50,7 +48,6 @@ function App() {
       }
     }
 
-    // Also scan history if not set (in case we missed it)
     if (!projectFolder) {
       const folderLog = directorLogs.find(l => l.includes('Output folder:'));
       if (folderLog) {
@@ -61,10 +58,7 @@ function App() {
       }
     }
 
-    // Capture Completion
-    // Log format: [SCENE 0] [ASSEMBLE] ✅ Final video created: final_video.mp4
     if (lastLog.includes('Final video created') && projectFolder) {
-      // Construct URL
       const dlUrl = `${serverUrl}/output/${projectFolder}/final_video.mp4`;
       console.log("Download URL Available:", dlUrl);
       setFinalVideoUrl(dlUrl);
@@ -83,7 +77,7 @@ function App() {
       setDirectorLogs(prev => [...prev, msg]);
     };
 
-    setDirectorLogs(["[Pipeline] 🔄 Initializing production pipeline..."]);
+    setDirectorLogs([`[Pipeline] 🔄 Initializing production pipeline (${videoSource === 'grok' ? 'Grok' : 'Meta.ai'})...`]);
 
     try {
       await fetch(`${serverUrl}/control`, {
@@ -96,9 +90,7 @@ function App() {
       console.warn("Could not cancel previous job:", e);
     }
 
-    addLog("[Pipeline] 🚀 Starting auto-generation...");
-    addLog(`[Pipeline] 📡 Server: ${serverUrl}`);
-    addLog("[Pipeline] 🚀 Starting auto-generation...");
+    addLog(`[Pipeline] 🚀 Starting auto-generation via ${videoSource === 'grok' ? 'Grok.com' : 'Meta.ai'}...`);
     addLog(`[Pipeline] 📡 Server: ${serverUrl}`);
 
     try {
@@ -118,10 +110,8 @@ function App() {
       if (!scriptResult || !scriptResult.structure) throw new Error("Script generation failed");
       addLog(`[Pipeline] ✅ Script ready! ${scriptResult.structure.length} scenes`);
 
-      // Start Video Job First (to create project folder)
       addLog("[Pipeline] 🎬 Initializing Director Job...");
       const rawName = scriptResult.title_options?.[0] || config.topic || 'video_project';
-      // Sanitize project name to be URL-safe (remove apostrophes, spaces, etc.)
       const projectName = rawName.replace(/[^a-zA-Z0-9_\-]/g, '_').toLowerCase();
 
       scriptResult.title = projectName;
@@ -129,8 +119,8 @@ function App() {
       scriptResult.aspectRatio = config.aspectRatio || '16:9';
       scriptResult.platform = config.platform || 'YouTube';
       scriptResult.mood = config.mood || 'Cinematic';
+      scriptResult.videoSource = videoSource; // Pass source to server
 
-      // 1. Kickoff Job (Creates Project Folder & Starts Video Gen)
       await fetch(`${serverUrl}/generate-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,7 +128,6 @@ function App() {
       });
       addLog("[Pipeline] ✅ Director Job Started.");
 
-      // 2. Request Server-Side Audio Generation
       addLog("[Pipeline] 🎙️ Requesting Server-Side Audio Generation...");
       try {
         const { generateAudioOnServer } = await import('./services/puter');
@@ -216,7 +205,6 @@ function App() {
     return () => { evtSource?.close(); clearTimeout(retryTimeout); };
   }, [serverUrl]);
 
-  // Manual Download Handler
   const handleDownloadVideo = (url: string) => {
     setIsDownloading(true);
     setDirectorLogs(prev => [...prev, `⬇️ Downloading video...`]);
@@ -246,44 +234,58 @@ function App() {
       });
   };
 
+  const sourceLabel = videoSource === 'grok' ? 'Grok' : 'Meta.ai';
+
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex flex-col">
-      {/* Gradient Background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-cyan-900/20 pointer-events-none" />
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-purple-500/10 blur-[120px] rounded-full pointer-events-none" />
+    <div className="ftg-app">
+      {/* Subtle gradient overlay */}
+      <div className="ftg-bg-glow" />
 
       {/* Header */}
-      <header className="relative z-10 px-6 py-4 flex justify-between items-center border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-            <Zap className="w-5 h-5 text-white" />
+      <header className="ftg-header">
+        <div className="ftg-header-left">
+          <div className="ftg-logo-icon">
+            <Zap className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                FoxTubeGen
-              </h1>
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30">
-                V3
-              </span>
+            <div className="ftg-logo-row">
+              <h1 className="ftg-logo-text">FoxTubeGen</h1>
+              <span className="ftg-version-badge">V4</span>
             </div>
-            <p className="text-xs text-gray-500">AI Video Production • Style DNA Architecture</p>
+            <p className="ftg-subtitle">AI Video Production • Style DNA</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          {/* Force show download if we have a project folder and success message, OR if finalVideoUrl is set */}
+
+        {/* Source Selector — Grok-style pill toggle */}
+        <div className="ftg-source-selector">
+          <button
+            onClick={() => setVideoSource('meta')}
+            className={`ftg-source-btn ${videoSource === 'meta' ? 'ftg-source-active' : ''}`}
+          >
+            <Monitor className="w-4 h-4" />
+            Meta.ai
+          </button>
+          <button
+            onClick={() => setVideoSource('grok')}
+            className={`ftg-source-btn ${videoSource === 'grok' ? 'ftg-source-active' : ''}`}
+          >
+            <Play className="w-4 h-4" />
+            Grok
+          </button>
+        </div>
+
+        <div className="ftg-header-right">
           {(finalVideoUrl || (projectFolder && directorLogs.some(l => l.includes('finished successfully')))) && (
             <button
               onClick={() => handleDownloadVideo(finalVideoUrl || `${serverUrl}/output/${projectFolder}/final_video.mp4`)}
               disabled={isDownloading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-green-500 hover:bg-green-400 text-black shadow-lg shadow-green-500/20 transition-all animate-pulse-slow"
+              className="ftg-btn ftg-btn-download"
             >
-              <Download className={`w-4 h-4 ${isDownloading ? 'animate-bounce' : ''}`} />
+              <Download className={`w-4 h-4 ${isDownloading ? 'ftg-spin' : ''}`} />
               {isDownloading ? 'Downloading...' : 'Download Video'}
             </button>
           )}
 
-          {/* Manual Download - Always Visible */}
           <button
             onClick={() => {
               const folder = prompt("Enter project folder name (from logs):", projectFolder || "2026-02-06_my_video");
@@ -292,7 +294,7 @@ function App() {
                 window.open(url, '_blank');
               }
             }}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-all"
+            className="ftg-btn ftg-btn-secondary"
             title="Manually download by entering folder name"
           >
             <Download className="w-4 h-4" />
@@ -301,82 +303,76 @@ function App() {
 
           <button
             onClick={() => setShowServerConfig(!showServerConfig)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
-            ${showServerConfig
-                ? 'bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/50'
-                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+            className={`ftg-btn ${showServerConfig ? 'ftg-btn-active' : 'ftg-btn-ghost'}`}
           >
             <Settings className="w-4 h-4" />
-            {serverUrl.includes('localhost') ? 'Local Mode' : 'Remote Mode'}
+            {serverUrl.includes('localhost') ? 'Local' : 'Remote'}
           </button>
         </div>
-      </header >
+      </header>
 
-      {/* Style DNA Architecture - Video preview handled by Director */}
-
-      {/* Server Config */}
-      {
-        showServerConfig && (
-          <div className="relative z-10 px-6 py-4 bg-black/40 border-b border-white/5 backdrop-blur-sm">
-            <div className="max-w-2xl mx-auto">
-              <label className="block text-sm font-medium text-gray-300 mb-2">Director Server URL</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={serverUrl}
-                  onChange={(e) => setServerUrl(e.target.value)}
-                  placeholder="https://xxx.trycloudflare.com"
-                  className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
-                />
-                <button
-                  onClick={() => setShowServerConfig(false)}
-                  className="px-6 py-3 bg-purple-500 hover:bg-purple-400 text-white font-medium rounded-xl transition-colors"
-                >
-                  Save
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                💡 Paste Cloudflare tunnel URL for RDP, or localhost:3001 for local testing
-              </p>
+      {/* Server Config Panel */}
+      {showServerConfig && (
+        <div className="ftg-config-panel">
+          <div className="ftg-config-inner">
+            <label className="ftg-config-label">Director Server URL</label>
+            <div className="ftg-config-row">
+              <input
+                type="text"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                placeholder="https://xxx.trycloudflare.com"
+                className="ftg-input"
+              />
+              <button
+                onClick={() => setShowServerConfig(false)}
+                className="ftg-btn ftg-btn-primary"
+              >
+                Save
+              </button>
             </div>
+            <p className="ftg-config-hint">
+              💡 Paste Cloudflare tunnel URL for RDP, or localhost:3001 for local testing
+            </p>
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* Main Content */}
-      <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-hidden">
+      <main className="ftg-main">
+        <div className="ftg-chat-area">
           <ConsultantChat
             onApplyConfig={handleApplyConfig}
             onStartPipeline={handleStartPipeline}
+            videoSource={videoSource}
           />
         </div>
 
         {/* Director Logs */}
         {directorLogs.length > 0 && (
-          <div className="h-56 border-t border-white/5 bg-black/60 backdrop-blur-sm flex flex-col">
-            <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm font-semibold text-white">Director Logs (v2.6 PATCHED)</span>
-                <span className="text-xs text-gray-500">({directorLogs.length} entries)</span>
+          <div className="ftg-logs">
+            <div className="ftg-logs-header">
+              <div className="ftg-logs-title">
+                <div className="ftg-pulse-dot" />
+                <span>Director • {sourceLabel}</span>
+                <span className="ftg-logs-count">{directorLogs.length}</span>
               </div>
               <button
                 onClick={() => setDirectorLogs([])}
-                className="text-xs px-3 py-1 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-400 rounded-lg transition-colors"
+                className="ftg-btn-clear"
               >
                 Clear
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1">
+            <div className="ftg-logs-body">
               {directorLogs.map((log, i) => (
                 <div
                   key={i}
-                  className={`${log.includes('✅') || log.includes('🎉') ? 'text-green-400' :
-                    log.includes('⚠') ? 'text-yellow-400' :
-                      log.includes('❌') ? 'text-red-400' :
-                        log.includes('🚀') || log.includes('🎬') ? 'text-purple-400' :
-                          'text-gray-400'
+                  className={`ftg-log-line ${log.includes('✅') || log.includes('🎉') ? 'ftg-log-success' :
+                      log.includes('⚠') ? 'ftg-log-warn' :
+                        log.includes('❌') ? 'ftg-log-error' :
+                          log.includes('🚀') || log.includes('🎬') ? 'ftg-log-action' :
+                            ''
                     }`}
                 >
                   {log}
@@ -389,15 +385,13 @@ function App() {
       </main>
 
       {/* Error Toast */}
-      {
-        error && (
-          <div className="fixed bottom-6 right-6 z-50 bg-red-500/90 backdrop-blur text-white px-5 py-3 rounded-xl shadow-2xl shadow-red-500/20 flex items-center gap-3">
-            <span className="text-sm">{error}</span>
-            <button onClick={() => setError(null)} className="text-white/80 hover:text-white font-bold">×</button>
-          </div>
-        )
-      }
-    </div >
+      {error && (
+        <div className="ftg-error-toast">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="ftg-error-close">×</button>
+        </div>
+      )}
+    </div>
   )
 }
 
