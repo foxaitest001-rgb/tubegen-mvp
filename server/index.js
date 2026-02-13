@@ -938,7 +938,7 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         } catch (e) { /* ignore */ }
 
                         if (refocusElement) {
-                            // Same 3-step pattern: scroll → boundingBox → real click
+                            // Just click the textbox — next shot's Step 1 handles clearing
                             await refocusElement.evaluate(el => el.scrollIntoView({ block: 'center' }));
                             await new Promise(r => setTimeout(r, 300));
                             const rBox = await refocusElement.boundingBox();
@@ -948,12 +948,7 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                                 await refocusElement.evaluate(el => el.focus());
                             }
                             await new Promise(r => setTimeout(r, 300));
-                            await page.keyboard.down('Control');
-                            await page.keyboard.press('A');
-                            await page.keyboard.up('Control');
-                            await page.keyboard.press('Backspace');
-                            await new Promise(r => setTimeout(r, 200));
-                            directorLog(sceneNum, "STEP", "✓ Input re-activated & cleared");
+                            directorLog(sceneNum, "STEP", "✓ Input re-activated for next prompt");
                         } else {
                             directorLog(sceneNum, "WARN", "⚠️ Could not find input for re-focus");
                         }
