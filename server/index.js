@@ -1580,6 +1580,7 @@ app.get('/list-files/:projectFolder', (req, res) => {
 });
 
 app.post('/control', (req, res) => {
+    if (!req.body) return res.status(400).json({ error: 'Missing request body' });
     const { action } = req.body;
     if (action === 'pause') {
         directorState.paused = true;
@@ -1700,10 +1701,18 @@ app.post('/generate-video', async (req, res) => {
             return directorFn(scriptData.structure, projectDir, visualStyle, aspectRatio, newJobId, styleDNA);
         }
 
-        const scenes = scriptData.structure.map((s, i) => ({
-            prompt: s.visual_prompt || s.visual || s.description || `Scene ${i + 1}`,
-            index: i
-        }));
+        // Build flat scene list using v1's field extraction logic
+        const scenes = [];
+        for (let si = 0; si < scriptData.structure.length; si++) {
+            const s = scriptData.structure[si];
+            const shots = s.shots || s.visual_prompts || [s.visual_prompt || s.visual || s.description];
+            for (let sh = 0; sh < shots.length; sh++) {
+                const raw = shots[sh];
+                const prompt = typeof raw === 'string' ? raw : (raw?.prompt || raw?.description || '');
+                scenes.push({ prompt: prompt || `Scene ${si + 1}`, index: si, shotIndex: sh });
+            }
+        }
+        directorLog(0, 'PLAN', `📋 ${scenes.length} scenes queued — prompts verified`);
 
         const onProgress = (p) => {
             directorLog(p.sceneIndex + 1, p.status === 'done' ? 'DONE' : p.status === 'failed' ? 'FAIL' : 'GEN',

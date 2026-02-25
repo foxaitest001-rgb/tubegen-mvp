@@ -1,398 +1,336 @@
 // ═══════════════════════════════════════════════════════════════
-// META DIRECTOR v2
-// Extension-inspired robust automation for meta.ai
-// Supports: Text→Video (Quick), Image→Video (Pro)
-// Features: UI config, MutationObserver, CDP download, batch
+// META DIRECTOR v2 — FIXED
+// Extension-inspired + v1-proven navigation techniques
+// Uses: text-based element search, page.evaluate, browser download
 // ═══════════════════════════════════════════════════════════════
 
 const path = require('path');
 const fs = require('fs');
-const { DownloadWatcher } = require('./download_watcher');
 const SM = require('./session_manager');
 
-// ─── Multi-Selector Fallback System ───
-const SELECTORS = {
-    promptInput: [
-        '[contenteditable="true"]',
-        'div[role="textbox"]',
-        'textarea[placeholder]',
-        'textarea',
-        '.input-field [contenteditable]',
-        'div[data-testid="message-input"]'
-    ],
+// Helper
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-    sendButton: [
-        'button[aria-label="Send"]',
-        'button[aria-label="Submit"]',
-        'button[type="submit"]',
-        'button[data-testid="send-button"]',
-        'div[role="button"][aria-label="Send"]'
-    ],
+// ═══════════════════════════════════════════════════════════════
+// TEXT-BASED ELEMENT SEARCH
+// ═══════════════════════════════════════════════════════════════
 
-    // Imagine mode toggle
-    imagineToggle: [
-        'button[aria-label*="Imagine"]',
-        'button[aria-label*="imagine"]',
-        '[data-testid="imagine-toggle"]',
-        'button:has(svg[viewBox])'
-    ],
-
-    // Video mode (after Imagine)
-    videoMode: [
-        'button[aria-label*="Video"]',
-        'button[aria-label*="video"]',
-        '[data-testid="video-mode"]',
-        'button:has-text("Video")'
-    ],
-
-    // Animate button (for I2V)
-    animateButton: [
-        'button[aria-label*="Animate"]',
-        'button[aria-label*="animate"]',
-        '[data-testid="animate-button"]'
-    ],
-
-    // Aspect ratio
-    aspectRatio: {
-        container: [
-            'button[aria-label*="aspect"]',
-            'button[aria-label*="ratio"]',
-            '[data-testid="aspect-ratio"]',
-            '.ratio-selector'
-        ],
-        options: {
-            '16:9': ['[data-value="16:9"]', 'button[aria-label*="16:9"]', '[title="16:9"]'],
-            '9:16': ['[data-value="9:16"]', 'button[aria-label*="9:16"]', '[title="9:16"]'],
-            '1:1': ['[data-value="1:1"]', 'button[aria-label*="1:1"]', '[title="1:1"]'],
-            '4:5': ['[data-value="4:5"]', 'button[aria-label*="4:5"]', '[title="4:5"]']
-        }
-    },
-
-    // Generated video element
-    videoResult: [
-        'video[src]',
-        'video source[src]',
-        'video[autoplay]',
-        '.message-content video',
-        '[data-testid="generated-video"]'
-    ],
-
-    // Download button
-    downloadButton: [
-        'button[aria-label*="Download"]',
-        'a[download]',
-        'button[aria-label*="download"]',
-        '[data-testid="download"]'
-    ],
-
-    // File upload input
-    fileInput: [
-        'input[type="file"]',
-        'input[accept*="image"]'
-    ]
-};
-
-// ─── Find element with fallback ───
-async function findElement(page, selectorList, description = '') {
-    for (const selector of selectorList) {
-        try {
-            const el = await page.$(selector);
-            if (el) {
-                console.log(`[MetaV2] ✅ Found ${description} via: ${selector}`);
-                return el;
+async function clickByText(page, searchText, description = '') {
+    const clicked = await page.evaluate((text) => {
+        const candidates = document.querySelectorAll('button, a, div[role="button"], span, label, li');
+        for (const el of candidates) {
+            const txt = (el.textContent || '').trim().toLowerCase();
+            const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+            const title = (el.getAttribute('title') || '').toLowerCase();
+            if (txt === text.toLowerCase() || txt.includes(text.toLowerCase()) ||
+                ariaLabel.includes(text.toLowerCase()) || title.includes(text.toLowerCase())) {
+                el.click();
+                return true;
             }
-        } catch { /* try next */ }
+        }
+        return false;
+    }, searchText);
+
+    if (clicked) {
+        console.log(`[MetaV2] ✅ Clicked "${description || searchText}"`);
+    } else {
+        console.log(`[MetaV2] ⚠️ Could not find "${description || searchText}"`);
     }
-    console.log(`[MetaV2] ⚠️ Could not find ${description}`);
-    return null;
-}
-
-async function findByText(page, text) {
-    return page.evaluateHandle((searchText) => {
-        const elements = document.querySelectorAll('button, a, span, div[role="button"]');
-        for (const el of elements) {
-            if (el.textContent.trim().toLowerCase().includes(searchText.toLowerCase())) {
-                return el;
-            }
-        }
-        return null;
-    }, text);
+    return clicked;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// UI CONFIGURATION
+// UI CONFIGURATION — Navigate to Imagine Video mode
 // ═══════════════════════════════════════════════════════════════
 
 async function configureUI(page, options = {}) {
-    const { aspectRatio = '16:9', mode = 'video' } = options;
-    console.log(`[MetaV2] ⚙️ Configuring UI: mode=${mode}, aspect=${aspectRatio}`);
+    const { aspectRatio = '16:9' } = options;
+    console.log(`[MetaV2] ⚙️ Configuring UI: mode=video, aspect=${aspectRatio}`);
 
-    // Step 1: Enter Imagine mode
-    try {
-        const imagineBtn = await findElement(page, SELECTORS.imagineToggle, 'Imagine toggle');
-        if (imagineBtn) {
-            await imagineBtn.click();
-            await delay(1500);
-            console.log('[MetaV2] ✅ Imagine mode enabled');
-        } else {
-            // Try by text
-            const textBtn = await findByText(page, 'Imagine');
-            if (textBtn) {
-                await textBtn.click();
-                await delay(1500);
-            }
-        }
-    } catch (err) {
-        console.log(`[MetaV2] ⚠️ Imagine toggle: ${err.message}`);
-    }
-
-    // Step 2: Select Video mode
-    if (mode === 'video') {
+    // Step 1: Click "Imagine" button
+    // Meta.ai has an "Imagine" button/toggle in the main UI
+    let clickedImagine = await clickByText(page, 'imagine', 'Imagine button');
+    if (clickedImagine) {
+        await delay(2000);
+    } else {
+        // Try navigating directly to imagine endpoint
+        console.log('[MetaV2] Trying direct navigation to meta.ai imagine...');
         try {
-            const videoBtn = await findElement(page, SELECTORS.videoMode, 'Video mode');
-            if (videoBtn) {
-                await videoBtn.click();
-                await delay(1000);
-                console.log('[MetaV2] ✅ Video mode selected');
-            } else {
-                const textBtn = await findByText(page, 'Video');
-                if (textBtn) {
-                    await textBtn.click();
-                    await delay(1000);
-                }
-            }
-        } catch (err) {
-            console.log(`[MetaV2] ⚠️ Video mode: ${err.message}`);
+            await page.goto('https://www.meta.ai/imagine/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await delay(3000);
+        } catch {
+            // Stay on current page
+            console.log('[MetaV2] ⚠️ Direct navigation failed, staying on current page');
         }
     }
+
+    // Step 2: Click "Video" to switch to video mode
+    const clickedVideo = await clickByText(page, 'video', 'Video mode');
+    if (clickedVideo) await delay(1500);
 
     // Step 3: Set aspect ratio
-    try {
-        const ratioContainer = await findElement(page, SELECTORS.aspectRatio.container, 'aspect ratio');
-        if (ratioContainer) {
-            await ratioContainer.click();
-            await delay(500);
+    const clickedRatio = await clickByText(page, aspectRatio, `Aspect ${aspectRatio}`);
+    if (clickedRatio) await delay(1000);
 
-            const ratioSelectors = SELECTORS.aspectRatio.options[aspectRatio] || [];
-            const ratioOption = await findElement(page, ratioSelectors, `ratio ${aspectRatio}`);
-            if (ratioOption) {
-                await ratioOption.click();
-                await delay(500);
-                console.log(`[MetaV2] ✅ Aspect ratio: ${aspectRatio}`);
-            } else {
-                const textOption = await findByText(page, aspectRatio);
-                if (textOption) {
-                    await textOption.click();
-                    console.log(`[MetaV2] ✅ Aspect ratio: ${aspectRatio} (via text)`);
-                }
-            }
-        } else {
-            console.log(`[MetaV2] ⚠️ No aspect ratio selector — adding to prompt`);
-        }
-    } catch (err) {
-        console.log(`[MetaV2] ⚠️ Aspect ratio config: ${err.message}`);
+    // Step 4: Wait for input to be ready
+    const inputSelector = 'div[contenteditable="true"], textarea, div[role="textbox"], input[type="text"]';
+    try {
+        await page.waitForSelector(inputSelector, { timeout: 10000 });
+        console.log('[MetaV2] ✅ Input ready');
+    } catch {
+        console.log('[MetaV2] ⚠️ Input not detected after 10s');
     }
 
     console.log('[MetaV2] ⚙️ UI configuration complete');
 }
 
 // ═══════════════════════════════════════════════════════════════
-// GENERATE SINGLE SCENE (Text → Video)
+// TYPE FULL PROMPT
 // ═══════════════════════════════════════════════════════════════
 
-async function generateScene(page, scene, downloadWatcher) {
-    const sceneNum = scene.index + 1;
-    console.log(`[MetaV2] 🎬 Scene ${sceneNum}: "${scene.prompt.substring(0, 60)}..."`);
+async function typePrompt(page, prompt) {
+    const inputSelector = 'div[contenteditable="true"], textarea, div[role="textbox"], input[type="text"]';
 
-    // Step 1: Find input and type prompt
-    const inputElement = await findElement(page, SELECTORS.promptInput, 'prompt input');
-    if (!inputElement) throw new Error('Could not find prompt input field');
+    let inputEl = await page.$(inputSelector);
+    if (!inputEl) {
+        await delay(2000);
+        inputEl = await page.$(inputSelector);
+    }
+    if (!inputEl) throw new Error('Could not find prompt input field');
 
-    // Clear contenteditable
-    await page.evaluate((selectors) => {
-        for (const sel of selectors) {
-            const el = document.querySelector(sel);
-            if (el) {
-                if (el.getAttribute('contenteditable') === 'true') {
-                    el.innerHTML = '';
-                    el.textContent = '';
-                } else {
-                    el.value = '';
-                }
+    await inputEl.click();
+    await delay(200);
+
+    // Clear: Ctrl+A + Backspace
+    await page.keyboard.down('Control');
+    await page.keyboard.press('a');
+    await page.keyboard.up('Control');
+    await page.keyboard.press('Backspace');
+    await delay(200);
+
+    // Also clear via DOM
+    await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        if (el) {
+            if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                el.value = '';
+            } else {
+                el.textContent = '';
+                el.innerHTML = '';
+            }
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }, inputSelector);
+    await delay(200);
+
+    // Set value directly (fast, reliable for long prompts)
+    await inputEl.click();
+    await delay(100);
+
+    await page.evaluate((sel, text) => {
+        const el = document.querySelector(sel);
+        if (el) {
+            if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                el.value = text;
                 el.dispatchEvent(new Event('input', { bubbles: true }));
-                return;
+            } else {
+                // contenteditable — need both textContent and input event
+                el.textContent = text;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                // Also trigger React's synthetic event
+                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+                el.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
-    }, SELECTORS.promptInput);
+    }, inputSelector, prompt);
 
     await delay(300);
-    await inputElement.click();
-    await page.keyboard.type(scene.prompt, { delay: 15 });
-    await delay(500);
-
-    // Step 2: Submit
-    const sendBtn = await findElement(page, SELECTORS.sendButton, 'send button');
-    if (sendBtn) {
-        await sendBtn.click();
-    } else {
-        await page.keyboard.press('Enter');
-    }
-
-    console.log(`[MetaV2] ⏳ Scene ${sceneNum}: Waiting for generation...`);
-
-    // Step 3: Wait for video via MutationObserver
-    const videoUrl = await waitForVideo(page, 180000);
-    if (!videoUrl) throw new Error(`Scene ${sceneNum}: No video generated within timeout`);
-
-    console.log(`[MetaV2] 🎥 Scene ${sceneNum}: Video detected`);
-
-    // Step 4: Download
-    let result;
-
-    // Direct URL download
-    if (videoUrl.startsWith('http')) {
-        result = await downloadWatcher.downloadUrl(videoUrl, scene.index);
-    }
-
-    // Fallback: click download button
-    if (!result || !result.success) {
-        const dlBtn = await findElement(page, SELECTORS.downloadButton, 'download button');
-        if (dlBtn) {
-            await dlBtn.click();
-            result = await downloadWatcher.waitForDownload(scene.index, 60000);
-        }
-    }
-
-    if (!result || !result.success) {
-        throw new Error(`Scene ${sceneNum}: Download failed`);
-    }
-
-    console.log(`[MetaV2] ✅ Scene ${sceneNum}: Downloaded → ${result.filePath}`);
-    return result;
+    console.log(`[MetaV2] ✅ Typed prompt (${prompt.length} chars): "${prompt.substring(0, 80)}..."`);
 }
 
 // ═══════════════════════════════════════════════════════════════
-// IMAGE-TO-VIDEO (Pro mode)
+// SUBMIT PROMPT
 // ═══════════════════════════════════════════════════════════════
 
-async function generateI2VScene(page, scene, downloadWatcher) {
-    const sceneNum = scene.index + 1;
-    console.log(`[MetaV2] 🎬 I2V Scene ${sceneNum}: image=${scene.imageFile}`);
-
-    // Step 1: Upload image
-    const fileInput = await findElement(page, SELECTORS.fileInput, 'file input');
-    if (!fileInput) throw new Error('Could not find file upload input');
-
-    await fileInput.uploadFile(scene.imageFile);
-    await delay(3000); // Wait for image to load
-
-    // Step 2: Click Animate (if separate from generate)
-    const animateBtn = await findElement(page, SELECTORS.animateButton, 'animate button');
-    if (animateBtn) {
-        await animateBtn.click();
-        await delay(1000);
-    }
-
-    // Step 3: Type motion prompt
-    if (scene.motionPrompt) {
-        const inputElement = await findElement(page, SELECTORS.promptInput, 'prompt input');
-        if (inputElement) {
-            await inputElement.click();
-            await page.keyboard.type(scene.motionPrompt, { delay: 15 });
-            await delay(500);
+async function submitPrompt(page) {
+    const clicked = await page.evaluate(() => {
+        const buttons = document.querySelectorAll('button');
+        for (const btn of buttons) {
+            const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+            const text = (btn.textContent || '').trim().toLowerCase();
+            if (ariaLabel.includes('send') || ariaLabel.includes('submit') ||
+                ariaLabel.includes('generate') || text === 'generate' || text === 'send') {
+                btn.click();
+                return true;
+            }
         }
-    }
+        return false;
+    });
 
-    // Step 4: Submit
-    const sendBtn = await findElement(page, SELECTORS.sendButton, 'send button');
-    if (sendBtn) {
-        await sendBtn.click();
+    if (clicked) {
+        console.log('[MetaV2] ✅ Submit clicked');
     } else {
         await page.keyboard.press('Enter');
+        console.log('[MetaV2] ✅ Submitted via Enter');
     }
-
-    // Step 5: Wait for video
-    const videoUrl = await waitForVideo(page, 180000);
-    if (!videoUrl) throw new Error(`I2V Scene ${sceneNum}: No video within timeout`);
-
-    // Step 6: Download
-    let result;
-    if (videoUrl.startsWith('http')) {
-        result = await downloadWatcher.downloadUrl(videoUrl, scene.index);
-    }
-    if (!result || !result.success) {
-        const dlBtn = await findElement(page, SELECTORS.downloadButton, 'download button');
-        if (dlBtn) {
-            await dlBtn.click();
-            result = await downloadWatcher.waitForDownload(scene.index, 60000);
-        }
-    }
-
-    if (!result || !result.success) throw new Error(`I2V Scene ${sceneNum}: Download failed`);
-    return result;
+    await delay(1000);
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MUTATION OBSERVER
+// WAIT FOR VIDEO — MutationObserver (tracks NEW vs existing)
 // ═══════════════════════════════════════════════════════════════
 
 async function waitForVideo(page, timeoutMs = 180000) {
-    return page.evaluate((timeout, videoSelectors) => {
+    console.log('[MetaV2] ⏳ Waiting for video...');
+
+    return page.evaluate((timeout) => {
         return new Promise((resolve) => {
-            // Track which videos existed before
-            const existingVideos = new Set();
+            const existingVideoSrcs = new Set();
             document.querySelectorAll('video').forEach(v => {
-                if (v.src) existingVideos.add(v.src);
+                if (v.src) existingVideoSrcs.add(v.src);
+                const source = v.querySelector('source');
+                if (source && source.src) existingVideoSrcs.add(source.src);
             });
 
             let resolved = false;
 
-            const observer = new MutationObserver(() => {
+            const checkForNewVideo = () => {
                 if (resolved) return;
-
-                // Look for NEW video elements (not ones that existed before)
-                const allVideos = document.querySelectorAll('video');
-                for (const video of allVideos) {
+                const videos = document.querySelectorAll('video');
+                for (const video of videos) {
                     const src = video.src || video.querySelector('source')?.src;
-                    if (src && !existingVideos.has(src)) {
+                    if (src && !existingVideoSrcs.has(src)) {
                         resolved = true;
                         observer.disconnect();
                         resolve(src);
                         return;
                     }
                 }
+            };
 
-                // Also check our specific selectors
-                for (const sel of videoSelectors) {
-                    const el = document.querySelector(sel);
-                    if (el) {
-                        const src = el.src || el.querySelector('source')?.src;
-                        if (src && !existingVideos.has(src)) {
-                            resolved = true;
-                            observer.disconnect();
-                            resolve(src);
-                            return;
-                        }
-                    }
-                }
-            });
-
+            const observer = new MutationObserver(checkForNewVideo);
             observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['src']
+                childList: true, subtree: true,
+                attributes: true, attributeFilter: ['src']
             });
+
+            const pollInterval = setInterval(() => {
+                checkForNewVideo();
+                if (resolved) clearInterval(pollInterval);
+            }, 3000);
 
             setTimeout(() => {
                 if (!resolved) {
                     resolved = true;
                     observer.disconnect();
+                    clearInterval(pollInterval);
                     resolve(null);
                 }
             }, timeout);
         });
-    }, timeoutMs, SELECTORS.videoResult);
+    }, timeoutMs);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DOWNLOAD VIDEO — In-browser fetch with cookies
+// ═══════════════════════════════════════════════════════════════
+
+async function downloadVideo(page, videoUrl, outputDir, sceneNum) {
+    const filename = `scene_${String(sceneNum).padStart(3, '0')}.mp4`;
+    const filePath = path.join(outputDir, filename);
+
+    // Method 1: In-browser fetch (uses page's cookies/session)
+    if (videoUrl && !videoUrl.startsWith('blob:')) {
+        console.log(`[MetaV2] 📥 Downloading via in-browser fetch...`);
+        const videoData = await page.evaluate(async (url) => {
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) return null;
+                const blob = await resp.blob();
+                const reader = new FileReader();
+                return new Promise(resolve => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(blob);
+                });
+            } catch { return null; }
+        }, videoUrl);
+
+        if (videoData) {
+            const base64Data = videoData.split(',')[1];
+            const buffer = Buffer.from(base64Data, 'base64');
+            fs.writeFileSync(filePath, buffer);
+            console.log(`[MetaV2] ✅ Downloaded: ${filename} (${buffer.length} bytes)`);
+            return { success: true, filePath };
+        }
+    }
+
+    // Method 2: Click download button
+    console.log('[MetaV2] Trying download button...');
+    const clickedDownload = await page.evaluate(() => {
+        const buttons = document.querySelectorAll('button, a, div[role="button"]');
+        for (const el of buttons) {
+            const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+            const title = (el.getAttribute('title') || '').toLowerCase();
+            const text = (el.textContent || '').trim().toLowerCase();
+            if (ariaLabel.includes('download') || title.includes('download') || text === 'download') {
+                el.click();
+                return true;
+            }
+        }
+        return false;
+    });
+
+    if (clickedDownload) {
+        console.log('[MetaV2] ✅ Download button clicked, waiting for file...');
+        await delay(10000);
+
+        // Find newest file
+        try {
+            const files = fs.readdirSync(outputDir);
+            const newest = files
+                .filter(f => /\.(mp4|webm|mov)$/i.test(f) && !f.startsWith('scene_'))
+                .map(f => ({ name: f, time: fs.statSync(path.join(outputDir, f)).mtime.getTime() }))
+                .sort((a, b) => b.time - a.time);
+
+            if (newest.length > 0 && Date.now() - newest[0].time < 60000) {
+                const oldPath = path.join(outputDir, newest[0].name);
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                fs.renameSync(oldPath, filePath);
+                console.log(`[MetaV2] ✅ Renamed to ${filename}`);
+                return { success: true, filePath };
+            }
+        } catch (err) {
+            console.log(`[MetaV2] ⚠️ File handling error: ${err.message}`);
+        }
+    }
+
+    // Method 3: Extract blob URL via page and save
+    if (videoUrl && videoUrl.startsWith('blob:')) {
+        console.log('[MetaV2] Trying blob extraction...');
+        const blobData = await page.evaluate(async (blobUrl) => {
+            try {
+                const resp = await fetch(blobUrl);
+                const blob = await resp.blob();
+                const reader = new FileReader();
+                return new Promise(resolve => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(blob);
+                });
+            } catch { return null; }
+        }, videoUrl);
+
+        if (blobData) {
+            const base64Data = blobData.split(',')[1];
+            const buffer = Buffer.from(base64Data, 'base64');
+            fs.writeFileSync(filePath, buffer);
+            console.log(`[MetaV2] ✅ Downloaded blob: ${filename} (${buffer.length} bytes)`);
+            return { success: true, filePath };
+        }
+    }
+
+    return { success: false, error: 'All download methods failed' };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -403,64 +341,103 @@ async function generateVideosMetaV2(browser, scenes, options = {}) {
     const {
         projectDir,
         aspectRatio = '16:9',
-        mode = 'video',
-        isI2V = false,
         onProgress = () => { }
     } = options;
 
     const videoDir = path.join(projectDir, 'videos');
     if (!fs.existsSync(videoDir)) fs.mkdirSync(videoDir, { recursive: true });
 
-    const downloadWatcher = new DownloadWatcher(videoDir);
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1920, height: 1080 });
-    await downloadWatcher.setupCDP(page);
+    // Find or open Meta tab (reuse existing)
+    const pages = await browser.pages();
+    let page = pages.find(p => p.url().includes('meta.ai'));
 
-    // Inject cookies & navigate
-    await SM.injectCookies(page, 'meta');
-    await page.goto('https://www.meta.ai/', { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(3000);
+    if (!page) {
+        console.log('[MetaV2] Opening new Meta.ai tab...');
+        page = await browser.newPage();
+        await SM.injectCookies(page, 'meta');
+        await page.goto('https://www.meta.ai/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await delay(3000);
+    } else {
+        console.log('[MetaV2] ✅ Reusing existing Meta.ai tab');
+        await page.bringToFront();
+    }
 
-    // Configure UI (mode, aspect ratio)
-    await configureUI(page, { aspectRatio, mode });
+    await page.setBypassCSP(true);
+
+    // Configure UI
+    await configureUI(page, { aspectRatio });
 
     // Process scenes
     const results = [];
     for (let i = 0; i < scenes.length; i++) {
-        const scene = { ...scenes[i], index: i };
+        const scene = scenes[i];
+        const sceneNum = i + 1;
+        const prompt = scene.prompt;
+
+        if (!prompt || prompt.length < 5) {
+            console.log(`[MetaV2] ⚠️ Scene ${sceneNum}: Empty/short prompt, skipping`);
+            results.push({ sceneIndex: i, status: 'failed', error: 'Empty prompt', attempts: 0 });
+            continue;
+        }
 
         onProgress({
-            sceneIndex: i,
-            totalScenes: scenes.length,
-            status: 'generating',
-            pct: Math.round((i / scenes.length) * 100)
+            sceneIndex: i, totalScenes: scenes.length,
+            status: 'generating', pct: Math.round((i / scenes.length) * 100)
         });
 
-        let attempts = 0;
         let success = false;
+        let attempts = 0;
 
         while (attempts < 3 && !success) {
             attempts++;
+            console.log(`[MetaV2] 🎬 Scene ${sceneNum} (attempt ${attempts}/3): "${prompt.substring(0, 80)}..."`);
+
             try {
-                let result;
-                if (isI2V) {
-                    result = await generateI2VScene(page, scene, downloadWatcher);
+                await typePrompt(page, prompt);
+                await submitPrompt(page);
+
+                const videoUrl = await waitForVideo(page, 180000);
+                if (!videoUrl) throw new Error('No video within 3 minutes');
+
+                console.log(`[MetaV2] 🎥 Scene ${sceneNum}: Video detected`);
+
+                const result = await downloadVideo(page, videoUrl, videoDir, sceneNum);
+
+                if (result.success) {
+                    results.push({ sceneIndex: i, status: 'done', filePath: result.filePath, attempts });
+                    success = true;
+
+                    onProgress({
+                        sceneIndex: i, totalScenes: scenes.length,
+                        status: 'done', filePath: result.filePath,
+                        pct: Math.round(((i + 1) / scenes.length) * 100)
+                    });
                 } else {
-                    result = await generateScene(page, scene, downloadWatcher);
+                    throw new Error(result.error || 'Download failed');
                 }
 
-                results.push({ sceneIndex: i, status: 'done', filePath: result.filePath, attempts });
-                success = true;
-
-                onProgress({
-                    sceneIndex: i,
-                    totalScenes: scenes.length,
-                    status: 'done',
-                    filePath: result.filePath,
-                    pct: Math.round(((i + 1) / scenes.length) * 100)
-                });
             } catch (err) {
-                console.log(`[MetaV2] ❌ Scene ${i + 1} attempt ${attempts}/3: ${err.message}`);
+                console.log(`[MetaV2] ❌ Scene ${sceneNum} attempt ${attempts}/3: ${err.message}`);
+
+                // Recovery on page crash
+                if (err.message.includes('destroyed') || err.message.includes('Target closed') || err.message.includes('timed out')) {
+                    console.log('[MetaV2] 🔄 Recovering...');
+                    try {
+                        const currentPages = await browser.pages();
+                        page = currentPages.find(p => p.url().includes('meta.ai'));
+                        if (!page) {
+                            page = await browser.newPage();
+                            await SM.injectCookies(page, 'meta');
+                            await page.goto('https://www.meta.ai/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+                            await page.setBypassCSP(true);
+                            await delay(3000);
+                            await configureUI(page, { aspectRatio });
+                        }
+                    } catch (recoveryErr) {
+                        console.log(`[MetaV2] ❌ Recovery failed: ${recoveryErr.message}`);
+                    }
+                }
+
                 if (attempts >= 3) {
                     results.push({ sceneIndex: i, status: 'failed', error: err.message, attempts });
                     onProgress({ sceneIndex: i, totalScenes: scenes.length, status: 'failed', error: err.message });
@@ -472,12 +449,9 @@ async function generateVideosMetaV2(browser, scenes, options = {}) {
         if (i < scenes.length - 1) await delay(5000);
     }
 
-    await page.close();
     const doneCount = results.filter(r => r.status === 'done').length;
     console.log(`[MetaV2] 🏁 Batch complete: ${doneCount}/${scenes.length} scenes`);
     return results;
 }
 
-function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-module.exports = { generateVideosMetaV2, configureUI, generateScene, generateI2VScene };
+module.exports = { generateVideosMetaV2, configureUI };
