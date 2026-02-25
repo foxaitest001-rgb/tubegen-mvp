@@ -28,6 +28,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [videoSource, setVideoSource] = useState<VideoSource>('meta')
   const [pipelineMode, setPipelineMode] = useState<PipelineMode>('pro')
+  const [aspectRatio, setAspectRatio] = useState('16:9')
   const [channelStyle, setChannelStyle] = useState('')
 
   const [directorLogs, setDirectorLogs] = useState<string[]>([]);
@@ -129,7 +130,7 @@ function App() {
 
       scriptResult.title = projectName;
       scriptResult.visualStyle = config.visualStyle || 'Cinematic';
-      scriptResult.aspectRatio = config.aspectRatio || '16:9';
+      scriptResult.aspectRatio = config.aspectRatio || aspectRatio || '16:9';
       scriptResult.platform = config.platform || 'YouTube';
       scriptResult.mood = config.mood || 'Cinematic';
       scriptResult.videoSource = videoSource;
@@ -329,6 +330,37 @@ function App() {
             >
               Grok
             </button>
+          </div>
+
+          {/* Video Format Selector */}
+          <div className="ftg-source-toggle">
+            <div className="ftg-channel-label">
+              <Film className="ftg-icon-xs" />
+              Video Format
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => setAspectRatio('16:9')}
+                className={`ftg-toggle-btn ${aspectRatio === '16:9' ? 'ftg-toggle-btn--active' : ''}`}
+                title="YouTube / Landscape"
+              >
+                📺 16:9
+              </button>
+              <button
+                onClick={() => setAspectRatio('9:16')}
+                className={`ftg-toggle-btn ${aspectRatio === '9:16' ? 'ftg-toggle-btn--active' : ''}`}
+                title="Shorts / TikTok / Reels"
+              >
+                📱 9:16
+              </button>
+              <button
+                onClick={() => setAspectRatio('1:1')}
+                className={`ftg-toggle-btn ${aspectRatio === '1:1' ? 'ftg-toggle-btn--active' : ''}`}
+                title="Instagram / Square"
+              >
+                ⬜ 1:1
+              </button>
+            </div>
           </div>
 
           {/* Channel Style Selector */}

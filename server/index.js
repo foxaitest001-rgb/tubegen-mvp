@@ -16,9 +16,15 @@ const { generateVideosGrokI2V } = require('./grok_i2v_director');
 const KB = require('./knowledge_base');
 const SM = require('./session_manager');
 
+// V7 Robust Directors (extension-inspired)
+const { generateVideosGrokV2 } = require('./grok_director_v2');
+const { generateVideosMetaV2 } = require('./meta_director_v2');
+const { generateImagesWhiskV2 } = require('./whisk_director_v2');
+const { BatchQueue } = require('./batch_queue');
+
 const app = express();
 const PORT = 3001;
-const VERSION = 'v6.0 (COOKIE SESSION MANAGER + PRO PIPELINE)';
+const VERSION = 'v7.0 (ROBUST DIRECTORS + BATCH QUEUE)';
 
 // ── Middleware ──
 app.use(cors());
@@ -1676,10 +1682,47 @@ app.post('/generate-video', async (req, res) => {
     // Route to Grok or Meta.ai Director based on videoSource
     const videoSource = scriptData.videoSource || 'meta';
     directorLog(0, "SOURCE", `🎯 Video source: ${videoSource === 'grok' ? 'Grok.com' : 'Meta.ai'}`);
+    directorLog(0, "ENGINE", `⚡ Using v2 Robust Directors (MutationObserver + CDP)`);
 
-    const directorFn = videoSource === 'grok' ? generateVideoGrok : generateVideo;
+    // V7: Use robust v2 directors
+    const runV2Pipeline = async () => {
+        let browser;
+        try {
+            browser = await puppeteer.connect({
+                browserURL: 'http://127.0.0.1:9222',
+                defaultViewport: null
+            });
+            directorLog(0, "BROWSER", "🔗 Connected to Chrome");
+        } catch (err) {
+            directorLog(0, "ERROR", `Chrome connect failed: ${err.message}. Falling back to v1...`);
+            // Fallback to v1
+            const directorFn = videoSource === 'grok' ? generateVideoGrok : generateVideo;
+            return directorFn(scriptData.structure, projectDir, visualStyle, aspectRatio, newJobId, styleDNA);
+        }
 
-    directorFn(scriptData.structure, projectDir, visualStyle, aspectRatio, newJobId, styleDNA)
+        const scenes = scriptData.structure.map((s, i) => ({
+            prompt: s.visual_prompt || s.visual || s.description || `Scene ${i + 1}`,
+            index: i
+        }));
+
+        const onProgress = (p) => {
+            directorLog(p.sceneIndex + 1, p.status === 'done' ? 'DONE' : p.status === 'failed' ? 'FAIL' : 'GEN',
+                p.status === 'done' ? `✅ Scene ${p.sceneIndex + 1}/${p.totalScenes} downloaded` :
+                    p.status === 'failed' ? `❌ Scene ${p.sceneIndex + 1} failed: ${p.error}` :
+                        `⏳ Scene ${p.sceneIndex + 1}/${p.totalScenes} generating... (${p.pct}%)`);
+        };
+
+        const generateFn = videoSource === 'grok' ? generateVideosGrokV2 : generateVideosMetaV2;
+        return generateFn(browser, scenes, {
+            projectDir: projectDir.server,
+            aspectRatio,
+            mode: 'video',
+            isI2V: false,
+            onProgress
+        });
+    };
+
+    runV2Pipeline()
         .then(() => {
             directorState.isRunning = false;
             directorLog(0, "COMPLETE", `🎉 ${videoSource === 'grok' ? 'Grok' : 'Meta.ai'} Director job finished successfully!`);
