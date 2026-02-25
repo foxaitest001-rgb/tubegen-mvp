@@ -1,17 +1,34 @@
 
 import { useState, useRef, useEffect } from 'react'
 import './App.css'
-import { Settings, Download, Zap } from 'lucide-react';
+import { Settings, Download, Zap, Film, Sparkles } from 'lucide-react';
 import { ConsultantChat } from './components/ConsultantChat'
+import { AccountManager } from './components/AccountManager'
 import { generateNarrative } from './services/puter'
 
 type VideoSource = 'meta' | 'grok';
+type PipelineMode = 'quick' | 'pro';
+
+// Channel archetypes from Knowledge Base
+const CHANNEL_STYLES = [
+  { id: '', name: 'Custom', niche: 'Your own style', icon: '✨' },
+  { id: 'workflow_kurzgesagt', name: 'Kurzgesagt', niche: 'Science/Education', icon: '🔬' },
+  { id: 'workflow_llama_arts', name: 'Llama Arts', niche: 'Horror/Animated', icon: '👻' },
+  { id: 'workflow_nick_invests', name: 'Nick Invests', niche: 'Finance', icon: '💰' },
+  { id: 'workflow_serious_history', name: 'Serious History', niche: 'Documentary', icon: '📜' },
+  { id: 'workflow_infographics', name: 'Infographics Show', niche: 'Explainer', icon: '📊' },
+  { id: 'workflow_zinny', name: 'Zinny Studio', niche: 'AI/Business', icon: '🤖' },
+  { id: 'workflow_ai_politician', name: 'AI Politician', niche: 'Political Drama', icon: '🏛️' },
+  { id: 'workflow_warren_buffet', name: 'Warren Buffet', niche: 'Investment', icon: '📈' },
+];
 
 function App() {
   const [niche, setNiche] = useState('')
   const [topic, setTopic] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [videoSource, setVideoSource] = useState<VideoSource>('meta')
+  const [pipelineMode, setPipelineMode] = useState<PipelineMode>('pro')
+  const [channelStyle, setChannelStyle] = useState('')
 
   const [directorLogs, setDirectorLogs] = useState<string[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null)
@@ -60,6 +77,8 @@ function App() {
   const handleApplyConfig = (config: any) => {
     if (config.topic) setTopic(config.topic);
     if (config.niche) setNiche(config.niche);
+    // Note: pipelineMode is NOT applied here — the user's Quick/Pro toggle takes priority
+    if (config.channelStyle) setChannelStyle(config.channelStyle);
   };
 
   const handleStartPipeline = async (config: any) => {
@@ -68,7 +87,10 @@ function App() {
       setDirectorLogs(prev => [...prev, msg]);
     };
 
-    setDirectorLogs([`[Pipeline] 🔄 Initializing (${videoSource === 'grok' ? 'Grok' : 'Meta.ai'})...`]);
+    const mode = pipelineMode; // Always use the user's toggle, never the consultant's auto-detect
+    const source = videoSource === 'grok' ? 'Grok' : 'Meta.ai';
+
+    setDirectorLogs([`[Pipeline] 🔄 Initializing ${mode.toUpperCase()} mode (${source})...`]);
 
     try {
       await fetch(`${serverUrl}/control`, {
@@ -81,7 +103,12 @@ function App() {
       console.warn("Could not cancel previous job:", e);
     }
 
-    addLog(`[Pipeline] 🚀 Starting via ${videoSource === 'grok' ? 'Grok.com' : 'Meta.ai'}...`);
+    const activeChannel = config.channelStyle || channelStyle;
+    if (activeChannel) {
+      const ch = CHANNEL_STYLES.find(c => c.id === activeChannel);
+      addLog(`[Pipeline] 📺 Channel Style: ${ch?.name || activeChannel}`);
+    }
+    addLog(`[Pipeline] 🚀 Starting ${mode.toUpperCase()} via ${source}...`);
     addLog(`[Pipeline] 📡 Server: ${serverUrl}`);
 
     try {
@@ -106,8 +133,13 @@ function App() {
       scriptResult.platform = config.platform || 'YouTube';
       scriptResult.mood = config.mood || 'Cinematic';
       scriptResult.videoSource = videoSource;
+      scriptResult.channelStyle = activeChannel || undefined;
 
-      await fetch(`${serverUrl}/generate-video`, {
+      // Route to correct endpoint based on pipeline mode
+      const endpoint = mode === 'pro' ? '/generate-pipeline-pro' : '/generate-video';
+      addLog(`[Pipeline] 🔀 Routing to: ${endpoint}`);
+
+      await fetch(`${serverUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scriptData: scriptResult })
@@ -196,6 +228,7 @@ function App() {
 
   const sourceLabel = videoSource === 'grok' ? 'Grok' : 'Meta.ai';
   const hasVideo = finalVideoUrl || (projectFolder && directorLogs.some(l => l.includes('finished successfully')));
+  const activeChannelInfo = CHANNEL_STYLES.find(c => c.id === channelStyle);
 
   return (
     <div className="ftg-app">
@@ -264,6 +297,24 @@ function App() {
             <span className="ftg-logo-name">FoxTubeGen</span>
           </div>
 
+          {/* Pipeline Mode Toggle */}
+          <div className="ftg-mode-toggle">
+            <button
+              onClick={() => setPipelineMode('quick')}
+              className={`ftg-mode-btn ${pipelineMode === 'quick' ? 'ftg-mode-btn--active' : ''}`}
+            >
+              <Zap className="ftg-icon-xs" />
+              Quick
+            </button>
+            <button
+              onClick={() => setPipelineMode('pro')}
+              className={`ftg-mode-btn ${pipelineMode === 'pro' ? 'ftg-mode-btn--active ftg-mode-btn--pro' : ''}`}
+            >
+              <Film className="ftg-icon-xs" />
+              Pro
+            </button>
+          </div>
+
           {/* Source Toggle */}
           <div className="ftg-source-toggle">
             <button
@@ -279,14 +330,43 @@ function App() {
               Grok
             </button>
           </div>
+
+          {/* Channel Style Selector */}
+          <div className="ftg-channel-selector">
+            <div className="ftg-channel-label">
+              <Sparkles className="ftg-icon-xs" />
+              Channel Style
+            </div>
+            <div className="ftg-channel-grid">
+              {CHANNEL_STYLES.map(ch => (
+                <button
+                  key={ch.id}
+                  onClick={() => setChannelStyle(ch.id)}
+                  className={`ftg-channel-btn ${channelStyle === ch.id ? 'ftg-channel-btn--active' : ''}`}
+                  title={ch.niche}
+                >
+                  <span className="ftg-channel-icon">{ch.icon}</span>
+                  <span className="ftg-channel-name">{ch.name}</span>
+                </button>
+              ))}
+            </div>
+            {activeChannelInfo && activeChannelInfo.id && (
+              <p className="ftg-channel-desc">{activeChannelInfo.niche}</p>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Account Session Manager */}
+      <AccountManager serverUrl={serverUrl} />
 
       {/* Consultant Chat — inline, Grok-style */}
       <ConsultantChat
         onApplyConfig={handleApplyConfig}
         onStartPipeline={handleStartPipeline}
         videoSource={videoSource}
+        channelStyle={channelStyle}
+        serverUrl={serverUrl}
       />
 
       {/* Director Logs */}
@@ -295,7 +375,7 @@ function App() {
           <div className="ftg-logs-bar">
             <div className="ftg-logs-title">
               <span className="ftg-dot" />
-              <span>Director • {sourceLabel}</span>
+              <span>Director • {sourceLabel} • {pipelineMode.toUpperCase()}</span>
               <span className="ftg-logs-count">{directorLogs.length}</span>
             </div>
             <button onClick={() => setDirectorLogs([])} className="ftg-btn-clear">Clear</button>
@@ -305,9 +385,10 @@ function App() {
               <div
                 key={i}
                 className={`ftg-log ${log.includes('✅') || log.includes('🎉') ? 'ftg-log--ok' :
-                    log.includes('⚠') ? 'ftg-log--warn' :
-                      log.includes('❌') ? 'ftg-log--err' :
-                        log.includes('🚀') || log.includes('🎬') ? 'ftg-log--act' : ''
+                  log.includes('⚠') ? 'ftg-log--warn' :
+                    log.includes('❌') ? 'ftg-log--err' :
+                      log.includes('🚀') || log.includes('🎬') ? 'ftg-log--act' :
+                        log.includes('📚') || log.includes('📺') ? 'ftg-log--knowledge' : ''
                   }`}
               >
                 {log}

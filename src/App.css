@@ -697,3 +697,405 @@ body {
     transform: translateX(-50%) translateY(0);
   }
 }
+
+/* ─── Pipeline Mode Toggle ─── */
+.ftg-mode-toggle {
+  display: flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.ftg-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 28px;
+  border: none;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+}
+
+.ftg-mode-btn:hover {
+  color: var(--text);
+}
+
+.ftg-mode-btn--active {
+  background: var(--bg-hover);
+  color: #fff;
+}
+
+.ftg-mode-btn--pro {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+}
+
+.ftg-icon-xs {
+  width: 14px;
+  height: 14px;
+}
+
+/* ─── Channel Style Selector ─── */
+.ftg-channel-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 540px;
+}
+
+.ftg-channel-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ftg-channel-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ftg-channel-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: var(--bg-input);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.ftg-channel-btn:hover {
+  border-color: var(--border-focus);
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.ftg-channel-btn--active {
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #fff;
+  background: rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+}
+
+.ftg-channel-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ftg-channel-name {
+  line-height: 1;
+}
+
+.ftg-channel-desc {
+  font-size: 11px;
+  color: var(--text-mute);
+  text-align: center;
+}
+
+/* ─── Knowledge Log Style ─── */
+.ftg-log--knowledge {
+  color: #818cf8;
+  border-left: 2px solid rgba(99, 102, 241, 0.4);
+  padding-left: 8px;
+}
+
+/* ═══════════════════════════════════════════════════
+   Account Manager — Cookie Session Panel
+   ═══════════════════════════════════════════════════ */
+
+.ftg-accounts {
+  max-width: 640px;
+  margin: 0 auto 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.ftg-accounts-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.ftg-accounts-toggle:hover {
+  background: var(--bg-hover);
+}
+
+.ftg-accounts-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ftg-accounts-icon {
+  font-size: 16px;
+}
+
+.ftg-accounts-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--green);
+  background: rgba(34, 197, 94, 0.1);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.ftg-chevron {
+  font-size: 12px;
+  color: var(--text-dim);
+  transition: transform 0.2s;
+}
+
+.ftg-chevron--open {
+  transform: rotate(90deg);
+}
+
+.ftg-accounts-panel {
+  padding: 0 20px 20px;
+}
+
+/* Instructions */
+.ftg-accounts-guide {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.ftg-guide-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ftg-guide-steps {
+  padding-left: 20px;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+
+.ftg-guide-steps strong {
+  color: var(--text);
+}
+
+/* Service Panel */
+.ftg-account-service {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: var(--bg-input);
+  transition: border-color 0.2s;
+}
+
+.ftg-account-service:hover {
+  border-color: var(--border-focus);
+}
+
+.ftg-account-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ftg-account-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Status Badges */
+.ftg-account-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.ftg-badge-empty {
+  color: var(--text-mute);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ftg-badge-loaded {
+  color: var(--amber);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.ftg-badge-verified {
+  color: var(--green);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+/* Stats */
+.ftg-account-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.ftg-account-domain {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  color: var(--text-mute);
+}
+
+/* Cookie Textarea */
+.ftg-account-textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 10px 12px;
+  resize: vertical;
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+}
+
+.ftg-account-textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.ftg-account-textarea::placeholder {
+  color: var(--text-mute);
+}
+
+/* Action Buttons */
+.ftg-account-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ftg-account-btn {
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ftg-account-btn:hover {
+  border-color: var(--border-focus);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ftg-account-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ftg-account-btn--load {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: var(--green);
+}
+
+.ftg-account-btn--load:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.ftg-account-btn--verify {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+.ftg-account-btn--verify:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.ftg-account-btn--remove {
+  padding: 7px 10px;
+  background: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.ftg-account-btn--remove:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Status Messages */
+.ftg-account-msg {
+  margin-top: 8px;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ftg-msg--ok {
+  color: var(--green);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.ftg-msg--err {
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.ftg-msg--warn {
+  color: var(--amber);
+  background: rgba(245, 158, 11, 0.08);
+}

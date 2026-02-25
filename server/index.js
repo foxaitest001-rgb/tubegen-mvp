@@ -4,12 +4,21 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 
 puppeteer.use(StealthPlugin());
 
+// V5 Pro Pipeline modules
+const { generateImagesWhisk } = require('./whisk_director');
+const { enrichScenesWithMotion, buildI2VPrompt } = require('./motion_prompts');
+const { generateVideosMetaI2V } = require('./meta_i2v_director');
+const { generateVideosGrokI2V } = require('./grok_i2v_director');
+const KB = require('./knowledge_base');
+const SM = require('./session_manager');
+
 const app = express();
 const PORT = 3001;
-const VERSION = 'v4.0 (GROK + META DUAL SOURCE)';
+const VERSION = 'v6.0 (COOKIE SESSION MANAGER + PRO PIPELINE)';
 
 // ═══════════════════════════════════════════════════════════════
 // STYLE DNA ARCHITECTURE - Helper Functions
@@ -213,7 +222,6 @@ async function interruptibleSleep(ms) {
 }
 
 // --- FFmpeg Video Assembly ---
-const { exec } = require('child_process');
 const util = require('util');
 const execAsync = util.promisify(exec);
 
@@ -427,6 +435,9 @@ async function generateVideoGrok(tasks, projectDir, visualStyle = 'Cinematic pho
     if (!page) {
         directorLog(0, "BROWSER", "Grok tab not found. Opening NEW tab...");
         page = await browser.newPage();
+        // SESSION MANAGER: Inject cookies before navigating
+        const grokInjected = await SM.injectCookies(page, 'grok');
+        if (grokInjected) directorLog(0, "SESSION", "🍪 Grok cookies injected");
         await page.goto('https://grok.com', { waitUntil: 'domcontentloaded', timeout: 0 });
     } else {
         directorLog(0, "BROWSER", "✅ Reusing existing Grok tab");
@@ -943,6 +954,9 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
         directorLog(0, "BROWSER", "Meta.ai tab not found. Opening NEW tab...");
         // Always open a new tab to ensure visibility (don't recycle background pages)
         page = await browser.newPage();
+        // SESSION MANAGER: Inject cookies before navigating
+        const metaInjected = await SM.injectCookies(page, 'meta');
+        if (metaInjected) directorLog(0, "SESSION", "🍪 Meta.ai cookies injected");
         await page.goto('https://www.meta.ai', { waitUntil: 'domcontentloaded', timeout: 0 });
     } else {
         directorLog(0, "BROWSER", "✅ Reusing existing Meta.ai tab");
@@ -1219,8 +1233,14 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
 
                     // SEND
                     directorLog(sceneNum, "STEP", "📍 Step 4: Sending prompt to Meta.ai...");
+
+                    // CRITICAL: Capture video count BEFORE sending prompt (baseline for new video detection)
+                    const videoCountBefore = await page.evaluate(() => {
+                        return document.querySelectorAll('video').length;
+                    });
+
                     await page.keyboard.press('Enter');
-                    directorLog(sceneNum, "STEP", "✓ Prompt sent! Waiting 30s for video generation...");
+                    directorLog(sceneNum, "STEP", `✓ Prompt sent! Waiting 30s for video generation... (${videoCountBefore} existing videos)`);
 
                     // WAIT - Reduced from 90s to 30s
                     await interruptibleSleep(30000);
@@ -1230,20 +1250,13 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                     try {
                         directorLog(sceneNum, "STEP", "📍 Step 5: locating generated content...");
 
-                        // Smart Scroll: Instead of jumping to bottom (which might hide content behind input box),
-                        // we verify if we need to scroll.
+                        // Scroll to BOTTOM of page to reveal newly generated content
                         await page.evaluate(() => {
-                            // Scroll down a "little bit" (approx 300px) to reveal newly loaded content below the fold
-                            window.scrollBy(0, 300);
+                            window.scrollTo(0, document.body.scrollHeight);
                         });
                         await new Promise(r => setTimeout(r, 2000));
 
-                        // Get count of videos BEFORE generation completes
-                        const videoCountBefore = await page.evaluate(() => {
-                            return document.querySelectorAll('video').length;
-                        });
-
-                        directorLog(sceneNum, "STEP", `📍 Step 6: Detecting new video... (Found ${videoCountBefore} existing)`);
+                        directorLog(sceneNum, "STEP", `📍 Step 6: Detecting new video... (Had ${videoCountBefore} before prompt)`);
 
                         // Wait for a NEW video to appear (poll every 5s)
                         let newVideoFound = false;
@@ -1253,10 +1266,10 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         while (!newVideoFound && retryCount < maxRetries) {
                             if (directorState.restart) break;
 
-                            // Incremental Scroll to prod lazy loading
+                            // Scroll to bottom to prod lazy loading and reveal new content
                             await page.evaluate(() => {
-                                window.scrollBy(0, 100);
-                                // Also try to find the last loading indicator or video and scroll to it
+                                window.scrollTo(0, document.body.scrollHeight);
+                                // Also scroll to the last video element if any
                                 const vids = document.querySelectorAll('video');
                                 if (vids.length > 0) vids[vids.length - 1].scrollIntoView({ behavior: "smooth", block: "center" });
                             });
@@ -1274,12 +1287,16 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                                 };
                             }, videoCountBefore);
 
-                            if (currentInfo.validCount > 0 && (currentInfo.hasNew || retryCount > 2)) {
+                            if (currentInfo.hasNew && currentInfo.validCount > 0) {
                                 newVideoFound = true;
-                                directorLog(sceneNum, `Shot ${shotNum}`, `✅ New video detected! (${currentInfo.validCount} valid videos)`);
+                                directorLog(sceneNum, `Shot ${shotNum}`, `✅ New video detected! (${currentInfo.validCount} valid, was ${videoCountBefore})`);
+                            } else if (retryCount > 5 && currentInfo.validCount > 0) {
+                                // Fallback after 30s: accept whatever valid video is last
+                                newVideoFound = true;
+                                directorLog(sceneNum, `Shot ${shotNum}`, `⚠️ Fallback: accepting last valid video after ${retryCount * 5}s`);
                             } else {
                                 retryCount++;
-                                directorLog(sceneNum, `Shot ${shotNum}`, `⏳ Waiting for video... (${retryCount * 5}s / 60s max)`);
+                                directorLog(sceneNum, `Shot ${shotNum}`, `⏳ Waiting for video... (${retryCount * 5}s / 75s max)`);
                                 await interruptibleSleep(5000); // 5 second intervals instead of 10
                             }
                         }
@@ -1305,6 +1322,9 @@ async function generateVideo(tasks, projectDir, visualStyle = 'Cinematic photore
                         if (!latestVideoSrc) {
                             throw new Error("No valid video source found after waiting.");
                         }
+
+                        // Extra wait for scroll to settle before hover
+                        await new Promise(r => setTimeout(r, 1500));
 
                         directorLog(sceneNum, "STEP", `📍 Step 7: Hovering over video element...`);
 
@@ -1674,6 +1694,214 @@ app.post('/generate-video', async (req, res) => {
     });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// PRO PIPELINE — Whisk Images → I2V Videos → FFmpeg Assembly
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// KNOWLEDGE BASE API ENDPOINTS
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/knowledge/styles', (req, res) => {
+    res.json(KB.getAllVisualStyles());
+});
+
+app.get('/knowledge/styles/:name', (req, res) => {
+    const style = KB.getVisualStyle(req.params.name);
+    if (!style) return res.status(404).json({ error: 'Style not found' });
+    res.json(style);
+});
+
+app.get('/knowledge/channels', (req, res) => {
+    res.json(KB.getAllChannelWorkflows());
+});
+
+app.get('/knowledge/channels/:name', (req, res) => {
+    const wf = KB.getChannelWorkflow(req.params.name);
+    if (!wf) return res.status(404).json({ error: 'Channel workflow not found' });
+    res.json(wf);
+});
+
+app.get('/knowledge/camera', (req, res) => {
+    res.json(KB.getAllCameraShots());
+});
+
+app.get('/knowledge/lighting', (req, res) => {
+    res.json(KB.getAllLightingStyles());
+});
+
+app.get('/knowledge/thumbnails', (req, res) => {
+    res.json(KB.getThumbnailRules());
+});
+
+app.get('/knowledge/consultant-context/:channelStyle', (req, res) => {
+    const context = KB.buildConsultantContext(req.params.channelStyle);
+    res.json({ context, styleMenu: KB.buildStyleMenu() });
+});
+
+app.get('/knowledge/summary', (req, res) => {
+    res.json(KB.getKnowledgeSummary());
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PRO PIPELINE ENDPOINT
+// ═══════════════════════════════════════════════════════════════
+
+app.post('/generate-pipeline-pro', async (req, res) => {
+    const { scriptData } = req.body;
+    if (!scriptData || !scriptData.structure) {
+        return res.status(400).json({ error: "Missing scriptData or structure" });
+    }
+
+    if (directorState.isRunning) {
+        return res.status(409).json({ error: "A job is already running" });
+    }
+
+    directorState.isRunning = true;
+    const newJobId = `pro_${Date.now()}`;
+    directorState.currentJobId = newJobId;
+    directorState.logs = [];
+
+    const visualStyle = scriptData.visualStyle || 'Cinematic photorealistic';
+    const aspectRatio = scriptData.aspectRatio || '16:9';
+    const mood = scriptData.mood || 'cinematic';
+    const styleDNA = scriptData.style_dna || null;
+    const subjectRegistry = scriptData.subject_registry || [];
+    const videoSource = scriptData.videoSource || 'meta';
+    const channelStyle = scriptData.channelStyle || null;
+
+    // Create project folder
+    const projectDir = createProjectFolder(scriptData.topic || 'pro_pipeline');
+
+    directorLog(0, "PRO_PIPELINE", `🚀 Pro Pipeline started: ${newJobId}`);
+    directorLog(0, "CONFIG", `Visual: ${visualStyle} | Subjects: ${subjectRegistry.length} | Scenes: ${scriptData.structure.length}`);
+    directorLog(0, "CONFIG", `Video Source: ${videoSource} | Mode: Image-to-Video`);
+
+    // ─── Knowledge Base Enrichment ───
+    if (channelStyle) {
+        const wf = KB.getChannelWorkflow(channelStyle);
+        if (wf) {
+            directorLog(0, "KNOWLEDGE", `📚 Channel archetype: ${wf.name} (${wf.niche})`);
+            directorLog(0, "KNOWLEDGE", `🎬 Script structure: ${wf.script_structure}`);
+            directorLog(0, "KNOWLEDGE", `📷 Camera defaults: ${wf.camera_defaults.join(', ')}`);
+            directorLog(0, "KNOWLEDGE", `💡 Lighting defaults: ${wf.lighting_defaults.join(', ')}`);
+        }
+    }
+    const styleInfo = KB.getVisualStyle(visualStyle);
+    if (styleInfo) {
+        directorLog(0, "KNOWLEDGE", `🎨 Visual style loaded: ${styleInfo.name} (${styleInfo.category})`);
+    }
+
+    // Enrich scenes with motion prompts
+    const enrichedScenes = enrichScenesWithMotion(scriptData.structure, mood);
+    directorLog(0, "MOTION", `🎥 Motion prompts assigned to ${enrichedScenes.length} scenes`);
+
+    // Enrich scenes with knowledge-based camera/lighting/style intelligence
+    for (const scene of enrichedScenes) {
+        const enrichment = KB.enrichScenePrompt(scene, visualStyle, channelStyle);
+        scene._enrichedPrompt = enrichment.enrichedPrompt;
+        scene._negativePrompt = enrichment.negativePrompt;
+        scene._cameraKeywords = enrichment.cameraKeywords;
+        scene._lightingKeywords = enrichment.lightingKeywords;
+        scene._enrichedMotion = KB.enrichMotionPrompt(scene, visualStyle);
+    }
+    directorLog(0, "KNOWLEDGE", `📝 ${enrichedScenes.length} scenes enriched with camera/lighting/style intelligence`);
+
+    // Run the pipeline in background
+    (async () => {
+        try {
+            // ─── Phase 1: Generate Images with Whisk ───
+            directorLog(0, "PHASE", "━━━ PHASE 1: Image Generation (Whisk) ━━━");
+
+            // Connect to browser
+            let browser;
+            try {
+                browser = await puppeteer.connect({
+                    browserURL: 'http://127.0.0.1:9222',
+                    defaultViewport: null
+                });
+                directorLog(0, "BROWSER", "🔗 Connected to Chrome");
+            } catch (err) {
+                directorLog(0, "ERROR", `Failed to connect to Chrome: ${err.message}`);
+                directorState.isRunning = false;
+                return;
+            }
+
+            const whiskResult = await generateImagesWhisk(
+                enrichedScenes,
+                subjectRegistry,
+                projectDir.server,
+                visualStyle,
+                styleDNA?.visual_identity || null,
+                browser,
+                directorLog,
+                aspectRatio
+            );
+
+            directorLog(0, "PHASE1_DONE", `✅ Whisk generated ${whiskResult.sceneImages.length} scene images`);
+
+            // ─── Phase 2: Image-to-Video (I2V) ───
+            directorLog(0, "PHASE", "━━━ PHASE 2: Image-to-Video (I2V) ━━━");
+            directorLog(0, "I2V", `🎬 I2V Director: ${videoSource} (${whiskResult.sceneImages.length} images to animate)`);
+
+            let i2vResults = [];
+
+            if (videoSource === 'grok') {
+                i2vResults = await generateVideosGrokI2V(
+                    whiskResult.sceneImages,
+                    enrichedScenes,
+                    projectDir.server,
+                    aspectRatio,
+                    browser,
+                    directorLog
+                );
+            } else {
+                i2vResults = await generateVideosMetaI2V(
+                    whiskResult.sceneImages,
+                    enrichedScenes,
+                    projectDir.server,
+                    aspectRatio,
+                    browser,
+                    directorLog
+                );
+            }
+
+            const successCount = i2vResults.filter(r => r.success).length;
+            directorLog(0, "PHASE2_DONE", `✅ I2V generated ${successCount}/${whiskResult.sceneImages.length} video clips`);
+
+            // ─── Phase 3: FFmpeg Assembly ───
+            directorLog(0, "PHASE", "━━━ PHASE 3: Assembly ━━━");
+
+            if (successCount > 0) {
+                const videoFiles = i2vResults.filter(r => r.success).map(r => r.videoPath);
+                directorLog(0, "ASSEMBLY", `🔨 ${videoFiles.length} clips ready for FFmpeg assembly`);
+                // TODO: Sprint 5 — FFmpeg concatenation
+                directorLog(0, "ASSEMBLY", "⏳ FFmpeg assembly will be added in Sprint 5");
+            } else {
+                directorLog(0, "ASSEMBLY", "⚠️ No video clips to assemble");
+            }
+
+            directorState.isRunning = false;
+            directorLog(0, "COMPLETE", `🎉 Pro Pipeline complete! ${whiskResult.sceneImages.length} images → ${successCount} videos`);
+
+        } catch (err) {
+            directorState.isRunning = false;
+            directorLog(0, "ERROR", `Pro Pipeline failed: ${err.message}`);
+        }
+    })();
+
+    res.json({
+        status: "started",
+        message: "Pro Pipeline started (Phase 1: Whisk Image Generation)",
+        projectFolder: projectDir.name,
+        visualStyle,
+        aspectRatio,
+        jobId: newJobId,
+        pipelineMode: 'pro',
+        videoSource,
+        phases: ['whisk_images', 'i2v_video', 'assembly']
+    });
+});
+
 app.post('/save-audio', async (req, res) => {
     try {
         const { filename, audioData, projectName } = req.body;
@@ -1771,7 +1999,62 @@ app.post('/generate-voiceover', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// ACCOUNT SESSION MANAGEMENT API
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/accounts/status', (req, res) => {
+    res.json(SM.getStatus());
+});
+
+app.post('/accounts/:service/load', (req, res) => {
+    const { service } = req.params;
+    const { cookies } = req.body;
+    if (!cookies) return res.status(400).json({ error: 'Missing cookies field' });
+    const result = SM.loadSession(service, cookies);
+    res.json(result);
+});
+
+app.post('/accounts/:service/verify', async (req, res) => {
+    const { service } = req.params;
+    try {
+        // Use existing browser if available, otherwise launch a temporary one
+        let tempBrowser = null;
+        let browserToUse = null;
+
+        // Try to connect to existing browser
+        try {
+            const puppeteerCore = require('puppeteer-extra');
+            browserToUse = await puppeteerCore.launch({
+                headless: false,
+                defaultViewport: null,
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--window-position=0,0']
+            });
+            tempBrowser = browserToUse;
+        } catch (e) {
+            return res.status(500).json({ error: 'Cannot launch browser for verification' });
+        }
+
+        const result = await SM.verifySession(service, browserToUse);
+
+        // Close temp browser
+        if (tempBrowser) {
+            await tempBrowser.close().catch(() => { });
+        }
+
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/accounts/:service/remove', (req, res) => {
+    const result = SM.removeSession(req.params.service);
+    res.json(result);
+});
+
 app.listen(PORT, () => {
     console.log(`[DIRECTOR AGENT] ${VERSION} - Server running on http://localhost:${PORT}`);
     console.log(`[DIRECTOR AGENT] Output Dirs: \n - Public: ${PUBLIC_OUTPUT_DIR} \n - Server: ${SERVER_OUTPUT_DIR}`);
+    console.log(`[SESSION MGR] Account status:`, JSON.stringify(SM.getStatus()));
 });
