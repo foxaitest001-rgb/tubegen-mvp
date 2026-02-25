@@ -1,0 +1,102 @@
+[
+  {
+    "shot_type": "Wide Establishing Shot",
+    "keywords": [
+      "wide establishing shot",
+      "panoramic shot",
+      "long shot"
+    ],
+    "narrative_impact": "Captures a large area to provide context, establish the setting, and show the subject's relationship to their environment."
+  },
+  {
+    "shot_type": "Full Shot",
+    "keywords": [
+      "full shot",
+      "long shot"
+    ],
+    "narrative_impact": "Frames a character from head to toe. It's ideal for capturing full-body action and physical performance."
+  },
+  {
+    "shot_type": "Medium Shot",
+    "keywords": [
+      "medium shot",
+      "waist-up framing"
+    ],
+    "narrative_impact": "Frames the subject from the waist up. It balances character detail with environmental context and is the standard for dialogue scenes."
+  },
+  {
+    "shot_type": "Close-Up",
+    "keywords": [
+      "close-up",
+      "tight framing"
+    ],
+    "narrative_impact": "Highlights fine details and captures subtle emotions. It creates a sense of intimacy and directs the viewer's focus to a critical element."
+  },
+  {
+    "shot_type": "Extreme Close-Up",
+    "keywords": [
+      "extreme close-up",
+      "macro shot"
+    ],
+    "narrative_impact": "Focuses on intense detail, such as an eye or a texture, to convey heightened emotion, tension, or significance."
+  },
+  {
+    "shot_type": "Over-the-Shoulder Shot",
+    "keywords": [
+      "over-the-shoulder shot",
+      "OTS"
+    ],
+    "narrative_impact": "Frames a conversation from behind one character, establishing intimacy, connection, and a clear point of view for dialogue scenes."
+  },
+  {
+    "shot_type": "Eye-Level Shot",
+    "keywords": [
+      "eye-level shot",
+      "neutral perspective"
+    ],
+    "narrative_impact": "Positions the camera at the subject's eye level, creating a sense of connection, relatability, and conversational realism."
+  },
+  {
+    "shot_type": "Low-Angle Shot",
+    "keywords": [
+      "low angle shot",
+      "from below"
+    ],
+    "narrative_impact": "Makes the subject appear powerful, dominant, heroic, or larger-than-life. It exaggerates stature and presence within the frame."
+  },
+  {
+    "shot_type": "High-Angle Shot",
+    "keywords": [
+      "high angle shot",
+      "from above",
+      "looking down"
+    ],
+    "narrative_impact": "Implies vulnerability, insignificance, or smallness. It can also provide a broader geographic context for a scene."
+  },
+  {
+    "shot_type": "Dutch Angle",
+    "keywords": [
+      "dutch angle",
+      "tilt shot",
+      "canted angle"
+    ],
+    "narrative_impact": "Tilts the camera's horizon line to evoke a sense of tension, psychological unease, disorientation, or danger."
+  },
+  {
+    "shot_type": "Bird's-Eye View",
+    "keywords": [
+      "bird's eye view",
+      "overhead shot",
+      "top-down view"
+    ],
+    "narrative_impact": "Positions the camera directly above the scene, offering an objective, map-like, or omniscient perspective that can reveal patterns and layouts."
+  },
+  {
+    "shot_type": "Ground Level/Worm's-Eye View",
+    "keywords": [
+      "ground level view",
+      "worm's-eye view"
+    ],
+    "narrative_impact": "Positions the camera extremely low to the ground, looking up. This creates a dramatic perspective that exaggerates scale and impact."
+  }
+]

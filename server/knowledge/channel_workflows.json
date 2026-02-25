@@ -1,0 +1,412 @@
+{
+  "workflow_kurzgesagt": {
+    "name": "Kurzgesagt Style",
+    "niche": "Science & Education (Animated)",
+    "visual_style": "Minimalistic vector art, bright saturated palette, smooth geometric shapes, circular frames",
+    "script_structure": "Big Question Hook → Scientific Evidence → Mind-Blowing Reveal → Philosophical Conclusion",
+    "narration_tone": "Curious, intelligent, cosmic scale wonder, accessible scientific language",
+    "character_type": "No presenter — animated characters/icons",
+    "workflow_questions": [
+      "Scientific topic or philosophical question",
+      "Central visual object for logo/branding"
+    ],
+    "style_keywords": [
+      "vector art",
+      "geometric shapes",
+      "clean lines",
+      "bright saturated",
+      "cosmic",
+      "infographic"
+    ],
+    "camera_defaults": [
+      "wide shot",
+      "bird's eye view",
+      "smooth zoom transitions"
+    ],
+    "lighting_defaults": [
+      "high-key",
+      "bright",
+      "flat colors with subtle gradients"
+    ],
+    "steps": [
+      {
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "inputs": "None",
+        "output": "50 channel name ideas",
+        "original_tool": "ChatGPT",
+        "prompt_template": "prompt_kurzgesagt_names"
+      },
+      {
+        "step_number": "2",
+        "step_name": "Logo",
+        "step_type": "generate",
+        "inputs": "INSERT_OBJECT",
+        "output": "Minimalistic vector-style illustration",
+        "original_tool": "Gemini",
+        "prompt_template": "prompt_kurzgesagt_logo"
+      },
+      {
+        "step_number": "3",
+        "step_name": "Video ideas",
+        "step_type": "research",
+        "inputs": "None",
+        "output": "20 original video ideas",
+        "original_tool": "Not in source",
+        "prompt_template": "prompt_kurzgesagt_ideas"
+      },
+      {
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "inputs": "INSERT_YOUR_TITLE_HERE",
+        "output": "YouTube script",
+        "original_tool": "Claude.ai",
+        "prompt_template": "prompt_kurzgesagt_script"
+      }
+    ]
+  },
+  "workflow_llama_arts": {
+    "name": "Llama Arts (Animated Horror)",
+    "niche": "Horror & Scary Stories (Animated)",
+    "visual_style": "Minimalist cartoon character, dark atmospheric scenes, animated storytelling",
+    "script_structure": "First-Person Narrator → Suspense Build → Creepy Encounter → Terror Climax → Disturbing Ending",
+    "narration_tone": "First-person, conversational, simple language, building dread, natural speech patterns",
+    "character_type": "Minimalist cartoon avatar (narrator)",
+    "workflow_questions": [
+      "Story title",
+      "Story premise/description",
+      "Character/avatar appearance",
+      "Background color theme"
+    ],
+    "style_keywords": [
+      "dark atmosphere",
+      "suspense",
+      "minimalist cartoon",
+      "horror animation",
+      "eerie lighting"
+    ],
+    "camera_defaults": [
+      "close-up",
+      "dutch angle",
+      "low angle",
+      "extreme close-up on eyes"
+    ],
+    "lighting_defaults": [
+      "low-key",
+      "film noir chiaroscuro",
+      "flickering lights",
+      "motivated by dim sources"
+    ],
+    "steps": [
+      {
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "inputs": "None",
+        "output": "20 channel name variations",
+        "original_tool": "Not in source",
+        "prompt_template": "prompt_llama_names"
+      },
+      {
+        "step_number": "2",
+        "step_name": "Logo",
+        "step_type": "generate",
+        "inputs": "INSERT_CHARACTER, COLOUR",
+        "output": "Minimalist cartoon character PFP",
+        "original_tool": "Gemini",
+        "prompt_template": "prompt_llama_logo"
+      },
+      {
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "inputs": "INSERT_STORY_NAME, INSERT_STORY_DESCRIPTION",
+        "output": "First-person horror script",
+        "original_tool": "Claude.ai or NotebookLM",
+        "prompt_template": "prompt_llama_script"
+      }
+    ]
+  },
+  "workflow_nick_invests": {
+    "name": "Nick Invests Style",
+    "niche": "Finance & Business Education",
+    "visual_style": "Dynamic infographics, stock footage overlay, professional clean look",
+    "script_structure": "Shocking Stat Hook → Challenge Assumptions → Evidence Chain → Actionable Takeaway",
+    "narration_tone": "Confrontational, challenges conventional thinking, uses shocking statistics, conversational authority",
+    "character_type": "No presenter — b-roll/infographic visuals",
+    "workflow_questions": [
+      "Financial topic or title",
+      "Target audience (beginners/investors)"
+    ],
+    "style_keywords": [
+      "professional",
+      "infographic",
+      "stock footage",
+      "dynamic text overlay",
+      "clean"
+    ],
+    "camera_defaults": [
+      "medium shot",
+      "eye-level",
+      "tracking shots"
+    ],
+    "lighting_defaults": [
+      "high-key",
+      "bright professional",
+      "soft box"
+    ],
+    "steps": [
+      {
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "inputs": "None",
+        "output": "List of words for channel name",
+        "original_tool": "Not in source",
+        "prompt_template": "prompt_nick_names"
+      },
+      {
+        "step_number": "4",
+        "step_name": "Script Prompt",
+        "step_type": "generate",
+        "inputs": "INSERT_YOUR_YOUTUBE_VIDEO_TITLE_HERE",
+        "output": "YouTube script",
+        "original_tool": "Claude.ai",
+        "prompt_template": "prompt_nick_script"
+      }
+    ]
+  },
+  "workflow_serious_history": {
+    "name": "Serious History Style",
+    "niche": "History & Documentary",
+    "visual_style": "Cinematic historical recreation, dramatic imagery, archival aesthetic",
+    "script_structure": "Historical Hook → Context Setting → Key Events → Surprising Revelations → Legacy/Impact",
+    "narration_tone": "Authoritative, dramatic, documentary storytelling, serious gravitas",
+    "character_type": "No presenter — historical imagery/recreation",
+    "workflow_questions": [
+      "Historical period or event",
+      "Video title"
+    ],
+    "style_keywords": [
+      "cinematic",
+      "historical",
+      "dramatic",
+      "archival",
+      "sepia undertones",
+      "documentary"
+    ],
+    "camera_defaults": [
+      "wide establishing shot",
+      "slow pan",
+      "medium shot"
+    ],
+    "lighting_defaults": [
+      "golden hour",
+      "low-key dramatic",
+      "motivated realism"
+    ],
+    "steps": [
+      {
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "inputs": "None",
+        "output": "20 unique channel name ideas",
+        "original_tool": "Not in source",
+        "prompt_template": "prompt_history_names"
+      },
+      {
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "inputs": "VIDEO_TITLE",
+        "output": "YouTube script",
+        "original_tool": "Claude.ai",
+        "prompt_template": "prompt_history_script"
+      }
+    ]
+  },
+  "workflow_infographics": {
+    "name": "The Infographics Show Style",
+    "niche": "Infographic Explainer",
+    "visual_style": "2D animated infographics, character-based explanations, comparison graphics",
+    "script_structure": "What-If Hook → Context/Setup → Deep Comparison → Shocking Facts → Conclusion",
+    "narration_tone": "Engaging, fast-paced, accessible, uses comparisons and analogies",
+    "character_type": "Simple 2D animated stick-figure characters",
+    "workflow_questions": [
+      "Topic or comparison",
+      "Video title"
+    ],
+    "style_keywords": [
+      "2D animation",
+      "infographic",
+      "comparison",
+      "character illustration",
+      "flat design"
+    ],
+    "camera_defaults": [
+      "full shot",
+      "medium shot",
+      "animated transitions"
+    ],
+    "lighting_defaults": [
+      "high-key",
+      "flat bright",
+      "colorful"
+    ],
+    "steps": [
+      {
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "inputs": "VIDEO_TITLE",
+        "output": "YouTube script",
+        "original_tool": "Claude.ai",
+        "prompt_template": "prompt_infographics_script"
+      }
+    ]
+  },
+  "workflow_zinny": {
+    "name": "Zinny Studio Style",
+    "niche": "AI & Business Education (Avatar Presenter)",
+    "visual_style": "3D AI avatar presenter, clean professional backgrounds, modern tech aesthetic",
+    "script_structure": "Trend Hook → Introduction → Value Sections (3-5 tips) → Community CTA",
+    "narration_tone": "Clear, friendly, intelligent, warm, confident but not salesy",
+    "character_type": "3D AI avatar (custom designed)",
+    "workflow_questions": [
+      "Character/avatar appearance",
+      "Topic",
+      "Channel name preference"
+    ],
+    "style_keywords": [
+      "3D avatar",
+      "professional",
+      "clean background",
+      "modern",
+      "tech aesthetic",
+      "talking head"
+    ],
+    "camera_defaults": [
+      "medium shot",
+      "eye-level",
+      "slight zoom transitions"
+    ],
+    "lighting_defaults": [
+      "soft box",
+      "high-key",
+      "clean professional studio lighting"
+    ],
+    "steps": [
+      {
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "inputs": "None",
+        "output": "30 unique channel names",
+        "original_tool": "Not in source",
+        "prompt_template": "prompt_zinny_names"
+      },
+      {
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "inputs": "TITLE",
+        "output": "YouTube script",
+        "original_tool": "NotebookLM",
+        "prompt_template": "prompt_zinny_script"
+      }
+    ]
+  },
+  "workflow_ai_politician": {
+    "name": "AI Politician (Ahmad Rushdi) Style",
+    "niche": "Political Drama & Commentary",
+    "visual_style": "Hyper-realistic AI-generated political figure, formal office setting, cinematic photography",
+    "script_structure": "Dramatic Opening → Political Setup → Conflict/Drama → Resolution/Cliffhanger",
+    "narration_tone": "Dramatic, authoritative, political gravitas, suspenseful storytelling",
+    "character_type": "Hyper-realistic AI-generated middle-aged government figure",
+    "workflow_questions": [
+      "Political scenario/topic",
+      "Character name and appearance"
+    ],
+    "style_keywords": [
+      "hyper-realistic",
+      "cinematic photograph",
+      "16:9",
+      "formal setting",
+      "polished desk",
+      "government office"
+    ],
+    "camera_defaults": [
+      "medium shot",
+      "close-up",
+      "over-the-shoulder"
+    ],
+    "lighting_defaults": [
+      "low-key dramatic",
+      "motivated realism",
+      "warm desk lamp"
+    ],
+    "steps": [
+      {
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "inputs": "None",
+        "output": "20 channel names",
+        "original_tool": "Not in source",
+        "prompt_template": "prompt_politician_names"
+      },
+      {
+        "step_number": "2",
+        "step_name": "Avatar",
+        "step_type": "generate",
+        "inputs": "None",
+        "output": "Hyper-realistic cinematic photograph",
+        "original_tool": "Gemini",
+        "prompt_template": "prompt_politician_avatar"
+      },
+      {
+        "step_number": "3",
+        "step_name": "Video ideas",
+        "step_type": "research",
+        "inputs": "None",
+        "output": "20 unique video ideas",
+        "original_tool": "Not in source",
+        "prompt_template": "prompt_politician_ideas"
+      }
+    ]
+  },
+  "workflow_warren_buffet": {
+    "name": "Warren Buffet Zone Style",
+    "niche": "Investment & Wealth Education",
+    "visual_style": "Finance imagery, stock market graphics, authoritative aesthetic",
+    "script_structure": "Investment Wisdom Hook → Core Principle → Real Examples → Actionable Strategy",
+    "narration_tone": "Wise, measured, uses Warren Buffet quotes and principles, educational authority",
+    "character_type": "No presenter — financial imagery and graphics",
+    "workflow_questions": [
+      "Investment topic or principle",
+      "Target audience"
+    ],
+    "style_keywords": [
+      "finance",
+      "stock market",
+      "graphs",
+      "professional",
+      "wealth",
+      "authoritative"
+    ],
+    "camera_defaults": [
+      "medium shot",
+      "eye-level",
+      "steady"
+    ],
+    "lighting_defaults": [
+      "soft box",
+      "high-key",
+      "professional"
+    ],
+    "steps": []
+  }
+}

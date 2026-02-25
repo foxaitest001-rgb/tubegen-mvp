@@ -12,9 +12,11 @@ interface ConsultantChatProps {
     onApplyConfig: (config: any) => void;
     onStartPipeline?: (config: any) => void;
     videoSource?: 'meta' | 'grok';
+    channelStyle?: string;
+    serverUrl?: string;
 }
 
-export const ConsultantChat: React.FC<ConsultantChatProps> = ({ onApplyConfig, onStartPipeline, videoSource = 'meta' }) => {
+export const ConsultantChat: React.FC<ConsultantChatProps> = ({ onApplyConfig, onStartPipeline, videoSource = 'meta', channelStyle, serverUrl = 'http://localhost:3001' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         { role: 'assistant', content: "Hi! I'm your Creative Consultant. Tell me about the video you want to make, and I'll set everything up for you." }
@@ -42,7 +44,7 @@ export const ConsultantChat: React.FC<ConsultantChatProps> = ({ onApplyConfig, o
         setMessages(newHistory);
 
         try {
-            const result = await consultWithUser(newHistory);
+            const result = await consultWithUser(newHistory, channelStyle, serverUrl);
 
             const assistantMsg = result.message;
             setMessages(prev => [...prev, { role: 'assistant', content: assistantMsg }]);

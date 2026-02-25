@@ -1,0 +1,30 @@
+[
+  {
+    "platform": "Google Imagen 4 / Nano Banana Pro",
+    "cinematic_strength": "Multimodal editing & world knowledge",
+    "photorealism": "High, with detailed organic textures",
+    "character_consistency": "High, preserves identity across scenes",
+    "differentiator": "Physics-aware reasoning engine for logical consistency; in-context text and image editing."
+  },
+  {
+    "platform": "Midjourney V7",
+    "cinematic_strength": "Artistic, cinematic aesthetic",
+    "photorealism": "High, but often stylized and \"too perfect\"",
+    "character_consistency": "Very high, via dedicated --cref parameter",
+    "differentiator": "Deep creative control via parameters and --cref; personalization profile learns user style,  but struggles with generating readable text."
+  },
+  {
+    "platform": "Veo 3.1",
+    "cinematic_strength": "Coherent, long-form video generation",
+    "photorealism": "Good, with realistic physics & motion",
+    "character_consistency": "High, via \"Ingredients to Video\" reference feature",
+    "differentiator": "First-frame/last-frame interpolation for smooth transitions; advanced audio-video sync,  but at a higher cost per generation."
+  },
+  {
+    "platform": "Meta AI",
+    "cinematic_strength": "Personalized & social-ready content",
+    "photorealism": "High, especially for photorealistic selfies",
+    "character_consistency": "Very high, preserves identity across poses & scenes",
+    "differentiator": "\"Imagine Me\" feature for self-portraits; advanced pose engines for commercial use."
+  }
+]

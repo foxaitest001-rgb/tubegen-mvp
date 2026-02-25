@@ -431,6 +431,16 @@ export async function generateNarrative(
     "hook": "First 15s lines...",
     "voice_style_recommendation": "...",
     "estimated_duration": "...",
+    "subject_registry": [
+      {
+        "id": "subject_id_slug",
+        "name": "Display Name",
+        "type": "character|creature|object",
+        "visual_description": "VERY DETAILED physical description for image generation (face, build, clothing, colors, accessories, expression, age, distinguishing features)",
+        "appears_in_scenes": [1, 2, 4],
+        "is_primary": true
+      }
+    ],
     "style_dna": {
       "visual_identity": {
         "art_style": "${effectiveVisualStyle}",
@@ -451,19 +461,42 @@ export async function generateNarrative(
       { 
         "timestamp": "0:00-0:15", 
         "section": "THE HOOK",
+        "scene_type": "character|establishing|multi_character",
+        "subject_id": "subject_id_slug or null for establishing shots",
+        "secondary_subject_id": "only for multi_character scenes, else null",
         "visual_cue": "Brief description for editor", 
         "voiceover": "Script lines...",
         "image_prompt": "Cinematic wide shot of..., 35mm, 8k, --ar 16:9",
         "video_prompts": [
           "Shot 1 (0-5s): [Camera Angle] [Subject Action] [Lighting]...",
           "Shot 2 (5-10s): ..."
-        ]
+        ],
+        "motion_prompt": "Camera movement description for I2V (e.g. slow push-in, aerial pan, tracking shot)"
       }
     ],
     "title_options": ["Title 1", "Title 2", "Title 3"],
     "keywords": ["tag1", "tag2"],
     "description": "..."
   }
+
+  SUBJECT REGISTRY RULES:
+  - Extract ALL recurring characters, creatures, or key objects from the topic.
+  - Each subject needs an EXTREMELY detailed visual_description (40+ words minimum).
+  - Use ONLY generic descriptions, NEVER copyrighted names.
+  - Mark subjects that appear in 0 scenes as empty array (they won't get references).
+  - The FIRST subject with is_primary=true will be the main character reference.
+
+  SCENE CLASSIFICATION RULES:
+  - "character": A named subject is featured → subject_id must match a registry entry
+  - "establishing": Landscape, environment, wide shot with no specific subject → subject_id is null
+  - "multi_character": Two subjects interact → subject_id = primary, secondary_subject_id = secondary
+  
+  MOTION PROMPT RULES:
+  - Establishing shots: "slow aerial pan across the landscape", "wide dolly revealing the environment"
+  - Character close-ups: "subtle push-in on the character's face", "slow zoom with shallow depth of field"
+  - Action scenes: "dynamic tracking shot following rapid movement", "handheld chase sequence"
+  - Dialogue scenes: "gentle lateral sway, soft focus shift between speakers"
+  - Transition scenes: "smooth crane shot ascending above the scene"
   `;
 
   const userQuery = `Create a script for: "${topic}"`;
@@ -833,13 +866,33 @@ export async function generateExactVisuals(
 }
 
 // --- CONSULTANT AGENT (Agent 3) ---
-export async function consultWithUser(history: { role: string, content: string }[]) {
+export async function consultWithUser(
+  history: { role: string, content: string }[],
+  channelStyle?: string,
+  serverUrl: string = 'http://localhost:3001'
+) {
   try {
+    // Fetch knowledge context from server if channel style is set
+    let knowledgeContext = '';
+    let styleMenuContext = '';
+    try {
+      const kbRes = await fetch(`${serverUrl}/knowledge/consultant-context/${channelStyle || 'none'}`);
+      if (kbRes.ok) {
+        const kbData = await kbRes.json();
+        knowledgeContext = kbData.context || '';
+        styleMenuContext = kbData.styleMenu || '';
+      }
+    } catch (e) {
+      console.warn('[Consultant] Knowledge base not available:', e);
+    }
+
     const systemPrompt = `You are 'The Consultant', an elite Video Production Manager & Creative Director.
     
     YOUR ROLE: You are the SINGLE POINT OF CONTROL for the entire video creation pipeline.
     - You gather ALL requirements from the user.
     - You validate and lock each parameter.
+    - You EXTRACT SUBJECTS (characters/objects) from the topic for visual consistency.
+    - You CLASSIFY each scene (character vs establishing) for the image generation pipeline.
     - You send a COMPLETE, ACCURATE config to the Director Agent.
     - The Director will use YOUR config EXACTLY as specified.
     
@@ -874,6 +927,59 @@ export async function consultWithUser(history: { role: string, content: string }
        - Instagram (polished, square-friendly)
     8. **MOOD/TONE** (Optional): Emotional direction
        - Epic, Mysterious, Uplifting, Dark, Comedic, Educational, Inspiring
+    9. **PIPELINE MODE** (Auto-detected):
+       - "quick": Text-to-Video (current flow, faster but less consistent)
+       - "pro": Image-to-Video (generate consistent images first via Whisk, then animate)
+       - DEFAULT: "pro" for stories/characters, "quick" for abstract/educational content
+       - If topic has recurring characters → auto-set to "pro"
+       - If topic is abstract/factual with no characters → auto-set to "quick"
+     10. **CHANNEL STYLE** (Optional): If the user wants a specific channel format
+        - When set, follow the channel's methodology for script structure, tone, and visuals
+        - The knowledge base provides specific workflow patterns for each channel style
+    
+    ${styleMenuContext}
+    ${knowledgeContext}
+    
+    
+    ═══════════════════════════════════════════════════════════════
+    SUBJECT EXTRACTION (CRITICAL FOR PRO MODE):
+    ═══════════════════════════════════════════════════════════════
+    
+    When pipelineMode is "pro", you MUST extract subjects from the topic:
+    
+    **WHAT IS A SUBJECT?** Any recurring character, creature, or key object that appears in multiple scenes.
+    
+    **HOW TO DESCRIBE SUBJECTS:**
+    - Be EXTREMELY specific about physical appearance (face, build, clothing, colors, accessories)
+    - Use ONLY generic descriptions, NEVER copyrighted names
+    - The description will be used to generate a reference image for visual consistency
+    
+    **EXAMPLES:**
+    - GOOD: "Middle-aged male, sharp jawline, weathered brown skin, dark trench coat with upturned collar, fedora hat, world-weary brown eyes, 5 o'clock shadow, tall rugged build"
+    - BAD: "A detective" (too vague — every scene would look different)
+    - BAD: "Sherlock Holmes" (copyrighted)
+    
+    **SUBJECT TYPES:**
+    - "character": A person or humanoid (most common)
+    - "creature": An animal or fantasy creature
+    - "object": A recurring key object (e.g., a glowing artifact, a spaceship)
+    
+    ═══════════════════════════════════════════════════════════════
+    SCENE CLASSIFICATION (CRITICAL FOR PRO MODE):
+    ═══════════════════════════════════════════════════════════════
+    
+    For each scene in the script, classify it:
+    
+    - "character": Scene features a specific subject → Whisk will upload that subject's reference image
+    - "establishing": Wide shot, landscape, environment only → Whisk generates WITHOUT a subject reference
+    - "multi_character": Multiple subjects appear → Whisk uses primary subject ref, secondary described in text
+    
+    Also assign a motion_prompt for I2V (how the camera should move when animating the still image):
+    - Establishing shots: "slow aerial pan", "wide dolly across landscape"
+    - Character close-ups: "subtle push-in on face", "slow zoom into eyes"
+    - Action scenes: "dynamic tracking shot", "fast handheld following movement"
+    - Dialogue: "gentle swaying, shallow depth of field"
+    - Transitions: "smooth lateral dolly", "fade through environment"
     
     ═══════════════════════════════════════════════════════════════
     CRITICAL RULES:
@@ -895,10 +1001,11 @@ export async function consultWithUser(history: { role: string, content: string }
        - 9:16 → "--ar 9:16" in prompts, vertical compositions, subjects centered
        - The Director and Script Generator will use this EXACT ratio.
     
-    4. **OUTPUT FORMAT**: When you have enough info, output JSON with Style DNA:
+    4. **OUTPUT FORMAT**: When you have enough info, output JSON with Style DNA + Subject Registry:
        \`\`\`json
        {
          "ready": true,
+         "pipelineMode": "pro",
          "topic": "...",
          "niche": "...",
          "videoLength": "30 seconds",
@@ -907,6 +1014,25 @@ export async function consultWithUser(history: { role: string, content: string }
          "aspectRatio": "9:16",
          "platform": "TikTok",
          "mood": "Epic",
+         "channelStyle": "zinny_studio",
+         "subject_registry": [
+           {
+             "id": "detective",
+             "name": "The Detective",
+             "type": "character",
+             "visual_description": "Middle-aged male, sharp jawline, weathered brown skin, dark trench coat with upturned collar, fedora hat, world-weary brown eyes, 5 o'clock shadow, tall rugged build",
+             "appears_in_scenes": [1, 2, 4, 6],
+             "is_primary": true
+           },
+           {
+             "id": "villain",
+             "name": "The Femme Fatale",
+             "type": "character",
+             "visual_description": "Tall woman, sleek black hair in a bob cut, cold blue eyes, fitted crimson red dress, elegant pearl necklace, angular features, confident posture",
+             "appears_in_scenes": [4, 5, 6],
+             "is_primary": false
+           }
+         ],
          "style_dna": {
            "visual_identity": {
              "art_style": "Anime Cel-Shaded with vibrant saturation",
@@ -934,6 +1060,7 @@ export async function consultWithUser(history: { role: string, content: string }
     6. **BE PROFESSIONAL**: 
        - Confirm each parameter clearly.
        - Summarize the full config before starting.
+       - When in "pro" mode, tell the user you identified X subjects for visual consistency.
        - Ask clarifying questions only if truly needed.
        - Don't ask about parameters the user already specified.
     
@@ -941,6 +1068,7 @@ export async function consultWithUser(history: { role: string, content: string }
        - aspectRatio: "16:9"
        - platform: "YouTube"
        - mood: "Cinematic"
+       - pipelineMode: auto-detect based on topic (characters → "pro", abstract → "quick")
     
     ═══════════════════════════════════════════════════════════════
     CURRENT CONVERSATION:

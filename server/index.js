@@ -20,6 +20,11 @@ const app = express();
 const PORT = 3001;
 const VERSION = 'v6.0 (COOKIE SESSION MANAGER + PRO PIPELINE)';
 
+// ── Middleware ──
+app.use(cors());
+app.use(express.json({ limit: '5mb' }));
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
 // ═══════════════════════════════════════════════════════════════
 // STYLE DNA ARCHITECTURE - Helper Functions
 // ═══════════════════════════════════════════════════════════════

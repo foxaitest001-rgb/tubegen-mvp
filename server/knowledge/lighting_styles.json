@@ -1,0 +1,59 @@
+[
+  {
+    "style": "Golden Hour",
+    "keywords": [
+      "warm golden-hour light",
+      "sunset glow",
+      "magic hour"
+    ],
+    "visual_effect": "Creates a soft, hopeful, and romantic atmosphere with warm, diffused light and long shadows. Ideal for nostalgic or cinematic scenes."
+  },
+  {
+    "style": "Film Noir / Chiaroscuro",
+    "keywords": [
+      "harsh noir shadows",
+      "high contrast between light and dark",
+      "chiaroscuro style"
+    ],
+    "visual_effect": "Evokes suspense, mystery, and dramatic tension using stark contrasts. Emphasizes mood and moral conflict."
+  },
+  {
+    "style": "Rim Lighting",
+    "keywords": [
+      "rim lighting",
+      "dramatic backlighting",
+      "glowing edges"
+    ],
+    "visual_effect": "Creates a glowing outline around a subject by placing a light source behind them. It separates the subject from the background and adds a dramatic, mystical quality."
+  },
+  {
+    "style": "Soft Box Lighting",
+    "keywords": [
+      "soft box lighting",
+      "clean",
+      "professional studio lighting",
+      "soft",
+      "even illumination"
+    ],
+    "visual_effect": "Mimics the clean, flattering light of a professional photo studio. It conveys clarity, professionalism, and an open, airy feeling with minimal shadows."
+  },
+  {
+    "style": "High Key Lighting",
+    "keywords": [
+      "bright afternoon light",
+      "minimal shadows",
+      "high-key"
+    ],
+    "visual_effect": "Conveys optimism, clarity, and an open, airy feeling. The scene is brightly lit with very few dark shadows."
+  },
+  {
+    "style": "Low Key Lighting",
+    "keywords": [
+      "dark",
+      "dramatic shadows",
+      "single light",
+      "low-key"
+    ],
+    "visual_effect": "Creates intimacy, seriousness, or a sense of foreboding. The scene is dark, with selective lighting illuminating the subject."
+  }
+]

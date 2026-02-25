@@ -1,0 +1,90 @@
+[
+  {
+    "element": "Act I (The Setup)",
+    "category": "Story Structure",
+    "principles": "Introduction of world, characters (Who, Where, What, Why), and inciting incident/main conflict within 90 seconds.",
+    "implementation": "Approx. 25% of duration or first 5-7 min. Utilizes longer takes, spatial establishment shots, and action/mise-en-scène; avoids heavy exposition.",
+    "emotional_impact": "Allows audience to settle, establishes empathy, backstory, and the \"creative spine\" or story trajectory.",
+    "guidelines": "Express story beats as spatial shifts. Use \"prolog\" style for transportation. Define initial state and setting in prompts (e.g., 'Establish Elara in the restoration bay')."
+  },
+  {
+    "element": "Act II (Complication & Development)",
+    "category": "Story Structure",
+    "principles": "Confrontation and escalation of obstacles/stakes; shifting relationships and introduction of events preventing goal attainment.",
+    "implementation": "Approx. 50% of duration. Accelerates through tighter framing, shorter cuts, and contradictory visuals (e.g., hallucinations).",
+    "emotional_impact": "Intensifies engagement; contains the \"darkest moment\" (lowest emotional point) at the 3/4 mark. Creates immediate tension.",
+    "guidelines": "Use conversational density (60% of shots) to carry conflict. Prompt for a disruptive event or a shift in the status quo."
+  },
+  {
+    "element": "Act III (Climax & Resolution)",
+    "category": "Story Structure",
+    "principles": "Convergence of tensions; character transformation made visible; final goal attainment or rising action through sequences of advances and setbacks.",
+    "implementation": "Approx. 25% of duration. Rapid-fire cuts, sustained tension through static composition, and visualization of environmental bleed-over.",
+    "emotional_impact": "Maximum expressive contrast; physiological arousal (heart rate rise); visceral response as environment becomes unreliable.",
+    "guidelines": "Action shots peak here. Converge 'narration time' with 'narrative time' for urgency. Use prompts to describe multi-step motion and increasing complexity."
+  },
+  {
+    "element": "Act IV (Climax & Resolution)",
+    "category": "Story Structure",
+    "principles": "The highest point of tension followed by a clean, satisfying payoff or plot twist.",
+    "implementation": "Circular structure (ending where it began) or a radical shift in perspective; resolution of the central dilemma.",
+    "emotional_impact": "Memorable impact; provides closure or thought-provoking ambiguity; high-concept resolution.",
+    "guidelines": "Prompt for a definitive final action or a visual 'twist' that reframes previous footage."
+  },
+  {
+    "element": "Focal Length Selection (21mm - 85mm)",
+    "category": "Cinematography",
+    "principles": "Focal length directly impacts emotional distance, relationship to character, and psychological perspective.",
+    "implementation": "Range: 21mm (Ultra-Wide) for distortion; 35-50mm (Standard) for naturalism; 85mm (Telephoto) for isolation.",
+    "emotional_impact": "Wide lenses distort for environmental threat/alienation; 50mm provides intimacy/contemplation; 85mm abstracts for intense focus.",
+    "guidelines": "Always specify exact focal length in AI prompts (e.g., '21mm ultra-wide lens, fisheye distortion' or '85mm, cinematic bokeh')."
+  },
+  {
+    "element": "The Triangle Method",
+    "category": "Blocking",
+    "principles": "Arranging characters in a triangular formation to frame interaction, draw the eye, and prevent flat lines.",
+    "implementation": "Position actors at Points A (Speaker), B (Listener), and C (Observer). Rotate triangle via camera movement to reveal hierarchy.",
+    "emotional_impact": "Intensifies connection; dynamic tension; focuses attention on the \"point\" of the triangle; represents group hierarchies.",
+    "guidelines": "Use to underscore tensions or alliances. Prompt: 'Three characters in a triangular formation, shifting focus, power struggle'."
+  },
+  {
+    "element": "Power Dynamics Positioning",
+    "category": "Blocking",
+    "principles": "Leveraging height and spatial relationships (center vs. edge) to signal dominance, authority, or submission.",
+    "implementation": "Dominant: low angle, center-frame, standing/elevation. Submissive: high angle, frame-edge/headroom, sitting.",
+    "emotional_impact": "Conveys internal conflict and social hierarchy without dialogue; encodes the \"pecking order.\"",
+    "guidelines": "Characters moving from edge to center visually enact power acquisition. Prompt: 'character center-frame, low-angle' vs 'off-center, small in frame'."
+  },
+  {
+    "element": "Motivated Realism",
+    "category": "Lighting",
+    "principles": "Every light source should appear to originate from a visible/natural source in the scene (the \"Deakins Principle\").",
+    "implementation": "Utilizing lamps, windows, monitors, or fire as \"justification\" for the key light; matching color temperatures.",
+    "emotional_impact": "Maintains realism and immersion; prevents the scene from feeling artificial or staged.",
+    "guidelines": "In prompts, describe visible results: 'dim interior lit by a single desk lamp' or 'motivated by a single window, matching practical lamp color'."
+  },
+  {
+    "element": "Color Temperature (3200K - 5600K)",
+    "category": "Lighting",
+    "principles": "Light color communicates emotional tone, time of day, and psychological states.",
+    "implementation": "3200K (Tungsten/Warm) for nostalgia/comfort/happiness; 5600K (Daylight/Cool) for clinical sterility/isolation.",
+    "emotional_impact": "Warmth suggests intimacy; coolness suggests mystery or detachment. Mixing suggests psychological conflict.",
+    "guidelines": "Use identical color temperature keywords (e.g., 'Warm 3200K sunset') across AI scenes for visual consistency."
+  },
+  {
+    "element": "Negative Fill",
+    "category": "Lighting",
+    "principles": "Subtracting light to create shape, mood, and dimension.",
+    "implementation": "Use of black flags/solids to absorb light and deepen shadows (Inverse of fill).",
+    "emotional_impact": "Enhances brooding atmosphere; adds contours; increases intensity in drama or noir.",
+    "guidelines": "Prompts: 'Deep shadows, low-key lighting, heavy negative fill, high contrast'."
+  },
+  {
+    "element": "Sound Motifs & Silence",
+    "category": "Sound Design",
+    "principles": "Recurring sounds (motifs) build subconscious associations; silence is used as an active tool for emphasis.",
+    "implementation": "Diegetic (world-based) vs Non-diegetic (score). Layering Foley, Ambient (AC hum), and Effects (glitches).",
+    "emotional_impact": "Silence after high-density sound creates weight/suspense; motifs identify character presence/emotions.",
+    "guidelines": "Avoid clichés; use silence to let emotional weight settle. Identify tools for AI audio: ElevenLabs (Lipsync), Kling (SFX)."
+  }
+]

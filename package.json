@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.6",
     "lucide-react": "^0.563.0",
     "mammoth": "^1.11.0",
     "piper-tts-web": "^1.1.2",

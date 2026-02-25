@@ -1,0 +1,586 @@
+// ═══════════════════════════════════════════════════════════════
+// Whisk Director — Google Labs Whisk Browser Automation
+// Generates consistent scene images via Puppeteer
+// URL: https://labs.google/fx/tools/whisk
+// ═══════════════════════════════════════════════════════════════
+
+const path = require('path');
+const fs = require('fs');
+
+// ─── Whisk DOM Selectors (discovered via live inspection) ───
+const WHISK_SELECTORS = {
+    // The three file upload inputs (appear after clicking "Add Images")
+    // They appear in order: Subject, Scene, Style
+    fileInput: 'input.sc-cd7e4875-0',           // All three use same class
+
+    // Labels to identify which slot is which
+    slotLabel: 'h4.sc-10ad0ca3-3',              // H4 elements: "Subject", "Scene", "Style"
+    slotContainer: '.sc-52570d98-0',             // Parent container for each input
+
+    // Main prompt textarea
+    promptTextarea: 'textarea.sc-18deeb1d-8',    // "Describe your idea..."
+
+    // Submit/Generate button
+    submitButton: 'button[aria-label="Submit prompt"]',
+
+    // "Add Images" button (opens Subject/Scene/Style panel)
+    addImagesButton: '.sc-63569c0e-0',           // Button with text "Add Images"
+
+    // Settings toggle (icon text: "tune")
+    settingsButton: '.sc-8b6c1c1e-1.gyhlCg',  // Same class, differentiate by icon text
+
+    // Aspect ratio button (icon text: "aspect_ratio")
+    // Both share class sc-8b6c1c1e-1, differentiate by inner icon text
+    aspectRatioContainer: '.sc-8b6c1c1e-0',    // Dropdown container
+
+    // Aspect ratio options inside dropdown
+    // Options: "1:1 Square", "9:16 Portrait", "16:9 Landscape"
+
+    // "I'm Feeling Lucky" / random prompt button
+    iflButton: '.sc-18b71c06-0',
+};
+
+// ─── Config ───
+const WHISK_URL = 'https://labs.google/fx/tools/whisk';
+const GENERATION_TIMEOUT = 90000;    // 90s max wait for image generation
+const BETWEEN_GENERATIONS_DELAY = 35000; // 35s between generations (rate limit safety)
+const PAGE_LOAD_DELAY = 5000;         // 5s for page to fully load
+
+/**
+ * Interruptible sleep that checks for cancellation
+ */
+function interruptibleSleep(ms, signal) {
+    return new Promise((resolve) => {
+        const timer = setTimeout(resolve, ms);
+        if (signal) {
+            signal.addEventListener('abort', () => {
+                clearTimeout(timer);
+                resolve();
+            });
+        }
+    });
+}
+
+/**
+ * Director logging helper — sends logs to SSE connected clients
+ */
+let _directorLog = null;
+function setDirectorLog(logFn) {
+    _directorLog = logFn;
+}
+
+function log(step, tag, message) {
+    if (_directorLog) {
+        _directorLog(step, tag, message);
+    } else {
+        console.log(`[Whisk][${tag}] ${message}`);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN: Generate All Scene Images via Whisk
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Generate consistent scene images using Google Labs Whisk.
+ * 
+ * Flow:
+ *   1. Generate subject reference images (text-only, no ref upload)
+ *   2. Lock style from first result
+ *   3. Generate all scene images with subject + style refs
+ * 
+ * @param {Array} scenes - Script structure with scene_type, subject_id, image_prompt
+ * @param {Array} subjectRegistry - Array of { id, visual_description, is_primary }
+ * @param {string} projectDir - Path to project output folder
+ * @param {string} visualStyle - Art style (cinematic, anime, etc.)
+ * @param {object} styleDNA - Full style DNA object
+ * @param {object} browser - Puppeteer browser instance
+ * @param {function} directorLogFn - Logging function
+ * @param {string} aspectRatio - Target aspect ratio ("16:9", "9:16", "1:1")
+ */
+async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualStyle, styleDNA, browser, directorLogFn, aspectRatio = '16:9') {
+    setDirectorLog(directorLogFn);
+
+    const imagesDir = path.join(projectDir, 'images');
+    if (!fs.existsSync(imagesDir)) {
+        fs.mkdirSync(imagesDir, { recursive: true });
+    }
+
+    log(0, 'WHISK', '🎨 Whisk Director starting...');
+    log(0, 'WHISK', `📁 Output: ${imagesDir}`);
+    log(0, 'WHISK', `👥 Subjects: ${subjectRegistry.length} | 🎬 Scenes: ${scenes.length}`);
+
+    // ─── Get or create a Whisk tab ───
+    let page = null;
+    const pages = await browser.pages();
+
+    // Find existing Whisk tab
+    for (const p of pages) {
+        const url = p.url();
+        if (url.includes('labs.google') && url.includes('whisk')) {
+            page = p;
+            log(0, 'WHISK', '♻️ Reusing existing Whisk tab');
+            break;
+        }
+    }
+
+    // Open new tab if needed
+    if (!page) {
+        page = await browser.newPage();
+        log(0, 'WHISK', `🌐 Opening Whisk: ${WHISK_URL}`);
+        await page.goto(WHISK_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+        await interruptibleSleep(PAGE_LOAD_DELAY);
+    }
+
+    await page.setViewport({ width: 1400, height: 900 });
+
+    // ─── Set aspect ratio before generating ───
+    await setAspectRatio(page, aspectRatio);
+
+    // ═══════════════════════════════════════════════════
+    // PHASE 1: Generate Subject Reference Images
+    // ═══════════════════════════════════════════════════
+
+    log(0, 'PHASE1', '━━━ Phase 1: Generating Subject References ━━━');
+
+    const subjectRefs = {}; // { subjectId: filePath }
+    let styleRefPath = null;
+
+    for (const subject of subjectRegistry) {
+        log(0, 'SUBJECT', `🧑 Generating reference for: ${subject.name} (${subject.id})`);
+
+        // Type the subject description as a prompt (no image uploads for first reference)
+        const subjectPrompt = `Portrait of ${subject.visual_description}, ${visualStyle} style, detailed, high quality, centered composition`;
+
+        await typePromptAndSubmit(page, subjectPrompt);
+
+        // Wait for generation to complete
+        const resultImagePath = await waitForResultAndDownload(page, imagesDir, `subject_${subject.id}_ref`);
+
+        if (resultImagePath) {
+            subjectRefs[subject.id] = resultImagePath;
+            log(0, 'SUBJECT', `✅ Subject reference saved: ${path.basename(resultImagePath)}`);
+
+            // Lock style from the first generated image
+            if (!styleRefPath && subject.is_primary) {
+                styleRefPath = resultImagePath;
+                log(0, 'STYLE', `🔒 Style reference locked from primary subject`);
+            }
+        } else {
+            log(0, 'SUBJECT', `⚠️ Failed to generate reference for ${subject.name}`);
+        }
+
+        // Rate limit pause
+        log(0, 'WAIT', `⏳ Waiting ${BETWEEN_GENERATIONS_DELAY / 1000}s (rate limit)...`);
+        await interruptibleSleep(BETWEEN_GENERATIONS_DELAY);
+    }
+
+    // If no style ref was locked, use the first available subject ref
+    if (!styleRefPath) {
+        const firstRef = Object.values(subjectRefs)[0];
+        if (firstRef) {
+            styleRefPath = firstRef;
+            log(0, 'STYLE', '🔒 Style reference locked from first available subject');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // PHASE 2: Generate Scene Images
+    // ═══════════════════════════════════════════════════
+
+    log(0, 'PHASE2', '━━━ Phase 2: Generating Scene Images ━━━');
+
+    const sceneImages = []; // { sceneNum, filePath, sceneType }
+
+    for (let i = 0; i < scenes.length; i++) {
+        const scene = scenes[i];
+        const sceneNum = i + 1;
+        const sceneType = scene.scene_type || 'establishing';
+        const subjectId = scene.subject_id || null;
+
+        log(sceneNum, 'SCENE', `🎬 Scene ${sceneNum}/${scenes.length} [${sceneType}]`);
+
+        // Open the "Add Images" panel
+        await openAddImagesPanel(page);
+        await interruptibleSleep(1000);
+
+        // ─── Upload references based on scene type ───
+        const fileInputs = await page.$$(WHISK_SELECTORS.fileInput);
+
+        if (sceneType === 'character' || sceneType === 'multi_character') {
+            // Upload SUBJECT reference (1st input)
+            if (subjectId && subjectRefs[subjectId] && fileInputs.length >= 1) {
+                log(sceneNum, 'UPLOAD', `📤 Uploading subject ref: ${subjectId}`);
+                await fileInputs[0].uploadFile(subjectRefs[subjectId]);
+                await interruptibleSleep(2000);
+            }
+        }
+        // For "establishing" scenes — no subject upload
+
+        // Upload STYLE reference (3rd input) — always if available
+        if (styleRefPath && fileInputs.length >= 3) {
+            log(sceneNum, 'UPLOAD', `🎨 Uploading style ref`);
+            await fileInputs[2].uploadFile(styleRefPath);
+            await interruptibleSleep(2000);
+        }
+
+        // ─── Build and type the scene prompt ───
+        let scenePrompt = scene.image_prompt || scene.visual_cue || '';
+
+        // Enrich the prompt based on scene type
+        if (sceneType === 'establishing') {
+            scenePrompt = `${scenePrompt}, wide establishing shot, ${visualStyle} style, cinematic composition, no characters`;
+        } else if (sceneType === 'multi_character' && scene.secondary_subject_id) {
+            // Add secondary subject description to the text prompt
+            const secondary = subjectRegistry.find(s => s.id === scene.secondary_subject_id);
+            if (secondary) {
+                scenePrompt = `${scenePrompt}, also featuring ${secondary.visual_description}`;
+            }
+        }
+
+        // Append style DNA keywords if available
+        if (styleDNA?.visual_identity?.art_style) {
+            scenePrompt += `, ${styleDNA.visual_identity.art_style}`;
+        }
+
+        await typePromptAndSubmit(page, scenePrompt);
+
+        // Wait for result and download
+        const resultPath = await waitForResultAndDownload(page, imagesDir, `scene_${sceneNum}_ref`);
+
+        if (resultPath) {
+            sceneImages.push({ sceneNum, filePath: resultPath, sceneType });
+            log(sceneNum, 'SCENE', `✅ Scene ${sceneNum} image saved: ${path.basename(resultPath)}`);
+        } else {
+            log(sceneNum, 'SCENE', `⚠️ Scene ${sceneNum} generation failed — will retry or skip`);
+        }
+
+        // Rate limit pause between scenes
+        if (i < scenes.length - 1) {
+            log(sceneNum, 'WAIT', `⏳ Waiting ${BETWEEN_GENERATIONS_DELAY / 1000}s...`);
+            await interruptibleSleep(BETWEEN_GENERATIONS_DELAY);
+        }
+
+        // Reset Whisk for next scene (clear inputs)
+        await resetWhiskInputs(page);
+    }
+
+    log(0, 'DONE', `━━━ Whisk Director Complete: ${sceneImages.length}/${scenes.length} images ━━━`);
+
+    return {
+        subjectRefs,
+        styleRefPath,
+        sceneImages,
+        imagesDir
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Open the "Add Images" panel if not already open
+ */
+async function openAddImagesPanel(page) {
+    try {
+        // Check if Subject/Scene/Style inputs are already visible
+        const inputs = await page.$$(WHISK_SELECTORS.fileInput);
+        if (inputs.length >= 3) {
+            return; // Panel already open
+        }
+
+        // Click "Add Images" button
+        const addBtn = await page.$(WHISK_SELECTORS.addImagesButton);
+        if (addBtn) {
+            await addBtn.click();
+            await interruptibleSleep(1500);
+            log(0, 'UI', '📂 Opened Add Images panel');
+        } else {
+            // Fallback: find by text content
+            await page.evaluate(() => {
+                const buttons = document.querySelectorAll('button');
+                for (const b of buttons) {
+                    if (b.textContent.includes('Add Images')) {
+                        b.click();
+                        return;
+                    }
+                }
+            });
+            await interruptibleSleep(1500);
+        }
+    } catch (err) {
+        log(0, 'WARN', `Could not open Add Images panel: ${err.message}`);
+    }
+}
+
+/**
+ * Type a prompt into the Whisk textarea and click Submit
+ */
+async function typePromptAndSubmit(page, prompt) {
+    try {
+        // Clear existing prompt
+        const textarea = await page.$(WHISK_SELECTORS.promptTextarea);
+        if (!textarea) {
+            log(0, 'ERROR', 'Could not find prompt textarea');
+            return;
+        }
+
+        // Triple-click to select all, then type new prompt
+        await textarea.click({ clickCount: 3 });
+        await interruptibleSleep(200);
+        await textarea.type(prompt, { delay: 15 });
+        log(0, 'TYPE', `📝 Prompt entered (${prompt.length} chars)`);
+
+        await interruptibleSleep(500);
+
+        // Click Submit
+        const submitBtn = await page.$(WHISK_SELECTORS.submitButton);
+        if (submitBtn) {
+            await submitBtn.click();
+            log(0, 'SUBMIT', '🚀 Submitted prompt');
+        } else {
+            // Fallback: press Enter
+            await page.keyboard.press('Enter');
+            log(0, 'SUBMIT', '🚀 Submitted via Enter key');
+        }
+    } catch (err) {
+        log(0, 'ERROR', `Failed to type/submit prompt: ${err.message}`);
+    }
+}
+
+/**
+ * Wait for Whisk to generate an image, then download it.
+ * Strategy: Watch for new images appearing in the results area.
+ */
+async function waitForResultAndDownload(page, outputDir, fileBaseName) {
+    log(0, 'WAIT', '⏳ Waiting for Whisk to generate...');
+
+    try {
+        // Wait for a result image to appear
+        // Whisk shows results as img elements — wait for a new one
+        const startTime = Date.now();
+        let resultImageSrc = null;
+
+        while (Date.now() - startTime < GENERATION_TIMEOUT) {
+            // Look for generated result images
+            resultImageSrc = await page.evaluate(() => {
+                // Look for the main generated image in the results area
+                // Whisk typically shows results in an img element within results container
+                const images = document.querySelectorAll('img');
+                for (const img of images) {
+                    const src = img.src || '';
+                    // Generated images typically have a blob: or data: URL, or a Google storage URL
+                    if ((src.includes('blob:') || src.includes('data:image') || src.includes('lh3.googleusercontent') || src.includes('storage.googleapis'))
+                        && img.width > 200 && img.height > 200) {
+                        // Check if this image is in a results area (not a UI icon)
+                        const rect = img.getBoundingClientRect();
+                        if (rect.width > 200 && rect.height > 200) {
+                            return src;
+                        }
+                    }
+                }
+                return null;
+            });
+
+            if (resultImageSrc) {
+                log(0, 'RESULT', '🖼️ Image generated! Downloading...');
+                break;
+            }
+
+            // Also check for any loading indicators disappearing
+            const isLoading = await page.evaluate(() => {
+                const spinners = document.querySelectorAll('[class*="loading"], [class*="spinner"], [class*="progress"]');
+                return spinners.length > 0;
+            });
+
+            if (!isLoading && Date.now() - startTime > 10000) {
+                // If no loading indicator and we've waited 10s, check for images again
+                await interruptibleSleep(2000);
+                continue;
+            }
+
+            await interruptibleSleep(3000);
+        }
+
+        if (!resultImageSrc) {
+            log(0, 'TIMEOUT', '⏰ Generation timed out — trying to capture whatever is on screen');
+            // Take a screenshot as fallback
+            const screenshotPath = path.join(outputDir, `${fileBaseName}_timeout.png`);
+            await page.screenshot({ path: screenshotPath, fullPage: false });
+            return screenshotPath;
+        }
+
+        // Download the image
+        const outputPath = path.join(outputDir, `${fileBaseName}.png`);
+
+        if (resultImageSrc.startsWith('data:image')) {
+            // Base64 data URL — decode and save
+            const base64Data = resultImageSrc.replace(/^data:image\/\w+;base64,/, '');
+            fs.writeFileSync(outputPath, Buffer.from(base64Data, 'base64'));
+        } else if (resultImageSrc.startsWith('blob:')) {
+            // Blob URL — need to fetch from page context
+            const base64 = await page.evaluate(async (src) => {
+                const response = await fetch(src);
+                const blob = await response.blob();
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            }, resultImageSrc);
+
+            const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+            fs.writeFileSync(outputPath, Buffer.from(base64Data, 'base64'));
+        } else {
+            // Regular URL — download via page
+            const viewSource = await page.goto(resultImageSrc);
+            const buffer = await viewSource.buffer();
+            fs.writeFileSync(outputPath, buffer);
+            // Navigate back to Whisk
+            await page.goto(WHISK_URL, { waitUntil: 'networkidle2' });
+            await interruptibleSleep(PAGE_LOAD_DELAY);
+        }
+
+        log(0, 'SAVED', `💾 Saved: ${fileBaseName}.png`);
+        return outputPath;
+
+    } catch (err) {
+        log(0, 'ERROR', `Download failed: ${err.message}`);
+        // Fallback: screenshot
+        const screenshotPath = path.join(outputDir, `${fileBaseName}_error.png`);
+        try { await page.screenshot({ path: screenshotPath, fullPage: false }); } catch (e) { }
+        return screenshotPath;
+    }
+}
+
+/**
+ * Reset Whisk inputs for the next generation.
+ * Clear uploaded images and prompt text.
+ */
+async function resetWhiskInputs(page) {
+    try {
+        // Clear the prompt textarea
+        const textarea = await page.$(WHISK_SELECTORS.promptTextarea);
+        if (textarea) {
+            await textarea.click({ clickCount: 3 });
+            await page.keyboard.press('Backspace');
+        }
+
+        // Try to clear uploaded images by clicking remove/X buttons on each slot
+        await page.evaluate(() => {
+            // Look for close/remove buttons within the upload slots
+            const removeButtons = document.querySelectorAll('.sc-52570d98-0 button, .sc-10ad0ca3-2 button');
+            removeButtons.forEach(btn => {
+                const text = (btn.textContent || '').trim().toLowerCase();
+                if (text.includes('close') || text.includes('remove') || text.includes('clear') || text === 'x' || text === '×') {
+                    btn.click();
+                }
+            });
+
+            // Also try clicking any X/close icons in the image slots
+            const closeIcons = document.querySelectorAll('[class*="remove"], [class*="delete"], [class*="close"]');
+            closeIcons.forEach(icon => {
+                if (icon.closest('.sc-52570d98-0') || icon.closest('.sc-10ad0ca3-2')) {
+                    icon.click();
+                }
+            });
+        });
+
+        await interruptibleSleep(500);
+        log(0, 'RESET', '🔄 Whisk inputs cleared for next scene');
+    } catch (err) {
+        log(0, 'WARN', `Reset warning: ${err.message}`);
+    }
+}
+
+/**
+ * Set the aspect ratio in Whisk before generating.
+ * Clicks the aspect ratio button and selects the matching option.
+ * 
+ * @param {object} page - Puppeteer page
+ * @param {string} ratio - "16:9", "9:16", or "1:1"
+ */
+async function setAspectRatio(page, ratio = '16:9') {
+    try {
+        // Map our ratio format to Whisk's label text
+        const ratioMap = {
+            '16:9': 'Landscape',
+            '9:16': 'Portrait',
+            '1:1': 'Square'
+        };
+        const targetLabel = ratioMap[ratio] || 'Landscape';
+
+        // Click the aspect ratio button (find by icon text "aspect_ratio")
+        const clicked = await page.evaluate(() => {
+            const buttons = document.querySelectorAll('button');
+            for (const b of buttons) {
+                const iconText = (b.textContent || '').trim();
+                if (iconText === 'aspect_ratio') {
+                    b.click();
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        if (!clicked) {
+            log(0, 'RATIO', `⚠️ Could not find aspect ratio button, using default`);
+            return;
+        }
+
+        await interruptibleSleep(1000);
+
+        // Click the matching ratio option in the dropdown
+        const selected = await page.evaluate((label) => {
+            // Find elements containing the target ratio text
+            const all = document.querySelectorAll('*');
+            for (const el of all) {
+                const t = (el.textContent || '').trim();
+                // Look for exact match like "16:9" or label like "Landscape"
+                if ((t === label || t.includes(label)) && el.tagName !== 'DIV' ||
+                    (el.tagName === 'DIV' && t === label)) {
+                    // Only click leaf-level elements
+                    if (el.children.length === 0 || el.children.length === 1) {
+                        el.click();
+                        return t;
+                    }
+                }
+            }
+            return null;
+        }, targetLabel);
+
+        if (selected) {
+            log(0, 'RATIO', `📐 Aspect ratio set to: ${ratio} (${targetLabel})`);
+        } else {
+            // Fallback: try clicking by ratio string directly
+            await page.evaluate((r) => {
+                const all = document.querySelectorAll('*');
+                for (const el of all) {
+                    if ((el.textContent || '').trim() === r && el.children.length <= 1) {
+                        el.click();
+                        return;
+                    }
+                }
+            }, ratio);
+            log(0, 'RATIO', `📐 Aspect ratio set to: ${ratio} (fallback)`);
+        }
+
+        await interruptibleSleep(500);
+
+    } catch (err) {
+        log(0, 'WARN', `Aspect ratio setting failed: ${err.message} — using default`);
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORTS
+// ═══════════════════════════════════════════════════════════════
+
+module.exports = {
+    generateImagesWhisk,
+    setAspectRatio,
+    WHISK_SELECTORS,
+    WHISK_URL
+};

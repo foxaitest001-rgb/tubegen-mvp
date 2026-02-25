@@ -1,0 +1,18 @@
+[
+  {
+    "goal": "Maximize CTR by inducing anticipation and resolving cognitive tension via the curiosity gap.",
+    "emotion_trigger": "Curiosity, fear (danger), or shock/surprise; sadness correlates with high view counts.",
+    "creature_visibility": "Partial reveal (silhouette, eyes, or blurred objects) to withhold the full story and create mystery.",
+    "scale_contrast": "Juxtaposition of massive creatures against tiny subjects (human silhouettes, submarines, or ships) to hyperbolize scale.",
+    "subject_position": "Focal point (eyes/subject) at Rule of Thirds intersections or centered; subject occupies 40%–50% of frame.",
+    "camera_framing": "Tight crop or extreme close-up on faces/eyes to trigger social accountability and facial recognition priority.",
+    "lighting": "High-contrast (minimum 4.5:1 ratio); use shadows or bright borders to separate subject from the abyss.",
+    "color_palette": "Deep blues/blacks + neon accents (Cyan/Teal/Orange); use red for urgency; avoid \"YouTube red\" to prevent UI clashing.",
+    "background": "High simplicity (empty abyss or blurred); maximum 3 elements total to prevent cognitive overload.",
+    "text_rule": "Max 0–3 high-impact words (e.g., \"The Truth\", \"Secrets\"); bold sans-serif fonts (Impact, Montserrat, Anton).",
+    "text_placement": "Upper-left or top-right quadrants; strictly avoid bottom-right \"timestamp kill zone.\"",
+    "mobile_check": "Yes; must be legible at 120p–150p width as ~70% of views are on mobile devices.",
+    "psychology": "Information Gap Theory (cognitively induced deprivation), Amygdala response (fear), and N170 facial recognition.",
+    "avoid": "Full creature reveal (kills mystery), clutter (>3 elements), low-resolution images, and muted contrast."
+  }
+]
