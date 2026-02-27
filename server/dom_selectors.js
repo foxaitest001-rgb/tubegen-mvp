@@ -68,58 +68,53 @@ const META = {
 };
 
 
-// ─── Grok Imagine (grok.com) ───
+// ─── Grok Imagine (grok.com/imagine) ───
+// Verified Feb 2026 via browser inspection
 const GROK = {
-    url: 'https://grok.com',
+    url: 'https://grok.com/imagine',
 
-    // Navigation: sidebar tabs
-    imagineTab: { text: 'Imagine', tag: 'A', dataState: 'closed' },
+    // Navigation: sidebar "Imagine" tab or direct /imagine URL
+    imagineTab: { text: 'Imagine', tag: 'A' },
 
-    // Settings dropdown (opened by a button)
-    settingsToggle: 'button[aria-label="Options"]',    // opens the dropdown
-    settingsDropdown: '[data-state="open"]',            // the open dropdown container
+    // Settings popover (opened by button in bottom toolbar)
+    settingsToggle: 'button[aria-label="Settings"]',    // Shows "Video ˄" or "Image ˄"
+    // Popover contains: Video Duration, Resolution, Aspect Ratio, Image/Video mode
 
-    // Inside settings dropdown:
+    // Inside settings popover:
     // Video Duration
-    duration6s: 'button[aria-label="6s"]',             // free tier
-    duration10s: 'button[aria-label="10s"]',            // premium
+    duration6s: { text: '6s' },                         // free tier
+    duration10s: { text: '10s' },                       // premium
 
     // Video Resolution
-    resolution480p: 'button[aria-label="480p"]',        // free tier
-    resolution720p: 'button[aria-label="720p"]',        // premium
+    resolution480p: { text: '480p' },                   // free tier
+    resolution720p: { text: '720p' },                   // premium
 
-    // Aspect Ratio (inside dropdown)
-    ratio_2_3: 'button[aria-label="2:3"]',
-    ratio_3_2: 'button[aria-label="3:2"]',
-    ratio_1_1: 'button[aria-label="1:1"]',
-    ratio_9_16: 'button[aria-label="9:16"]',
-    ratio_16_9: 'button[aria-label="16:9"]',
+    // Aspect Ratio (5 options with visual rectangles)
+    ratios: ['2:3', '3:2', '1:1', '9:16', '16:9'],
 
-    // Video / Image mode toggle (inside dropdown)
-    videoMode: { text: 'Video', description: 'Generate a video', selector: 'span.font-semibold' },
-    imageMode: { text: 'Image', description: 'Generate multiple images', selector: 'span.font-semibold' },
+    // Video / Image mode toggle (pill buttons at bottom of popover)
+    videoMode: { text: 'Video' },
+    imageMode: { text: 'Image' },
 
     // Image upload
     uploadButton: 'button[aria-label="Upload image"]',
-    fileInput: 'input[type="file"].hidden',             // accept: image/*
+    fileInput: 'input[type="file"]',
 
     // Prompt (TipTap / ProseMirror contenteditable)
-    promptEditor: 'div.tiptap.ProseMirror',
+    promptEditor: 'div.tiptap.ProseMirror',             // placeholder: "Type to imagine"
 
-    // Submit
-    submitButton: 'button[aria-label="Submit"]',        // round submit button
+    // Submit (↑ arrow button, right of input bar)
+    submitButton: 'button[aria-label="Submit"]',
 
     // Video results
-    videoElement: 'video',                              // class: "col-start-1 row-start-1 w-full h-full object-cover"
-    // src pattern: https://assets.grok.com/users/.../generated/.../genera...
+    videoElement: 'video',                              // src: https://assets.grok.com/users/...
 
     // 3-dots menu on video result
     videoOptionsButton: 'button[aria-label="Video Options"]',
-    // Menu items (role="menuitem"):
     upscaleItem: { role: 'menuitem', text: 'Upscale' },
 
     // Download
-    downloadButton: 'button[aria-label="Download"]',   // text: "Download image"
+    downloadButton: 'button[aria-label="Download"]',
 };
 
 
