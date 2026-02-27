@@ -403,6 +403,19 @@ async function typePromptAndSubmit(page, prompt) {
             });
         }
 
+        // Close the Add Images panel if it's open (it blocks the UI)
+        await page.evaluate(() => {
+            const btns = document.querySelectorAll('button');
+            for (const b of btns) {
+                const text = (b.textContent || '').trim().toLowerCase();
+                // Sometimes there's a "Done" button or just click outside
+                if (text === 'done' || text === 'close') {
+                    b.click();
+                }
+            }
+        });
+        await interruptibleSleep(500);
+
         if (submitBtn) {
             await submitBtn.click();
             log(0, 'SUBMIT', '🚀 Submitted prompt');
@@ -527,6 +540,20 @@ async function waitForResultAndDownload(page, outputDir, fileBaseName) {
  */
 async function resetWhiskInputs(page) {
     try {
+        // Try clicking "Done", "Close", or clicking outside to dismiss any open panels
+        await page.evaluate(() => {
+            const btns = document.querySelectorAll('button');
+            for (const b of btns) {
+                const text = (b.textContent || '').trim().toLowerCase();
+                if (text === 'done' || text === 'close' || text === '×' || text === 'x') {
+                    b.click();
+                }
+            }
+            // Click outside to dismiss focus
+            document.body.click();
+        });
+        await interruptibleSleep(500);
+
         // Clear the prompt textarea
         const textarea = await page.$('textarea');
         if (textarea) {
@@ -540,8 +567,8 @@ async function resetWhiskInputs(page) {
             const allButtons = document.querySelectorAll('button');
             for (const btn of allButtons) {
                 const text = (btn.textContent || '').trim().toLowerCase();
-                // Material icon "close" or text-based close buttons
-                if (text === 'close' || text === 'clear' || text === 'remove' || text === '×' || text === 'x' || text === 'delete') {
+                // Material icon "close", "cancel" or text-based close buttons
+                if (text === 'close' || text === 'clear' || text === 'remove' || text === '×' || text === 'x' || text === 'delete' || text === 'cancel' || text === 'highlight_off') {
                     // Only click if it's near an image upload area (small button)
                     const rect = btn.getBoundingClientRect();
                     if (rect.width < 60 && rect.height < 60) {
@@ -551,7 +578,7 @@ async function resetWhiskInputs(page) {
             }
         });
 
-        await interruptibleSleep(500);
+        await interruptibleSleep(1000);
         log(0, 'RESET', '🔄 Whisk inputs cleared for next scene');
     } catch (err) {
         log(0, 'WARN', `Reset warning: ${err.message}`);

@@ -9,7 +9,7 @@ const fs = require('fs');
 const { META } = require('./dom_selectors');
 
 // ─── Config ───
-const META_URL = 'https://www.meta.ai/imagine/';
+const META_URL = 'https://www.meta.ai/media';
 const GENERATION_TIMEOUT = 180000;       // 3 min max for video generation
 const BETWEEN_GENERATIONS_DELAY = 40000; // 40s between generations (rate limit)
 const PAGE_LOAD_DELAY = 5000;
@@ -69,8 +69,19 @@ async function generateVideosMetaI2V(sceneImages, enrichedScenes, outputDir, asp
     // ─── Get or open Meta.ai tab ───
     let page = await findOrOpenMetaTab(browser);
 
+    // ─── Navigate to /media if not already there ───
+    if (!page.url().includes('/media')) {
+        log(0, 'META_I2V', `🌐 Navigating to proper UI: ${META_URL}`);
+        await page.goto(META_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await sleep(3000);
+    }
+
     // ─── Switch to Video mode ───
-    await switchToVideoMode(page);
+    try {
+        await switchToVideoMode(page);
+    } catch (e) {
+        log(0, 'WARN', 'Could not click Video toggle via primary method');
+    }
     await sleep(1000);
 
     // ─── Set aspect ratio ───

@@ -11,7 +11,6 @@ puppeteer.use(StealthPlugin());
 // V5 Pro Pipeline modules
 const { generateImagesWhisk } = require('./whisk_director');
 const { enrichScenesWithMotion, buildI2VPrompt } = require('./motion_prompts');
-const { generateVideosMetaI2V } = require('./meta_i2v_director');
 const { generateVideosGrokI2V } = require('./grok_i2v_director');
 const KB = require('./knowledge_base');
 const SM = require('./session_manager');
@@ -1922,14 +1921,38 @@ app.post('/generate-pipeline-pro', async (req, res) => {
                     directorLog
                 );
             } else {
-                i2vResults = await generateVideosMetaI2V(
-                    whiskResult.sceneImages,
-                    enrichedScenes,
-                    projectDir.server,
+                // Map the downloaded scene images to the format expected by V2 Director
+                const v2Scenes = whiskResult.sceneImages.map(img => {
+                    const sceneData = enrichedScenes[img.sceneNum - 1];
+                    const motionPrompt = sceneData?.motion_prompt || 'slow cinematic camera movement';
+                    return {
+                        prompt: motionPrompt,
+                        initial_image: img.filePath, // Triggers V2 I2V mode
+                        index: img.sceneNum - 1
+                    };
+                });
+
+                const onProgress = (p) => {
+                    directorLog(p.sceneIndex + 1, p.status === 'done' ? 'DONE' : p.status === 'failed' ? 'FAIL' : 'GEN',
+                        p.status === 'done' ? `✅ Scene ${p.sceneIndex + 1}/${v2Scenes.length} downloaded` :
+                            p.status === 'failed' ? `❌ Scene ${p.sceneIndex + 1} failed: ${p.error}` :
+                                `⏳ Scene ${p.sceneIndex + 1}/${v2Scenes.length} generating... (${p.pct}%)`);
+                };
+
+                const metaResults = await generateVideosMetaV2(browser, v2Scenes, {
+                    projectDir: projectDir.server,
                     aspectRatio,
-                    browser,
-                    directorLog
-                );
+                    mode: 'video',
+                    isI2V: true,
+                    onProgress
+                });
+
+                // Map back to expected format for assembly
+                i2vResults = metaResults.map(r => ({
+                    sceneNum: r.sceneIndex + 1,
+                    success: r.status === 'done',
+                    videoPath: r.filePath
+                }));
             }
 
             const successCount = i2vResults.filter(r => r.success).length;
