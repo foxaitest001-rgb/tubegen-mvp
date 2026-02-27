@@ -13,10 +13,10 @@
       },
       {
         "name": "ecto_1_sess",
-        "value": "58967aab-1ebe-4d8a-8c52-1b4747392034.v1%3APcSdE2j5Hrr0JjQVFwTh_Z27NBd5a2_29vuisaIbTmlKJrwd0a2U3ttcqVAqfMbSBqwY_FXN3gLyFuuE2nIk0Nfo8ms6_XTWksp20-RNb4nOCUEQj9r9V_hUkr0SzvKqQYn80-y76C0Ybr_eo6zl0TaMVWQVK-cj-dUTMXPWKvPgVl5fNOsUJ2gEXMKw-OKNoxGCPijw2j6vDpwx6FUeXk4i3sog93PM0vfKZ3toIX7fLJ9KlddwNvtAqYnpmWXjKeBWd3TJyLy78I_POpDiR5O6GSBq1dRIGTR-qv2lAAhdGIEB1avFJrXB_-QH7fGQZOyOoDoAmGmM9N4MJh5bmBHYD_3SC-jccUSpPQI4SEAMj0ZbfTxqWSTMtQ1QZZnPxhvQ5KSDFI9E9gxpXORyRwTw5JyuapTfA_Syw3-nK0y93zzBqPtc3dzQap423ShcAvYVxB9mWf3fhdSWYb0_PpOcytlQtjVhv-amrQ2Y9vCIrmszB3Ck2-syMa04%3AFOzdS3lGxZQ7bA0N%3AnT1ivUuOZnvy_h8LBTd0OA.rp9VQhrcw8qTIJd3T1vejBKwohdq_AdXnbl4q1WULjY",
+        "value": "58967aab-1ebe-4d8a-8c52-1b4747392034.v1%3AGdOopEIHD8gbxetdHoGcaYuBC73HwVtJX6aUrGNsFbG2NY6wH0C4OnScwdNc1Sec3APlE0NjUs7II-bn0_JMVloDtTcgQCMvtgQq2MNPlIngt-5joeqsRQLi920zqW4W5_FFLqtaGgJIqSDO5FuL7uewEkvNrgxqM9yup_jtMq6OjbV9NuoHp1HCft1j1CLGNT6thBOfgfnm80qRUVZEehkLc5a_uyQ9AQ8NRVOpx55aGJ7Je1TTes_OFTxtQvg3_O1UI5jt1zX-ncLIi-YbJWYABjpo4uafrUvcjfSdb2xHFqtEmUZ2Iinea6Mu4uxeFM_hZsS5xOEQ7BEdxwdvGL8YTffdZTYR2D1i2z8i2slovi9yd1OKwSJVysUF3Uq93Fhw8WSFRg1LUVNOjiXYS8hvpofaZ50eS5OR7a-HTal5bVpqB6jAV9UZzhwFHc114VW3Li4LOM2WTsZBDJdjVVN5ZP2qA9XK6bqI7nD5hh5WvZCBfX6Sy_4ZqZJq%3AHPpFvuyX8OLU0beW%3Al7Iehw4CuhJufwyOkoV8TQ.LFxgT5OVNjopIBTRprnn1VIsmbaZsc1pPcUzR26f1LE",
         "domain": ".meta.ai",
         "path": "/",
-        "expires": 1803583032.310077,
+        "expires": 1803741084.103088,
         "httpOnly": true,
         "secure": true,
         "sameSite": "Lax"
@@ -36,7 +36,7 @@
         "value": "1154x698",
         "domain": ".meta.ai",
         "path": "/",
-        "expires": 1772640225.591314,
+        "expires": 1772809886.803238,
         "httpOnly": false,
         "secure": true,
         "sameSite": "Lax"
@@ -83,10 +83,10 @@
       },
       {
         "name": "rd_challenge",
-        "value": "Q_6hBQMXkoVYHREZil_BLqdSPipxZi6bOojdF59FIEc6huRfHLgMSyMYbDQoIA3Peg4sSc2JnGgH7bphLx289zqs87X0",
+        "value": "Q_6hBQPsoQoA_2M1IagDo7mfkaYfetNomAkjedL3JYfVntsGtujkjwzQV7PX922vRX-kOFopU-vpoB9oSPtAG8kxij2LYBM",
         "domain": ".meta.ai",
         "path": "/",
-        "expires": 1772117698.472628,
+        "expires": 1772291483.625526,
         "httpOnly": true,
         "secure": true,
         "sameSite": "Lax"
@@ -94,7 +94,7 @@
     ],
     "verified": false,
     "verifiedAt": null,
-    "loadedAt": "2026-02-25T19:22:45.471Z",
+    "loadedAt": "2026-02-27T17:54:00.000Z",
     "stats": {
       "count": 9,
       "totalSize": "2.0kb",
@@ -131,9 +131,104 @@
     }
   },
   "grok": {
-    "cookies": null,
+    "cookies": [
+      {
+        "name": "sso",
+        "value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzZXNzaW9uX2lkIjoiZmRlZTU4MDctNzY1Yy00ZTkyLTk0YzctMzMxNzA4ZGVkMjdlIn0.BScLBMAWdPP4j2fPQl4JqVjrsVGycDzGjHiG-CtmfyI",
+        "domain": ".grok.com",
+        "path": "/",
+        "expires": 1787587543.712413,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "sso-rw",
+        "value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzZXNzaW9uX2lkIjoiZmRlZTU4MDctNzY1Yy00ZTkyLTk0YzctMzMxNzA4ZGVkMjdlIn0.BScLBMAWdPP4j2fPQl4JqVjrsVGycDzGjHiG-CtmfyI",
+        "domain": ".grok.com",
+        "path": "/",
+        "expires": 1787587543.712239,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Strict"
+      },
+      {
+        "name": "_ga",
+        "value": "GA1.1.744716543.1767812885",
+        "domain": ".grok.com",
+        "path": "/",
+        "expires": 1806769567.521159,
+        "httpOnly": false,
+        "secure": false,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "_ga_8FEWB057YH",
+        "value": "GS2.1.s1772209567$o13$g1$t1772209653$j60$l0$h0",
+        "domain": ".grok.com",
+        "path": "/",
+        "expires": 1806769653.139374,
+        "httpOnly": false,
+        "secure": false,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "i18nextLng",
+        "value": "en",
+        "domain": ".grok.com",
+        "path": "/",
+        "expires": 1803745569,
+        "httpOnly": false,
+        "secure": false,
+        "sameSite": "Strict"
+      },
+      {
+        "name": "mp_ea93da913ddb66b6372b89d97b1029ac_mixpanel",
+        "value": "%7B%22distinct_id%22%3A%2244791669-20f3-4898-860d-35ab66ee382c%22%2C%22%24device_id%22%3A%2273db263e-0c1f-4fda-8d63-6c7d810e6e0f%22%2C%22%24search_engine%22%3A%22google%22%2C%22%24initial_referrer%22%3A%22https%3A%2F%2Fwww.google.com%2F%22%2C%22%24initial_referring_domain%22%3A%22www.google.com%22%2C%22__mps%22%3A%7B%7D%2C%22__mpso%22%3A%7B%7D%2C%22__mpus%22%3A%7B%7D%2C%22__mpa%22%3A%7B%7D%2C%22__mpu%22%3A%7B%7D%2C%22__mpr%22%3A%5B%5D%2C%22__mpap%22%3A%5B%5D%2C%22%24user_id%22%3A%2244791669-20f3-4898-860d-35ab66ee382c%22%7D",
+        "domain": ".grok.com",
+        "path": "/",
+        "expires": 1803745735,
+        "httpOnly": false,
+        "secure": false,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "x-userid",
+        "value": "44791669-20f3-4898-860d-35ab66ee382c",
+        "domain": ".grok.com",
+        "path": "/",
+        "expires": -1,
+        "httpOnly": false,
+        "secure": true,
+        "sameSite": "None"
+      }
+    ],
     "verified": false,
     "verifiedAt": null,
-    "stats": null
+    "loadedAt": "2026-02-27T17:54:00.000Z",
+    "stats": {
+      "count": 7,
+      "totalSize": "1.8kb",
+      "keyCookies": [
+        {
+          "name": "sso",
+          "size": "0.2kb",
+          "domain": ".grok.com"
+        },
+        {
+          "name": "sso-rw",
+          "size": "0.2kb",
+          "domain": ".grok.com"
+        },
+        {
+          "name": "x-userid",
+          "size": "0.0kb",
+          "domain": ".grok.com"
+        }
+      ],
+      "domains": [
+        ".grok.com"
+      ]
+    }
   }
 }
