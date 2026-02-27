@@ -129,6 +129,9 @@ async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualSt
 
     await page.setViewport({ width: 1400, height: 900 });
 
+    // ─── Dismiss any welcome modals/tooltips ───
+    await handleWelcomeModal(page);
+
     // ─── Set aspect ratio before generating ───
     await setAspectRatio(page, aspectRatio);
 
@@ -256,7 +259,7 @@ async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualSt
             await interruptibleSleep(BETWEEN_GENERATIONS_DELAY);
         }
 
-        // Reset Whisk for next scene (clear inputs)
+        // Reset Whisk for next scene (clear inputs AND images)
         await resetWhiskInputs(page);
     }
 
@@ -273,6 +276,29 @@ async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualSt
 // ═══════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════
+
+/**
+ * Handle initial welcome modals or Try Flow tooltips that block the UI.
+ */
+async function handleWelcomeModal(page) {
+    try {
+        const clicked = await page.evaluate(() => {
+            const btns = document.querySelectorAll('button, div[role="button"], span');
+            for (const b of btns) {
+                const text = (b.textContent || '').trim().toLowerCase();
+                if (['try flow', 'got it', 'next', 'done', 'close', 'accept', 'continue'].includes(text)) {
+                    b.click();
+                    return true;
+                }
+            }
+            return false;
+        });
+        if (clicked) {
+            await interruptibleSleep(1000);
+            log(0, 'UI', 'Dismissed welcome modal/tooltip');
+        }
+    } catch (e) { }
+}
 
 /**
  * Open the "Add Images" panel if not already open
@@ -564,14 +590,18 @@ async function resetWhiskInputs(page) {
         // Try to clear uploaded images by clicking remove/X/close buttons
         await page.evaluate(() => {
             // Find close/remove buttons near image upload areas
-            const allButtons = document.querySelectorAll('button');
+            const allButtons = document.querySelectorAll('button, [role="button"]');
             for (const btn of allButtons) {
                 const text = (btn.textContent || '').trim().toLowerCase();
+                const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+
                 // Material icon "close", "cancel" or text-based close buttons
-                if (text === 'close' || text === 'clear' || text === 'remove' || text === '×' || text === 'x' || text === 'delete' || text === 'cancel' || text === 'highlight_off') {
-                    // Only click if it's near an image upload area (small button)
+                if (text === 'close' || text === 'clear' || text === 'remove' || text === '×' || text === 'x' || text === 'delete' || text === 'cancel' || text === 'highlight_off' ||
+                    ariaLabel.includes('remove') || ariaLabel.includes('delete') || ariaLabel.includes('clear')) {
+
+                    // Only click if it's near an image upload area (small button, often square/circular)
                     const rect = btn.getBoundingClientRect();
-                    if (rect.width < 60 && rect.height < 60) {
+                    if (rect.width > 0 && rect.width < 60 && rect.height > 0 && rect.height < 60) {
                         btn.click();
                     }
                 }

@@ -245,6 +245,60 @@ async function typePrompt(page, prompt) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// UPLOAD IMAGE (For I2V)
+// ═══════════════════════════════════════════════════════════════
+
+async function uploadImage(page, filePath) {
+    if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filePath}`);
+    }
+
+    console.log(`[MetaV2] 📤 Uploading image...`);
+
+    // Click the file upload icon (usually an image icon next to the prompt input)
+    const clickedUpload = await page.evaluate(() => {
+        const buttons = document.querySelectorAll('button[aria-label*="image" i], div[role="button"][aria-label*="image" i]');
+        for (const btn of buttons) {
+            btn.click();
+            return true;
+        }
+
+        // Fallback: look for the SVG path that looks like a picture icon
+        const svgs = document.querySelectorAll('svg');
+        for (const svg of svgs) {
+            const parentBtn = svg.closest('button, div[role="button"]');
+            if (parentBtn && !parentBtn.disabled) {
+                // Heuristic: upload buttons are usually small squares near the input
+                const rect = parentBtn.getBoundingClientRect();
+                if (rect.width < 50 && rect.height < 50) {
+                    parentBtn.click();
+                    return true;
+                }
+            }
+        }
+        return false;
+    });
+
+    if (clickedUpload) {
+        await delay(1000);
+    } else {
+        console.log(`[MetaV2] ⚠️ Could not find upload button, trying to find file input directly...`);
+    }
+
+    // Find the hidden file input
+    const fileInput = await page.$('input[type="file"][accept*="image"]');
+    if (!fileInput) {
+        throw new Error('File input not found');
+    }
+
+    await fileInput.uploadFile(filePath);
+    console.log(`[MetaV2] ✅ File attached: ${path.basename(filePath)}`);
+
+    // Wait for upload visually (e.g. preview appears)
+    await delay(3000);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SUBMIT PROMPT — Click "Animate" button (Video mode)
 // ═══════════════════════════════════════════════════════════════
 
@@ -507,6 +561,11 @@ async function generateVideosMetaV2(browser, scenes, options = {}) {
             console.log(`[MetaV2] 🎬 Scene ${sceneNum} (attempt ${attempts}/3): "${prompt.substring(0, 80)}..."`);
 
             try {
+                // I2V Phase: Upload image first if present
+                if (scene.initial_image) {
+                    await uploadImage(page, scene.initial_image);
+                }
+
                 await typePrompt(page, prompt);
                 await submitPrompt(page);
 
