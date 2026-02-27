@@ -1,0 +1,139 @@
+{
+  "meta": {
+    "cookies": [
+      {
+        "name": "datr",
+        "value": "o34TaTyZ3f4WTcVbSWbRaH2c",
+        "domain": ".meta.ai",
+        "path": "/",
+        "expires": 1797445284.310222,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "None"
+      },
+      {
+        "name": "ecto_1_sess",
+        "value": "58967aab-1ebe-4d8a-8c52-1b4747392034.v1%3APcSdE2j5Hrr0JjQVFwTh_Z27NBd5a2_29vuisaIbTmlKJrwd0a2U3ttcqVAqfMbSBqwY_FXN3gLyFuuE2nIk0Nfo8ms6_XTWksp20-RNb4nOCUEQj9r9V_hUkr0SzvKqQYn80-y76C0Ybr_eo6zl0TaMVWQVK-cj-dUTMXPWKvPgVl5fNOsUJ2gEXMKw-OKNoxGCPijw2j6vDpwx6FUeXk4i3sog93PM0vfKZ3toIX7fLJ9KlddwNvtAqYnpmWXjKeBWd3TJyLy78I_POpDiR5O6GSBq1dRIGTR-qv2lAAhdGIEB1avFJrXB_-QH7fGQZOyOoDoAmGmM9N4MJh5bmBHYD_3SC-jccUSpPQI4SEAMj0ZbfTxqWSTMtQ1QZZnPxhvQ5KSDFI9E9gxpXORyRwTw5JyuapTfA_Syw3-nK0y93zzBqPtc3dzQap423ShcAvYVxB9mWf3fhdSWYb0_PpOcytlQtjVhv-amrQ2Y9vCIrmszB3Ck2-syMa04%3AFOzdS3lGxZQ7bA0N%3AnT1ivUuOZnvy_h8LBTd0OA.rp9VQhrcw8qTIJd3T1vejBKwohdq_AdXnbl4q1WULjY",
+        "domain": ".meta.ai",
+        "path": "/",
+        "expires": 1803583032.310077,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "ps_l",
+        "value": "1",
+        "domain": ".meta.ai",
+        "path": "/",
+        "expires": 1797862916.759244,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "wd",
+        "value": "1154x698",
+        "domain": ".meta.ai",
+        "path": "/",
+        "expires": 1772640225.591314,
+        "httpOnly": false,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "ecto_1_migration_lo",
+        "value": "1772033761412",
+        "domain": ".meta.ai",
+        "path": "/",
+        "expires": 1774625767.632433,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "abra_csrf",
+        "value": "ypHbG5L3LaT5wNwogM2snu",
+        "domain": ".meta.ai",
+        "path": "/",
+        "expires": -1,
+        "httpOnly": false,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "dpr",
+        "value": "1",
+        "domain": ".meta.ai",
+        "path": "/",
+        "expires": 1772640198.836558,
+        "httpOnly": false,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "ps_n",
+        "value": "1",
+        "domain": ".meta.ai",
+        "path": "/",
+        "expires": 1797862916.759427,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "None"
+      },
+      {
+        "name": "rd_challenge",
+        "value": "Q_6hBQMXkoVYHREZil_BLqdSPipxZi6bOojdF59FIEc6huRfHLgMSyMYbDQoIA3Peg4sSc2JnGgH7bphLx289zqs87X0",
+        "domain": ".meta.ai",
+        "path": "/",
+        "expires": 1772117698.472628,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Lax"
+      }
+    ],
+    "verified": false,
+    "verifiedAt": null,
+    "loadedAt": "2026-02-25T19:22:45.471Z",
+    "stats": {
+      "count": 9,
+      "totalSize": "2.0kb",
+      "keyCookies": [
+        {
+          "name": "datr",
+          "size": "0.0kb",
+          "domain": ".meta.ai"
+        },
+        {
+          "name": "ecto_1_sess",
+          "size": "0.6kb",
+          "domain": ".meta.ai"
+        },
+        {
+          "name": "ps_l",
+          "size": "0.0kb",
+          "domain": ".meta.ai"
+        },
+        {
+          "name": "wd",
+          "size": "0.0kb",
+          "domain": ".meta.ai"
+        },
+        {
+          "name": "ecto_1_migration_lo",
+          "size": "0.0kb",
+          "domain": ".meta.ai"
+        }
+      ],
+      "domains": [
+        ".meta.ai"
+      ]
+    }
+  },
+  "grok": {
+    "cookies": null,
+    "verified": false,
+    "verifiedAt": null,
+    "stats": null
+  }
+}

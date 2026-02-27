@@ -1,0 +1,1081 @@
+{
+  "A Director's Guide to Cinematic AI Visuals_ Best Practices for Camera, Lighting, and Pose in 2025.xlsx": {
+    "Table 1": [
+      {
+        "Camera Shot": "Wide Establishing Shot",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"wide establishing shot\", \"panoramic shot\", \"long shot\" Impact:  Captures a large area to provide context, establish the setting, and show the subject's relationship to their environment."
+      },
+      {
+        "Camera Shot": "Full Shot",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"full shot\", \"long shot\" Impact:  Frames a character from head to toe. It's ideal for capturing full-body action and physical performance."
+      },
+      {
+        "Camera Shot": "Medium Shot",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"medium shot\", \"waist-up framing\" Impact:  Frames the subject from the waist up. It balances character detail with environmental context and is the standard for dialogue scenes."
+      },
+      {
+        "Camera Shot": "Close-Up",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"close-up\", \"tight framing\" Impact:  Highlights fine details and captures subtle emotions. It creates a sense of intimacy and directs the viewer's focus to a critical element."
+      },
+      {
+        "Camera Shot": "Extreme Close-Up",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"extreme close-up\", \"macro shot\" Impact:  Focuses on intense detail, such as an eye or a texture, to convey heightened emotion, tension, or significance."
+      },
+      {
+        "Camera Shot": "Over-the-Shoulder Shot",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"over-the-shoulder shot\", \"OTS\" Impact:  Frames a conversation from behind one character, establishing intimacy, connection, and a clear point of view for dialogue scenes."
+      },
+      {
+        "Camera Shot": "Eye-Level Shot",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"eye-level shot\", \"neutral perspective\" Impact:  Positions the camera at the subject's eye level, creating a sense of connection, relatability, and conversational realism."
+      },
+      {
+        "Camera Shot": "Low-Angle Shot",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"low angle shot\", \"from below\" Impact:  Makes the subject appear powerful, dominant, heroic, or larger-than-life. It exaggerates stature and presence within the frame."
+      },
+      {
+        "Camera Shot": "High-Angle Shot",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"high angle shot\", \"from above\", \"looking down\" Impact:  Implies vulnerability, insignificance, or smallness. It can also provide a broader geographic context for a scene."
+      },
+      {
+        "Camera Shot": "Dutch Angle",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"dutch angle\", \"tilt shot\", \"canted angle\" Impact:  Tilts the camera's horizon line to evoke a sense of tension, psychological unease, disorientation, or danger."
+      },
+      {
+        "Camera Shot": "Bird's-Eye View",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"bird's eye view\", \"overhead shot\", \"top-down view\" Impact:  Positions the camera directly above the scene, offering an objective, map-like, or omniscient perspective that can reveal patterns and layouts."
+      },
+      {
+        "Camera Shot": "Ground Level/Worm's-Eye View",
+        "Prompt Keywords & Narrative Impact": "Keywords:  \"ground level view\", \"worm's-eye view\" Impact:  Positions the camera extremely low to the ground, looking up. This creates a dramatic perspective that exaggerates scale and impact."
+      }
+    ],
+    "Table 2": [
+      {
+        "Lighting Style": "Golden Hour",
+        "Prompt Keywords & Visual Effect": "Keywords:  \"warm golden-hour light\", \"sunset glow\", \"magic hour\" Effect:  Creates a soft, hopeful, and romantic atmosphere with warm, diffused light and long shadows. Ideal for nostalgic or cinematic scenes."
+      },
+      {
+        "Lighting Style": "Film Noir / Chiaroscuro",
+        "Prompt Keywords & Visual Effect": "Keywords:  \"harsh noir shadows\", \"high contrast between light and dark\", \"chiaroscuro style\" Effect:  Evokes suspense, mystery, and dramatic tension using stark contrasts. Emphasizes mood and moral conflict."
+      },
+      {
+        "Lighting Style": "Rim Lighting",
+        "Prompt Keywords & Visual Effect": "Keywords:  \"rim lighting\", \"dramatic backlighting\", \"glowing edges\" Effect:  Creates a glowing outline around a subject by placing a light source behind them. It separates the subject from the background and adds a dramatic, mystical quality."
+      },
+      {
+        "Lighting Style": "Soft Box Lighting",
+        "Prompt Keywords & Visual Effect": "Keywords:  \"soft box lighting\", \"clean, professional studio lighting\", \"soft, even illumination\" Effect:  Mimics the clean, flattering light of a professional photo studio. It conveys clarity, professionalism, and an open, airy feeling with minimal shadows."
+      },
+      {
+        "Lighting Style": "High Key Lighting",
+        "Prompt Keywords & Visual Effect": "Keywords:  \"bright afternoon light\", \"minimal shadows\", \"high-key\" Effect:  Conveys optimism, clarity, and an open, airy feeling. The scene is brightly lit with very few dark shadows."
+      },
+      {
+        "Lighting Style": "Low Key Lighting",
+        "Prompt Keywords & Visual Effect": "Keywords:  \"dark, dramatic shadows\", \"single light\", \"low-key\" Effect:  Creates intimacy, seriousness, or a sense of foreboding. The scene is dark, with selective lighting illuminating the subject."
+      }
+    ],
+    "Table 3": [
+      {
+        "Tool/Technique": "Midjourney  --cref",
+        "Platform & Function": "Platform:  Midjourney V6/V7 Function:  Uses a reference image of a character to lock their identity, facial features, and general appearance across multiple generations."
+      },
+      {
+        "Tool/Technique": "Veo 3.1 \"Ingredients to Video\"",
+        "Platform & Function": "Platform:  Google Veo Function:  Allows users to provide reference images for a character, object, or style to maintain a consistent aesthetic and identity across different video shots."
+      },
+      {
+        "Tool/Technique": "Nano Banana Pro Reason-Engine Layout",
+        "Platform & Function": "Platform:  Google Imagen / Nano Banana Pro Function:  Plans the spatial layout and object relationships within a scene  before  rendering pixels, ensuring character and object continuity are logically maintained."
+      },
+      {
+        "Tool/Technique": "PHD Pose Fitting",
+        "Platform & Function": "Platform:  Meta AI (and advanced research) Function:  Employs a body shape-conditioned 3D pose prior to guide pose fitting. This mitigates errors like 'glitching limbs' by accounting for a character's specific body shape before rendering, improving 3D accuracy."
+      }
+    ],
+    "Table 4": [
+      {
+        "Platform": "Google Imagen 4 / Nano Banana Pro",
+        "Primary Cinematic Strength": "Multimodal editing & world knowledge",
+        "Photorealism": "High, with detailed organic textures",
+        "Character Consistency": "High, preserves identity across scenes",
+        "Key Differentiator": "Physics-aware reasoning engine for logical consistency; in-context text and image editing."
+      },
+      {
+        "Platform": "Midjourney V7",
+        "Primary Cinematic Strength": "Artistic, cinematic aesthetic",
+        "Photorealism": "High, but often stylized and \"too perfect\"",
+        "Character Consistency": "Very high, via dedicated --cref parameter",
+        "Key Differentiator": "Deep creative control via parameters and --cref; personalization profile learns user style,  but struggles with generating readable text."
+      },
+      {
+        "Platform": "Veo 3.1",
+        "Primary Cinematic Strength": "Coherent, long-form video generation",
+        "Photorealism": "Good, with realistic physics & motion",
+        "Character Consistency": "High, via \"Ingredients to Video\" reference feature",
+        "Key Differentiator": "First-frame/last-frame interpolation for smooth transitions; advanced audio-video sync,  but at a higher cost per generation."
+      },
+      {
+        "Platform": "Meta AI",
+        "Primary Cinematic Strength": "Personalized & social-ready content",
+        "Photorealism": "High, especially for photorealistic selfies",
+        "Character Consistency": "Very high, preserves identity across poses & scenes",
+        "Key Differentiator": "\"Imagine Me\" feature for self-portraits; advanced pose engines for commercial use."
+      }
+    ]
+  },
+  "Cinematic Film Production and AI Video Generation Shot List.xlsx": {
+    "Table 1": [
+      {
+        "Scene Number": "1",
+        "Shot Number": "1",
+        "Story Beat / Narrative Purpose": "Establish protagonist's isolation and tactile, weathered reality amidst grief.",
+        "Director’s Intent": "Visually represent the weight of loneliness and emotional isolation; establish a state of mourning.",
+        "Shot Type": "Wide Shot",
+        "Camera Angle": "Eye-level",
+        "Camera Movement": "Static",
+        "Lens & Focal Length": "Standard (35mm) to Telephoto (85–135mm)",
+        "Framing & Composition": "Center-punching or frame-within-a-frame through a doorway to make character appear small and trapped.",
+        "Aspect Ratio": "2.39:1 anamorphic",
+        "Depth of Field": "Shallow (to isolate character from environment or suggest \"truth is blurry\").",
+        "Blocking & Actor Positions": "Character in dominant position but pushed to extreme edges of the frame to show lack of control; tactile interaction with decay.",
+        "Lighting Style": "Low-key",
+        "Lighting Details": "High contrast, strong shadows; motivated by monitor flicker or dim ambient light; 5600K cool blue-gray tones.",
+        "Production Design Notes": "Tactile Dystopia: obsolete analog hardware vs quantum digital interfaces; empty domestic space with historical layers.",
+        "Color Palette": "Desaturated teal, burnt orange, muted grays, and cool blues.",
+        "Sound Design": "Ambient room tone: shallow rhythm of breath, AC hum, and fridge hum.",
+        "Music / Score Notes": "Minimalist, low-frequency drones or silence to build introspection.",
+        "Editing Notes": "Slow, meditative shots with long duration; slow pacing to allow discomfort.",
+        "AI Video Prompt (Draft)": "Static wide shot, 35mm lens, female technician in cluttered restoration bay or elderly man in dim room, motivated by cool glow, 2.39:1, high contrast.",
+        "Consistency Notes": "Maintain character likeness, facial features, and naval suit; consistent desaturated lighting for present-day timeline.",
+        "Source": "1-5"
+      },
+      {
+        "Scene Number": "2",
+        "Shot Number": "1",
+        "Story Beat / Narrative Purpose": "Inciting incident or flashback: The emergence of a contradictory memory or nostalgic past.",
+        "Director’s Intent": "Create a dreamlike connection or psychological disruption; audience breath-holding.",
+        "Shot Type": "Medium to Extreme Close-Up",
+        "Camera Angle": "Low angle to Eye-level",
+        "Camera Movement": "Dolly In (Slow push) or Handheld",
+        "Lens & Focal Length": "Wide (18–24mm) to Telephoto (85mm)",
+        "Framing & Composition": "Symmetrical framing for unity or Rule of Thirds (hologram on grid intersection).",
+        "Aspect Ratio": "2.39:1 anamorphic",
+        "Depth of Field": "Deep (to see vibrant environment or sharp fiction clearly).",
+        "Blocking & Actor Positions": "Actors in close proximity moving joyfully, or strategist stillness looking up at high-elevation hologram.",
+        "Lighting Style": "High-key or Motivated",
+        "Lighting Details": "Warm golden hour light with haze/diffusion, or aggressive sharpness with neon colors from holographic projection.",
+        "Production Design Notes": "Vibrant flowers and warm textures vs saturated hues for digital ghosts and glass condensation.",
+        "Color Palette": "Golden yellows and warm oranges vs vibrant neon blues and greens (artificiality).",
+        "Sound Design": "Diegetic laughter and birds chirping vs sudden silence to draw attention to micro-expressions.",
+        "Music / Score Notes": "Uplifting classical piano vs anempathetic electronic drone; tension rises.",
+        "Editing Notes": "Dynamic cuts and rhythmic motion vs cut timing based on emotional peak.",
+        "AI Video Prompt (Draft)": "Handheld medium shot of happy couple dancing or macro shot of eye reflecting a digital glitch, 8k, cinematic realism.",
+        "Consistency Notes": "Use character reference images for younger versions; shift color temperature; maintain consistency of holographic \"ghost\" face.",
+        "Source": "1, 3, 6, 7"
+      },
+      {
+        "Scene Number": "3",
+        "Shot Number": "1",
+        "Story Beat / Narrative Purpose": "Represent psychological distress and the confusion of Alzheimer's.",
+        "Director’s Intent": "Make the audience experience the character's fractured mental state and submission.",
+        "Shot Type": "Extreme Close-Up",
+        "Camera Angle": "Eye-level",
+        "Camera Movement": "Tilt",
+        "Lens & Focal Length": "Standard (35–50mm)",
+        "Framing & Composition": "Extreme close-up on eyes; unbalanced composition with uncomfortable headroom.",
+        "Aspect Ratio": "2.39:1 anamorphic",
+        "Depth of Field": "Extremely Shallow (shifting focal plane)",
+        "Blocking & Actor Positions": "Actor is stationary but appears disoriented; height differential used to show submission.",
+        "Lighting Style": "Stylized",
+        "Lighting Details": "Motivated by flickering TV light, cool fluorescent tones, harsh shadows.",
+        "Production Design Notes": "Distorted reflection in a mirror; cluttered environment symbolizing mental state.",
+        "Color Palette": "Sickly greens, cold whites, and harsh grays.",
+        "Sound Design": "Subjective sound perspective; muffled dialogue, ringing metallic screech.",
+        "Music / Score Notes": "Dissonant, low-frequency drone to build anxiety.",
+        "Editing Notes": "Abrupt transitions; usage of \"oner\" technique for a single unbroken shot of confusion.",
+        "AI Video Prompt (Draft)": "Extreme close-up of an elderly man's eyes, shifting focus, flickering cold TV light, 50mm lens, 4k, HDR, surreal atmosphere.",
+        "Consistency Notes": "Use \"Modify with Keyframes\" to control the shifting focal plane and character behavior.",
+        "Source": "3, 5, 6, 8"
+      }
+    ],
+    "Source References": [
+      {
+        "Index": "1",
+        "Reference": "Cinematic Synthesis: A Professional Framework for AI-Augmented Short Film Production"
+      },
+      {
+        "Index": "2",
+        "Reference": "MASTER PERPLEXITY PROMPT (Cinematic AI Film Creati.docx"
+      },
+      {
+        "Index": "3",
+        "Reference": "Camera Techniques for Emotional Storytelling - Filmmakers Academy"
+      },
+      {
+        "Index": "4",
+        "Reference": "How Denis Villeneuve Uses Color Palettes to Elevate Storytelling in Film - Pixflow"
+      },
+      {
+        "Index": "5",
+        "Reference": "The Art of Cinematic Silence | The LA Film School"
+      },
+      {
+        "Index": "6",
+        "Reference": "AI Video Generation with Ray3 & Dream Machine - Luma AI"
+      },
+      {
+        "Index": "7",
+        "Reference": "Movie Lighting: A Guide to Techniques and Visual Storytelling ..."
+      },
+      {
+        "Index": "8",
+        "Reference": "Walter Murch on Film Editing and Sound - (Roughly) Daily"
+      }
+    ]
+  },
+  "Cinematic Framework and Short Film Production Data Structure.xlsx": {
+    "Table 1": [
+      {
+        "Element/Technique": "Act I (The Setup)",
+        "Category": "Story Structure",
+        "Key Principles": "Introduction of world, characters (Who, Where, What, Why), and inciting incident/main conflict within 90 seconds.",
+        "Technical Implementation": "Approx. 25% of duration or first 5-7 min. Utilizes longer takes, spatial establishment shots, and action/mise-en-scène; avoids heavy exposition.",
+        "Emotional or Narrative Impact": "Allows audience to settle, establishes empathy, backstory, and the \"creative spine\" or story trajectory.",
+        "Strategic Guidelines": "Express story beats as spatial shifts. Use \"prolog\" style for transportation. Define initial state and setting in prompts (e.g., 'Establish Elara in the restoration bay').",
+        "Associated Source or Tool (Inferred)": "Celtx, Runway Gen-3, Kling AI",
+        "Source": "1-5"
+      },
+      {
+        "Element/Technique": "Act II (Complication & Development)",
+        "Category": "Story Structure",
+        "Key Principles": "Confrontation and escalation of obstacles/stakes; shifting relationships and introduction of events preventing goal attainment.",
+        "Technical Implementation": "Approx. 50% of duration. Accelerates through tighter framing, shorter cuts, and contradictory visuals (e.g., hallucinations).",
+        "Emotional or Narrative Impact": "Intensifies engagement; contains the \"darkest moment\" (lowest emotional point) at the 3/4 mark. Creates immediate tension.",
+        "Strategic Guidelines": "Use conversational density (60% of shots) to carry conflict. Prompt for a disruptive event or a shift in the status quo.",
+        "Associated Source or Tool (Inferred)": "Kling AI, Luma Dream Machine, Runway Gen-3",
+        "Source": "1-3, 5, 6"
+      },
+      {
+        "Element/Technique": "Act III (Climax & Resolution)",
+        "Category": "Story Structure",
+        "Key Principles": "Convergence of tensions; character transformation made visible; final goal attainment or rising action through sequences of advances and setbacks.",
+        "Technical Implementation": "Approx. 25% of duration. Rapid-fire cuts, sustained tension through static composition, and visualization of environmental bleed-over.",
+        "Emotional or Narrative Impact": "Maximum expressive contrast; physiological arousal (heart rate rise); visceral response as environment becomes unreliable.",
+        "Strategic Guidelines": "Action shots peak here. Converge 'narration time' with 'narrative time' for urgency. Use prompts to describe multi-step motion and increasing complexity.",
+        "Associated Source or Tool (Inferred)": "Runway Gen-3, Kling AI 1.6/2.0",
+        "Source": "1, 2, 5-7"
+      },
+      {
+        "Element/Technique": "Act IV (Climax & Resolution)",
+        "Category": "Story Structure",
+        "Key Principles": "The highest point of tension followed by a clean, satisfying payoff or plot twist.",
+        "Technical Implementation": "Circular structure (ending where it began) or a radical shift in perspective; resolution of the central dilemma.",
+        "Emotional or Narrative Impact": "Memorable impact; provides closure or thought-provoking ambiguity; high-concept resolution.",
+        "Strategic Guidelines": "Prompt for a definitive final action or a visual 'twist' that reframes previous footage.",
+        "Associated Source or Tool (Inferred)": "Luma Ray3 (Modify Video)",
+        "Source": "3, 6, 8"
+      },
+      {
+        "Element/Technique": "Focal Length Selection (21mm - 85mm)",
+        "Category": "Cinematography",
+        "Key Principles": "Focal length directly impacts emotional distance, relationship to character, and psychological perspective.",
+        "Technical Implementation": "Range: 21mm (Ultra-Wide) for distortion; 35-50mm (Standard) for naturalism; 85mm (Telephoto) for isolation.",
+        "Emotional or Narrative Impact": "Wide lenses distort for environmental threat/alienation; 50mm provides intimacy/contemplation; 85mm abstracts for intense focus.",
+        "Strategic Guidelines": "Always specify exact focal length in AI prompts (e.g., '21mm ultra-wide lens, fisheye distortion' or '85mm, cinematic bokeh').",
+        "Associated Source or Tool (Inferred)": "Luma Dream Machine, Runway Gen-3, Luma Ray3",
+        "Source": "1, 3, 6, 9"
+      },
+      {
+        "Element/Technique": "The Triangle Method",
+        "Category": "Blocking",
+        "Key Principles": "Arranging characters in a triangular formation to frame interaction, draw the eye, and prevent flat lines.",
+        "Technical Implementation": "Position actors at Points A (Speaker), B (Listener), and C (Observer). Rotate triangle via camera movement to reveal hierarchy.",
+        "Emotional or Narrative Impact": "Intensifies connection; dynamic tension; focuses attention on the \"point\" of the triangle; represents group hierarchies.",
+        "Strategic Guidelines": "Use to underscore tensions or alliances. Prompt: 'Three characters in a triangular formation, shifting focus, power struggle'.",
+        "Associated Source or Tool (Inferred)": "Saturation.io, Kling AI, Runway Gen-3",
+        "Source": "3, 6, 10, 11"
+      },
+      {
+        "Element/Technique": "Power Dynamics Positioning",
+        "Category": "Blocking",
+        "Key Principles": "Leveraging height and spatial relationships (center vs. edge) to signal dominance, authority, or submission.",
+        "Technical Implementation": "Dominant: low angle, center-frame, standing/elevation. Submissive: high angle, frame-edge/headroom, sitting.",
+        "Emotional or Narrative Impact": "Conveys internal conflict and social hierarchy without dialogue; encodes the \"pecking order.\"",
+        "Strategic Guidelines": "Characters moving from edge to center visually enact power acquisition. Prompt: 'character center-frame, low-angle' vs 'off-center, small in frame'.",
+        "Associated Source or Tool (Inferred)": "Kling AI, Runway (Director Mode), Luma Ray3",
+        "Source": "1, 3, 6, 10, 12, 13"
+      },
+      {
+        "Element/Technique": "Motivated Realism",
+        "Category": "Lighting",
+        "Key Principles": "Every light source should appear to originate from a visible/natural source in the scene (the \"Deakins Principle\").",
+        "Technical Implementation": "Utilizing lamps, windows, monitors, or fire as \"justification\" for the key light; matching color temperatures.",
+        "Emotional or Narrative Impact": "Maintains realism and immersion; prevents the scene from feeling artificial or staged.",
+        "Strategic Guidelines": "In prompts, describe visible results: 'dim interior lit by a single desk lamp' or 'motivated by a single window, matching practical lamp color'.",
+        "Associated Source or Tool (Inferred)": "Runway Gen-3, Luma Ray3 (Relighting)",
+        "Source": "1, 3, 6, 14, 15"
+      },
+      {
+        "Element/Technique": "Color Temperature (3200K - 5600K)",
+        "Category": "Lighting",
+        "Key Principles": "Light color communicates emotional tone, time of day, and psychological states.",
+        "Technical Implementation": "3200K (Tungsten/Warm) for nostalgia/comfort/happiness; 5600K (Daylight/Cool) for clinical sterility/isolation.",
+        "Emotional or Narrative Impact": "Warmth suggests intimacy; coolness suggests mystery or detachment. Mixing suggests psychological conflict.",
+        "Strategic Guidelines": "Use identical color temperature keywords (e.g., 'Warm 3200K sunset') across AI scenes for visual consistency.",
+        "Associated Source or Tool (Inferred)": "Adobe Firefly, Luma Dream Machine, Runway Gen-3",
+        "Source": "1, 3, 6, 16"
+      },
+      {
+        "Element/Technique": "Negative Fill",
+        "Category": "Lighting",
+        "Key Principles": "Subtracting light to create shape, mood, and dimension.",
+        "Technical Implementation": "Use of black flags/solids to absorb light and deepen shadows (Inverse of fill).",
+        "Emotional or Narrative Impact": "Enhances brooding atmosphere; adds contours; increases intensity in drama or noir.",
+        "Strategic Guidelines": "Prompts: 'Deep shadows, low-key lighting, heavy negative fill, high contrast'.",
+        "Associated Source or Tool (Inferred)": "Runway Gen-3, Luma Ray3",
+        "Source": "3, 6, 17"
+      },
+      {
+        "Element/Technique": "Sound Motifs & Silence",
+        "Category": "Sound Design",
+        "Key Principles": "Recurring sounds (motifs) build subconscious associations; silence is used as an active tool for emphasis.",
+        "Technical Implementation": "Diegetic (world-based) vs Non-diegetic (score). Layering Foley, Ambient (AC hum), and Effects (glitches).",
+        "Emotional or Narrative Impact": "Silence after high-density sound creates weight/suspense; motifs identify character presence/emotions.",
+        "Strategic Guidelines": "Avoid clichés; use silence to let emotional weight settle. Identify tools for AI audio: ElevenLabs (Lipsync), Kling (SFX).",
+        "Associated Source or Tool (Inferred)": "ElevenLabs, Runway (Lip Sync), Kling AI",
+        "Source": "1, 3, 6, 18-22"
+      }
+    ],
+    "Source References": [
+      {
+        "Index": "1",
+        "Reference": "MASTER PERPLEXITY PROMPT (Cinematic AI Film Creati.docx"
+      },
+      {
+        "Index": "2",
+        "Reference": "Narrative theory and the dynamics of popular movies - PMC - PubMed Central"
+      },
+      {
+        "Index": "3",
+        "Reference": "10 Short Films to Watch at the 2025 Sundance Film Festival - Film Fest Report"
+      },
+      {
+        "Index": "4",
+        "Reference": "How Denis Villeneuve Uses Color Palettes to Elevate Storytelling in Film - Pixflow"
+      },
+      {
+        "Index": "5",
+        "Reference": "How to Write the Story Structure of a Short Film: A Filmmaker's Guide to Powerful Narratives"
+      },
+      {
+        "Index": "6",
+        "Reference": "Cinematic Synthesis: A Professional Framework for AI-Augmented Short Film Production"
+      },
+      {
+        "Index": "7",
+        "Reference": "3. What Are the Mechanics of Story and Plot? – Exploring Movie Construction and Production - Milne Publishing"
+      },
+      {
+        "Index": "8",
+        "Reference": "3 Elements Of Short Film Structure You Need To Know | Raindance"
+      },
+      {
+        "Index": "9",
+        "Reference": "Filmmaking with a Single Lens - Cooke Optics"
+      },
+      {
+        "Index": "10",
+        "Reference": "Filmmaking Techniques Film Blocking (2025) - Saturation.io"
+      },
+      {
+        "Index": "11",
+        "Reference": "Filmmaking Blocking: What It Means and How to Use It - WriteSeen"
+      },
+      {
+        "Index": "12",
+        "Reference": "Camera Techniques for Emotional Storytelling - Filmmakers Academy"
+      },
+      {
+        "Index": "13",
+        "Reference": "Using Blocking to Convey Power Dynamics in a Scene - JIG Reel Studios"
+      },
+      {
+        "Index": "14",
+        "Reference": "Movie Lighting: A Guide to Techniques and Visual Storytelling ..."
+      },
+      {
+        "Index": "15",
+        "Reference": "What is Motivated Lighting in Film — Building a World with Light - StudioBinder"
+      },
+      {
+        "Index": "16",
+        "Reference": "Lighting Design and Techniques | Advanced Cinematography Class Notes - Fiveable"
+      },
+      {
+        "Index": "17",
+        "Reference": "Unlocking the Cinematic Look: 5 Advanced Lighting Methods | Filmbaker"
+      },
+      {
+        "Index": "18",
+        "Reference": "Sonic Centaurs: An Exploration of the Common Grounds Between Music and Sound Design"
+      },
+      {
+        "Index": "19",
+        "Reference": "Sound Design Mastery: Enhance Your Film's Emotional Impact - NuPitch"
+      },
+      {
+        "Index": "20",
+        "Reference": "Sohonet's Tips and Techniques to Add Impactful Sound Design to Your Movie"
+      },
+      {
+        "Index": "21",
+        "Reference": "The Art of Cinematic Silence | The LA Film School"
+      },
+      {
+        "Index": "22",
+        "Reference": "The Importance of Silence in Film: How Quiet Moments Make the Loudest Impact - FILMD"
+      }
+    ]
+  },
+  "Creative Styles and AI Video Generation Prompt Intelligence.xlsx": {
+    "Table 1": [
+      {
+        "style_id": "ST_HOLLYWOOD_01",
+        "style_name": "Hollywood",
+        "aliases": "AAA Realism; Blockbuster",
+        "primary_category": "Cinematic",
+        "secondary_categories": "Narrative; High-Production",
+        "parent_styles": "Cinematic",
+        "child_or_sub_styles": "Not in source",
+        "visual_description": "Glossy, high-production narrative film look with epic scale and star power.",
+        "key_visual_features": "Dramatic lighting; seamless editing; golden hour key light; rim glow.",
+        "motion_characteristics": "Smooth 60fps; steady tracking shots; crane shots; orbiting dolly zooms.",
+        "lighting_and_atmosphere": "Bright dramatic lights; triumphant atmosphere; cinematic glamour.",
+        "camera_and_framing": "Epic scale framing; tracking and crane shots; dolly zooms.",
+        "technical_rendering_traits": "8K ray-traced; high-fidelity CGI blend; 4K realistic motion.",
+        "cultural_or_technical_origin": "Mainstream film industry; blockbuster traditions.",
+        "typical_use_cases": "Blockbuster movies; action epics; high-end advertising.",
+        "related_styles": "AAA Realism; Photorealistic.",
+        "base_prompt": "Epic battle in ancient Rome, Hollywood style, bright dramatic lights, steady tracking shot, heroic mood, 4K realistic motion.",
+        "cinematic_prompt": "Gladiator arena clash with thousands extras, Hollywood blockbuster, golden hour key light rim glow, crane shot rising over chaos, triumphant atmosphere, 8K ray-traced, smooth 60fps.",
+        "stylized_prompt": "Coliseum warriors in hyper-saturated colors, Hollywood glamour filter, orbiting dolly zoom, epic orchestral vibe, high-fidelity CGI blend.",
+        "experimental_prompt": "Not in source",
+        "negative_prompt": "Avoid negative phrasing (no camera movement, no clouds); avoid conversational commands.",
+        "style_modifiers": "8K ray-traced; golden hour; rim glow; crane shot.",
+        "compatible_styles": "Photorealistic; 3D CGI.",
+        "incompatible_styles": "Lo-fi; 2D Traditional (standard blend).",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "Vague conceptual language reduces quality; command-based prompts lack detail.",
+        "Source": "1"
+      },
+      {
+        "style_id": "ST_NOIR_01",
+        "style_name": "Noir",
+        "aliases": "Film Noir; Neon-Noir",
+        "primary_category": "Cinematic",
+        "secondary_categories": "Crime Drama; Mystery",
+        "parent_styles": "Cinematic",
+        "child_or_sub_styles": "Neon-Noir",
+        "visual_description": "Shadowy crime drama aesthetic with high contrast and fatalistic mood.",
+        "key_visual_features": "Chiaroscuro lighting; wet reflections; venetian blinds shadows; silhouettes.",
+        "motion_characteristics": "Slow pan; Dutch angle tracking; vertigo spin.",
+        "lighting_and_atmosphere": "Low-key lighting; moody tension; existential haze; flickering streetlamps.",
+        "camera_and_framing": "Dutch angles; tracking shots; silhouette framing.",
+        "technical_rendering_traits": "Grainy film stock; sharp HD; stylized monochrome with color pops.",
+        "cultural_or_technical_origin": "20th-century crime cinema; German Expressionism roots.",
+        "typical_use_cases": "Thrillers; mysteries; moody storytelling.",
+        "related_styles": "Neon-Noir; Arthouse.",
+        "base_prompt": "Detective in rainy alley, noir style, shadowy low-key light, slow pan, moody tension, HD sharp.",
+        "cinematic_prompt": "Hard-boiled PI under neon signs, classic film noir, chiaroscuro lighting wet reflections, Dutch angle tracking, fatalistic dread, 4K grainy film stock.",
+        "stylized_prompt": "Silhouette gumshoe chase, noir ink wash, flickering streetlamp strobes, vertigo spin, existential haze, stylized monochrome with color pops.",
+        "experimental_prompt": "Not in source",
+        "negative_prompt": "Avoid phrases like 'no light' or 'no color' (use 'chiaroscuro' or 'monochrome' instead).",
+        "style_modifiers": "chiaroscuro; grainy film stock; Dutch angle; wet reflections.",
+        "compatible_styles": "Cyberpunk; Indie; Arthouse.",
+        "incompatible_styles": "Psychedelic Nature; Vibrant Pop.",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "Loss of shadow detail in low-res generation.",
+        "Source": "1"
+      },
+      {
+        "style_id": "ST_CYBERPUNK_01",
+        "style_name": "Cyberpunk",
+        "aliases": "High-Tech Dystopia",
+        "primary_category": "Cultural",
+        "secondary_categories": "Sci-Fi; Gaming",
+        "parent_styles": "Cultural",
+        "child_or_sub_styles": "Glitchcore; Retro Futurism (overlap)",
+        "visual_description": "High-tech dystopia characterized by neon grids and rain-slick urban environments.",
+        "key_visual_features": "Neon grids; holograms; chrome reflections; vivid colors (pink, cyan); rain-slick streets.",
+        "motion_characteristics": "Fast fly-through; bullet-time dash cam; glitch-fused motion.",
+        "lighting_and_atmosphere": "Neon drench; lens flares; gritty mood; high contrast.",
+        "camera_and_framing": "Fast camera movement; dash cam perspectives; close-ups on tech.",
+        "technical_rendering_traits": "Ray-traced 8K; chrome reflections; digital glitches.",
+        "cultural_or_technical_origin": "1980s Sci-Fi literature and film (Blade Runner).",
+        "typical_use_cases": "Sci-fi films; games; marketing concepts.",
+        "related_styles": "Neon-Noir; Glitch Art; Retro Futurism.",
+        "base_prompt": "Neon hacker in megacity, cyberpunk style, chrome reflections, fast fly-through, gritty mood, 4K high contrast.",
+        "cinematic_prompt": "Blade Runner streets pulse, cyberpunk neon drench, lens flares rain-slick, bullet-time dash cam, dystopian pulse, ray-traced 8K.",
+        "stylized_prompt": "Glitch-fused cyborg swarm, vaporwave cyber, holographic distortions warp, epileptic strobe chase, post-human ecstasy.",
+        "experimental_prompt": "Not in source",
+        "negative_prompt": "Not in source",
+        "style_modifiers": "neon-lit; rain-slick; 4K; high contrast.",
+        "compatible_styles": "Noir; Glitch Art; Retro Futurism.",
+        "incompatible_styles": "Solarpark; Watercolor.",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "Over-saturation; generic urban assets.",
+        "Source": "1-3"
+      },
+      {
+        "style_id": "kinetic-neo-constructivism",
+        "style_name": "Kinetic Neo-Constructivism",
+        "aliases": "3D Generative Constructivism",
+        "primary_category": "Digital Art",
+        "secondary_categories": "3D Animation; Architectural Visualization",
+        "parent_styles": "Russian Constructivism; 3D Generative",
+        "child_or_sub_styles": "Geometric Linear Animation",
+        "visual_description": "Treats the frame as a site for constructed objects utilizing geometric strings and linear structural elements to define volume.",
+        "key_visual_features": "Geometric lines; linear strings; high-contrast industrial textures; steel and glass surfaces; structural clarity.",
+        "motion_characteristics": "Camera movement around the object creates the illusion of life; orbital paths; parallax-driven motion.",
+        "lighting_and_atmosphere": "Hard side lighting (5600K); sharp shadows; specularity on glass surfaces; industrial coldness.",
+        "camera_and_framing": "Orbit shots circling the subject; 360-degree rotation; consistent distance tracking.",
+        "technical_rendering_traits": "8K resolution; Ray Tracing; global illumination; no motion blur.",
+        "cultural_or_technical_origin": "Emergence of dedicated 3D generation tracks in AI film festivals (2024-2025).",
+        "typical_use_cases": "Abstract product demos; experimental architecture; title sequences.",
+        "related_styles": "Neo-Brutalism; Industrial Design.",
+        "base_prompt": "A central monolith composed of interlinking steel strings and glass perspects, Neo-Constructivist sculpture, industrial texture, high-contrast monochrome.",
+        "cinematic_prompt": "Cinematography Orbit shot circling the subject at a consistent distance, 360-degree rotation. Lighting Hard side lighting at 5600K, sharp shadows, specularity on glass surfaces.",
+        "stylized_prompt": "Kinetic Neo-Constructivism style, geometric line art, orbiting camera, industrial aesthetic.",
+        "experimental_prompt": "Monolith constructed of light strings and transparent perspects, orbiting camera, ray tracing.",
+        "negative_prompt": "organic shapes; soft edges; motion blur; hand-painted textures; natural lighting.",
+        "style_modifiers": "ray tracing; steel strings; geometric; high-contrast; 5600K.",
+        "compatible_styles": "Neo-Brutalism; Minimalist Typography.",
+        "incompatible_styles": "Traditional Watercolor; Impressionism.",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "Clashes with rough/organic textures which obscure high-fidelity depth; clutters when paired with high-frequency maximalism.",
+        "Source": "4"
+      },
+      {
+        "style_id": "anthropocene-glitch",
+        "style_name": "Anthropocene Glitch Surrealism",
+        "aliases": "Eco-Glitch; Bio-Digital Decay",
+        "primary_category": "Digital Art",
+        "secondary_categories": "Environmental Art; Surrealism",
+        "parent_styles": "Digital Decay; Eco-Themed Sustainability Art",
+        "child_or_sub_styles": "8-bit Nature",
+        "visual_description": "Uses digital errors and pixelation to symbolize the fragility of natural ecosystems under climate pressure.",
+        "key_visual_features": "8-bit fragmentation; hazy gradients; machine-generated textures; neon-plant hybrids; swirling organic patterns.",
+        "motion_characteristics": "8-bit creatures fluttering; rhythmic swaying of plants; surreal morphing effects.",
+        "lighting_and_atmosphere": "Warm sunset key light (3000K); multicolored neon reflections on wet surfaces; magical surreal glow.",
+        "camera_and_framing": "Macro close-up on textures transitioning to wide environment shots.",
+        "technical_rendering_traits": "Pixelated text overlays; digital distortion effects; color channel separation; glitch art aesthetic.",
+        "cultural_or_technical_origin": "Response to 'AI slop' and climate anxiety (2025-2026).",
+        "typical_use_cases": "Climate awareness campaigns; avant-garde social media; experimental filmmaking.",
+        "related_styles": "Psychedelic Nature; Cyberpunk.",
+        "base_prompt": "A Siamese cat stretching on a velvet couch that is slowly fragmenting into pixels, Digital decay, psychedelic nature, vibrant orange and teal palette.",
+        "cinematic_prompt": "Cinematography Macro close-up on fur transitioning to a wide shot. Lighting Warm sunset key light at 3000K, multicolored neon reflections on wet floor surfaces.",
+        "stylized_prompt": "Anthropocene Glitch style, neon plants, digital decay, 8-bit fragmentation, earthy color schemes.",
+        "experimental_prompt": "Surreal morphing where elements transform gradually into unexpected shapes while maintaining visual flow, Anthropocene Glitch.",
+        "negative_prompt": "clean lines; HD realism; traditional nature photography; no distortion.",
+        "style_modifiers": "glitch; 8-bit; neon-plant hybrid; 3000K; pixelation.",
+        "compatible_styles": "Cyberpunk; Retro Futurism.",
+        "incompatible_styles": "Traditional Watercolor.",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "Harsh edges of pixels clash with soft watercolor textures; can result in 'visual slop' if patterns lack underlying structure.",
+        "Source": "4"
+      },
+      {
+        "style_id": "spectral-phantasmagoria",
+        "style_name": "Spectral Phantasmagoria",
+        "aliases": "Spectral Noir; Gothic Volumetric",
+        "primary_category": "Digital Art",
+        "secondary_categories": "Dark Fantasy; Horror",
+        "parent_styles": "Gothic Revival; Film Noir; Volumetric Lighting",
+        "child_or_sub_styles": "Bioluminescent Gothic",
+        "visual_description": "A textured, misty environment where light is treated as a narrative character, utilizing translucent patterns and ethereal outlines.",
+        "key_visual_features": "Misty overlays; translucent steam; ornate cathedral linework; bioluminescence; textured shadows.",
+        "motion_characteristics": "Steam rising slowly in wispy patterns; gentle handheld camera shake; subtle drift.",
+        "lighting_and_atmosphere": "Deep moonlight (8000K); volumetric 'God rays'; Gobo projections (venetian blinds); ethereal mystery.",
+        "camera_and_framing": "Slow dolly forward; low angle looking up; shallow depth of field.",
+        "technical_rendering_traits": "35mm film grain; high contrast; chiaroscuro effects; ray tracing.",
+        "cultural_or_technical_origin": "Reaction against 'flatness' of early AI generations; improved volumetric lighting controls (2025).",
+        "typical_use_cases": "Supernatural mysteries; high-fashion editorials; horror films.",
+        "related_styles": "Spectral Noir; Dark Fantasy; Baroque.",
+        "base_prompt": "A gothic cathedral interior with ornate cathedral-inspired linework, Spectral Noir, phantasmagoria, ethereal mystery.",
+        "cinematic_prompt": "Cinematography Slow dolly forward through the nave, low angle looking up. Lighting Dramatic cold night, 8000K deep moonlight blue, volumetric 'God rays' from stained glass.",
+        "stylized_prompt": "Spectral Phantasmagoria style, misty overlays, deep moonlight, textured shadows, gothic cathedral.",
+        "experimental_prompt": "Shadow texture using Gobo projection of venetian blinds, 8000K light piercing through smoke.",
+        "negative_prompt": "High-key lighting; flat illumination; cheerful colors; commercial look; no shadows.",
+        "style_modifiers": "volumetric rays; 8000K; Gobo projection; misty; gothic.",
+        "compatible_styles": "Spectral Noir; Dark Fantasy.",
+        "incompatible_styles": "High-Key Commercial.",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "Loss of narrative power when brightness is too high; requires intentional darkness.",
+        "Source": "4"
+      },
+      {
+        "style_id": "neo-brutalist-minimalism",
+        "style_name": "Neo-Brutalist Minimalism",
+        "aliases": "Neo-Brutalism",
+        "primary_category": "Graphic Design",
+        "secondary_categories": "Digital Art; Typography",
+        "parent_styles": "Neo-Brutalism; Minimalist Typography",
+        "child_or_sub_styles": "Industrial Minimalism",
+        "visual_description": "Raw, unfinished design emphasizing bold contrasts, geometric blocks, and functional aesthetics over traditional beauty.",
+        "key_visual_features": "Raw geometric blocks; chunky overlapping letters; stark shadows; monochrome with one accent color; rough textures.",
+        "motion_characteristics": "Static or precise mechanical movements; no fluid transitions.",
+        "lighting_and_atmosphere": "High contrast; harsh lighting; industrial atmosphere; raw and unfinished feel.",
+        "camera_and_framing": "Geometric framing; direct front-on shots; asymmetry.",
+        "technical_rendering_traits": "Visible digital glitches; deliberate crudeness; attention-grabbing typography.",
+        "cultural_or_technical_origin": "Counterbalance to AI maximalism and roots in 1950s brutalism.",
+        "typical_use_cases": "Tech startup branding; modern lifestyle reels; posters.",
+        "related_styles": "Minimalist Typography; Modern Geometric Patterns.",
+        "base_prompt": "Neo-brutalist style, raw geometric blocks, chunky overlapping letters, stark shadows, monochrome with electric blue accent.",
+        "cinematic_prompt": "Not in source",
+        "stylized_prompt": "Neo-brutalism design, rough design elements, asymmetry, attention-grabbing typography, vibrant color contrast.",
+        "experimental_prompt": "Industrial minimalism, visible digital glitches, raw unrefined forms.",
+        "negative_prompt": "dreamy pastel gradients; soft edges; ornate details; fluid motion; elegance.",
+        "style_modifiers": "raw; geometric; chunky typography; high contrast; industrial.",
+        "compatible_styles": "Minimalist Typography; Industrial Design.",
+        "incompatible_styles": "Dreamy Pastel Gradients.",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "Clashes with ethereal or calm aesthetics; patterns become messy if too many details compete.",
+        "Source": "4, 5"
+      },
+      {
+        "style_id": "impressionism-ai-pastiche",
+        "style_name": "Impressionism (AI Pastiche)",
+        "aliases": "19th Century Impressionism",
+        "primary_category": "Painting",
+        "secondary_categories": "Digital Art",
+        "parent_styles": "Impressionism",
+        "child_or_sub_styles": "Coastal Impressionism; Alpine Impressionism",
+        "visual_description": "Replicates 19th-century oil painting techniques focusing on the play of light and color through visible, spontaneous brushstrokes.",
+        "key_visual_features": "Short visible brushstrokes; rough textures; muted and earthy tones; absence of sharp light-and-shadow effects.",
+        "motion_characteristics": "Captures the transient nature of scenes; sense of spontaneity and movement.",
+        "lighting_and_atmosphere": "Overcast day lighting; serene yet melancholic atmosphere; focus on atmospheric effects rather than detail.",
+        "camera_and_framing": "Expansive perspective; high horizon line; broad view of foreground and middle ground.",
+        "technical_rendering_traits": "Painterly textures; soft blended tonality; avoidance of digital exactness.",
+        "cultural_or_technical_origin": "Modeled after 19th-century masters like Claude Monet and Camille Pissarro.",
+        "typical_use_cases": "Fine art replication; digital storytelling; historical themes.",
+        "related_styles": "Romanticism; Realism.",
+        "base_prompt": "Detailed coastal landscape painting in the Impressionist style movement of the 19th century. Short, visible brushstrokes, play of light and color, muted and earthy colors.",
+        "cinematic_prompt": "Not in source",
+        "stylized_prompt": "Serene painting of an alpine pasture, impressionism style, second half of 19th century, visible rough brushstrokes.",
+        "experimental_prompt": "Overcast coastal scene, Impressionism technique, capturing the essence of movement and transience.",
+        "negative_prompt": "hyperrealism; sharp details; highly saturated colors; digital exactness; photographic quality.",
+        "style_modifiers": "short brushstrokes; visible texture; muted colors; 19th century.",
+        "compatible_styles": "Romanticism; Realism.",
+        "incompatible_styles": "Cyberpunk; Neo-Constructivism.",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "AI often introduces hyperrealistic textures (overly sharp skin/pores) or photographic lighting that contrasts with painterly intent.",
+        "Source": "6"
+      },
+      {
+        "style_id": "ST_LIMINAL_01",
+        "style_name": "Liminal Spaces Film",
+        "aliases": "Backrooms Aesthetic",
+        "primary_category": "Experimental Cinematic",
+        "secondary_categories": "Horror; Niche",
+        "parent_styles": "Experimental Cinematic",
+        "child_or_sub_styles": "Not in source",
+        "visual_description": "Eerie, empty architecture and non-places creating a sense of nostalgic unease.",
+        "key_visual_features": "Infinite beige voids; carpeted rooms; fluorescent lights; empty hallways; no actors.",
+        "motion_characteristics": "Slow creep forward; perpetual dolly drift; nauseous fisheye loop.",
+        "lighting_and_atmosphere": "Fluorescent hum flicker; pooling shadows; eerie isolation; nostalgic unease.",
+        "camera_and_framing": "Slow push-in; dolly drift; fisheye lens; claustrophobic framing.",
+        "technical_rendering_traits": "Ray-traced desaturation; analog TV static; glitch distortions.",
+        "cultural_or_technical_origin": "Internet culture (Backrooms creepypasta); indie horror experiments.",
+        "typical_use_cases": "Indie horror; art installations; social media horror content.",
+        "related_styles": "Vaporwave; Surrealist Montage.",
+        "base_prompt": "Endless office hallways empty, liminal spaces style, buzzing fluorescent, slow creep forward, eerie isolation, HD uncanny.",
+        "cinematic_prompt": "Infinite carpeted voids hum, backrooms aesthetic, pooling shadows flicker, perpetual dolly drift, nostalgic unease, ray-traced desaturation.",
+        "stylized_prompt": "Glitch-trapped hotel corridors warp, liminal hum distortion, analog TV static bleeds, nauseous fisheye loop, existential void fever.",
+        "experimental_prompt": "Not in source",
+        "negative_prompt": "No people; no movement (use 'static composition').",
+        "style_modifiers": "liminal hum; fluorescent flicker; beige palette.",
+        "compatible_styles": "Glitch Art; Noir.",
+        "incompatible_styles": "Hollywood; Western Cartoon.",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "Inadvertent subject generation (AI adding people).",
+        "Source": "7"
+      },
+      {
+        "style_id": "ST_CONSTRUCTIVISM_01",
+        "style_name": "Constructivism",
+        "aliases": "Russian Constructivism",
+        "primary_category": "Art Movement",
+        "secondary_categories": "Historical; Industrial",
+        "parent_styles": "Modern Art",
+        "child_or_sub_styles": "Linear Construction in Space",
+        "visual_description": "Art as engineering using industrial materials and three-dimensional drawing in space.",
+        "key_visual_features": "Industrial materials (perspex, nylon filament); strings creating space; non-static forms; geometric precision.",
+        "motion_characteristics": "Visual motion through viewer perspective change; reflecting strings; dynamic intersection of lines.",
+        "lighting_and_atmosphere": "Material reflections; industrial and contemporary mood.",
+        "camera_and_framing": "3D thinking; moving around the piece to see directional changes.",
+        "technical_rendering_traits": "Object-based construction; avoidance of carving or incising.",
+        "cultural_or_technical_origin": "Russia, early 20th century (Tatlin, Rodchenko, Gabo).",
+        "typical_use_cases": "Sculpture; architectural design; avant-garde installations.",
+        "related_styles": "Bauhaus; Geometric Abstraction.",
+        "base_prompt": "Constructivist sculpture using nylon strings and perspex, industrial engineering style, geometric lines.",
+        "cinematic_prompt": "Inferred: Macro shot of nylon filaments reflecting light in a perspex constructivist installation, 3D spatial drawing, industrial aesthetic.",
+        "stylized_prompt": "Not in source",
+        "experimental_prompt": "Not in source",
+        "negative_prompt": "Not in source",
+        "style_modifiers": "nylon filament; industrial materials; spatial construction.",
+        "compatible_styles": "Neo Brutalism; Abstract Geometric Narratives.",
+        "incompatible_styles": "Watercolor; Art Nouveau.",
+        "recommended_blend_ratios": "Not in source",
+        "common_failure_modes": "Not in source",
+        "Source": "8"
+      }
+    ],
+    "Source References": [
+      {
+        "Index": "1",
+        "Reference": "Style Taxonomy Overview.docx"
+      },
+      {
+        "Index": "2",
+        "Reference": "Emerging Trends in Digital Art and 3D Animation for 2025"
+      },
+      {
+        "Index": "3",
+        "Reference": "Prompting for AI Video Generation: A 2026 Guide to Sora, Runway & Pika"
+      },
+      {
+        "Index": "4",
+        "Reference": "Synthetic Cinematic Architectures: A Cognitive Framework for Generative Visual Consulting in 2025-2026"
+      },
+      {
+        "Index": "5",
+        "Reference": "TOP Digital Art Trends 2025: This Type Of Art Sells Best This Year - GinAngieLa.com"
+      },
+      {
+        "Index": "6",
+        "Reference": "GENERATIVE AI IN ARTISTIC STYLE TRANSFER: PERFORMANCE, PERCEPTION, AND EVALUATION - AMS Laurea"
+      },
+      {
+        "Index": "7",
+        "Reference": "“Continue the dataset focusing ONLY on obscure, ni.docx"
+      },
+      {
+        "Index": "8",
+        "Reference": "How to Look at: Constructivism | Frieze Masters 2025"
+      }
+    ]
+  },
+  "High-CTR Thumbnail Knowledge Table (Deep-Sea & Prehistoric Niche).xlsx": {
+    "Table 1": [
+      {
+        "Thumbnail Goal": "Maximize CTR by inducing anticipation and resolving cognitive tension via the curiosity gap.",
+        "Primary Emotion Trigger": "Curiosity, fear (danger), or shock/surprise; sadness correlates with high view counts.",
+        "Creature Visibility Level": "Partial reveal (silhouette, eyes, or blurred objects) to withhold the full story and create mystery.",
+        "Scale Contrast Method": "Juxtaposition of massive creatures against tiny subjects (human silhouettes, submarines, or ships) to hyperbolize scale.",
+        "Main Subject Position": "Focal point (eyes/subject) at Rule of Thirds intersections or centered; subject occupies 40%–50% of frame.",
+        "Camera Framing & Zoom": "Tight crop or extreme close-up on faces/eyes to trigger social accountability and facial recognition priority.",
+        "Lighting Strategy": "High-contrast (minimum 4.5:1 ratio); use shadows or bright borders to separate subject from the abyss.",
+        "Color Palette & Contrast": "Deep blues/blacks + neon accents (Cyan/Teal/Orange); use red for urgency; avoid \"YouTube red\" to prevent UI clashing.",
+        "Background Simplicity Level": "High simplicity (empty abyss or blurred); maximum 3 elements total to prevent cognitive overload.",
+        "Text Usage Rule": "Max 0–3 high-impact words (e.g., \"The Truth\", \"Secrets\"); bold sans-serif fonts (Impact, Montserrat, Anton).",
+        "Text Placement Zone": "Upper-left or top-right quadrants; strictly avoid bottom-right \"timestamp kill zone.\"",
+        "Mobile Visibility Check": "Yes; must be legible at 120p–150p width as ~70% of views are on mobile devices.",
+        "Psychological Bias Used": "Information Gap Theory (cognitively induced deprivation), Amygdala response (fear), and N170 facial recognition.",
+        "CTR Risk Factors (What to Avoid)": "Full creature reveal (kills mystery), clutter (>3 elements), low-resolution images, and muted contrast.",
+        "Research Source Confidence": "High consensus across linguistic, neurocognitive, and platform analytics research.",
+        "Source": "1-8"
+      }
+    ],
+    "Source References": [
+      {
+        "Index": "1",
+        "Reference": "You won't believe what's in this paper! Clickbait, relevance and the curiosity gap | Request PDF - ResearchGate"
+      },
+      {
+        "Index": "2",
+        "Reference": "YouTube Thumbnail Sizes: Best Practices for 2025 - TechSmith"
+      },
+      {
+        "Index": "3",
+        "Reference": "Best YouTube Thumbnail Guide: Examples & Best Practices 2025 for High CTR - AmpiFire"
+      },
+      {
+        "Index": "4",
+        "Reference": "I designed 346 thumbnails for small youtubers. Here's exactly what worked (and what surprised me) : r/NewTubers - Reddit"
+      },
+      {
+        "Index": "5",
+        "Reference": "The Psychology of High-CTR YouTube Thumbnails"
+      },
+      {
+        "Index": "6",
+        "Reference": "YouTube “Test & Compare” Thumbnails: Native A/B for CTR Lift - Influencer Marketing Hub"
+      },
+      {
+        "Index": "7",
+        "Reference": "The Architecture of Attention: A Comprehensive Analysis of Visual Psychology and Algorithmic Optimization in YouTube Thumbnail Design"
+      },
+      {
+        "Index": "8",
+        "Reference": "The Psychology of YouTube Thumbnails: Understanding the Psychological Factors That Make Thumbnails Compelling and Click-Worthy - Content Guaranteed"
+      }
+    ]
+  },
+  "Workflow Steps and Automation Matrix.xlsx": {
+    "Table 1": [
+      {
+        "step_id": "step_4_kurzgesagt",
+        "workflow_id": "workflow_kurzgesagt",
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "required_inputs": "INSERT_YOUR_TITLE_HERE",
+        "output_generated": "YouTube script",
+        "tool_used": "Claude.ai",
+        "prompt_template_id": "prompt_kurzgesagt_script",
+        "automation_possible": "true",
+        "Source": "1"
+      },
+      {
+        "step_id": "step_4_llama_arts",
+        "workflow_id": "workflow_llama_arts",
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "required_inputs": "INSERT_STORY_NAME, INSERT_STORY_DESCRIPTION",
+        "output_generated": "First-person horror script",
+        "tool_used": "Claude.ai or NotebookLM",
+        "prompt_template_id": "prompt_llama_script",
+        "automation_possible": "true",
+        "Source": "2"
+      },
+      {
+        "step_id": "step_4_nick_invests",
+        "workflow_id": "workflow_nick_invests",
+        "step_number": "4",
+        "step_name": "Script Prompt",
+        "step_type": "generate",
+        "required_inputs": "INSERT_YOUR_YOUTUBE_VIDEO_TITLE_HERE",
+        "output_generated": "YouTube script",
+        "tool_used": "Claude.ai",
+        "prompt_template_id": "prompt_nick_script",
+        "automation_possible": "true",
+        "Source": "3"
+      },
+      {
+        "step_id": "step_4_serious_history",
+        "workflow_id": "workflow_serious_history",
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "required_inputs": "VIDEO_TITLE",
+        "output_generated": "YouTube script",
+        "tool_used": "Claude.ai",
+        "prompt_template_id": "prompt_history_script",
+        "automation_possible": "true",
+        "Source": "4"
+      },
+      {
+        "step_id": "step_4_infographics",
+        "workflow_id": "workflow_infographics",
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "required_inputs": "VIDEO_TITLE",
+        "output_generated": "YouTube script",
+        "tool_used": "Claude.ai",
+        "prompt_template_id": "prompt_infographics_script",
+        "automation_possible": "true",
+        "Source": "5"
+      },
+      {
+        "step_id": "step_4_zinny",
+        "workflow_id": "workflow_zinny",
+        "step_number": "4",
+        "step_name": "Write the script",
+        "step_type": "generate",
+        "required_inputs": "TITLE",
+        "output_generated": "YouTube script",
+        "tool_used": "NotebookLM",
+        "prompt_template_id": "prompt_zinny_script",
+        "automation_possible": "true",
+        "Source": "6"
+      },
+      {
+        "step_id": "step_1_kurzgesagt",
+        "workflow_id": "workflow_kurzgesagt",
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "required_inputs": "None",
+        "output_generated": "50 channel name ideas",
+        "tool_used": "ChatGPT",
+        "prompt_template_id": "prompt_kurzgesagt_names",
+        "automation_possible": "true",
+        "Source": "1"
+      },
+      {
+        "step_id": "step_2_ai_politician",
+        "workflow_id": "workflow_ai_politician",
+        "step_number": "2",
+        "step_name": "Avatar",
+        "step_type": "generate",
+        "required_inputs": "None",
+        "output_generated": "Hyper-realistic cinematic photograph",
+        "tool_used": "Gemini",
+        "prompt_template_id": "prompt_politician_avatar",
+        "automation_possible": "true",
+        "Source": "7"
+      },
+      {
+        "step_id": "step_2_kurzgesagt",
+        "workflow_id": "workflow_kurzgesagt",
+        "step_number": "2",
+        "step_name": "Logo",
+        "step_type": "generate",
+        "required_inputs": "INSERT_OBJECT",
+        "output_generated": "Minimalistic vector-style illustration",
+        "tool_used": "Gemini",
+        "prompt_template_id": "prompt_kurzgesagt_logo",
+        "automation_possible": "true",
+        "Source": "1"
+      },
+      {
+        "step_id": "step_2_llama_arts",
+        "workflow_id": "workflow_llama_arts",
+        "step_number": "2",
+        "step_name": "Logo",
+        "step_type": "generate",
+        "required_inputs": "INSERT_CHARACTER, COLOUR",
+        "output_generated": "Minimalist cartoon character PFP",
+        "tool_used": "Gemini",
+        "prompt_template_id": "prompt_llama_logo",
+        "automation_possible": "true",
+        "Source": "2"
+      },
+      {
+        "step_id": "step_3_ai_politician",
+        "workflow_id": "workflow_ai_politician",
+        "step_number": "3",
+        "step_name": "Video ideas",
+        "step_type": "research",
+        "required_inputs": "None",
+        "output_generated": "20 unique video ideas",
+        "tool_used": "Not in source",
+        "prompt_template_id": "prompt_politician_ideas",
+        "automation_possible": "true",
+        "Source": "7"
+      },
+      {
+        "step_id": "step_3_kurzgesagt",
+        "workflow_id": "workflow_kurzgesagt",
+        "step_number": "3",
+        "step_name": "Video ideas",
+        "step_type": "research",
+        "required_inputs": "None",
+        "output_generated": "20 original video ideas",
+        "tool_used": "Not in source",
+        "prompt_template_id": "prompt_kurzgesagt_ideas",
+        "automation_possible": "true",
+        "Source": "1"
+      },
+      {
+        "step_id": "step_1_ai_politician",
+        "workflow_id": "workflow_ai_politician",
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "required_inputs": "None",
+        "output_generated": "20 channel names",
+        "tool_used": "Not in source",
+        "prompt_template_id": "prompt_politician_names",
+        "automation_possible": "true",
+        "Source": "7"
+      },
+      {
+        "step_id": "step_1_llama_arts",
+        "workflow_id": "workflow_llama_arts",
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "required_inputs": "None",
+        "output_generated": "20 channel name variations",
+        "tool_used": "Not in source",
+        "prompt_template_id": "prompt_llama_names",
+        "automation_possible": "true",
+        "Source": "2"
+      },
+      {
+        "step_id": "step_1_nick_invests",
+        "workflow_id": "workflow_nick_invests",
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "required_inputs": "None",
+        "output_generated": "List of words for channel name",
+        "tool_used": "Not in source",
+        "prompt_template_id": "prompt_nick_names",
+        "automation_possible": "true",
+        "Source": "3"
+      },
+      {
+        "step_id": "step_1_serious_history",
+        "workflow_id": "workflow_serious_history",
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "required_inputs": "None",
+        "output_generated": "20 unique channel name ideas",
+        "tool_used": "Not in source",
+        "prompt_template_id": "prompt_history_names",
+        "automation_possible": "true",
+        "Source": "4"
+      },
+      {
+        "step_id": "step_1_zinny",
+        "workflow_id": "workflow_zinny",
+        "step_number": "1",
+        "step_name": "Channel name",
+        "step_type": "generate",
+        "required_inputs": "None",
+        "output_generated": "30 unique channel names",
+        "tool_used": "Not in source",
+        "prompt_template_id": "prompt_zinny_names",
+        "automation_possible": "true",
+        "Source": "6"
+      }
+    ],
+    "Source References": [
+      {
+        "Index": "1",
+        "Reference": "Kurzgesagt.pdf"
+      },
+      {
+        "Index": "2",
+        "Reference": "Llama Arts.pdf"
+      },
+      {
+        "Index": "3",
+        "Reference": "Nick Invests.pdf"
+      },
+      {
+        "Index": "4",
+        "Reference": "Serious History.pdf"
+      },
+      {
+        "Index": "5",
+        "Reference": "The Infographics Show.pdf"
+      },
+      {
+        "Index": "6",
+        "Reference": "Zinny Studio.pdf"
+      },
+      {
+        "Index": "7",
+        "Reference": "Ahmad Rushdi.pdf"
+      }
+    ]
+  }
+}

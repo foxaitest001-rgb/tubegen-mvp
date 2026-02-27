@@ -56,27 +56,23 @@ async function configureUI(page, options = {}) {
     const { aspectRatio = '16:9', mode = 'video' } = options;
     console.log(`[MetaV2] ⚙️ Configuring UI: mode=${mode}, aspect=${aspectRatio}`);
 
-    // Step 1: Ensure we're on the Create/Media page (NOT /imagine/)
+    // Step 1: Navigate directly to /media (don't rely on sidebar click — it's unreliable)
     const currentUrl = page.url();
-    if (!currentUrl.includes('/media') && !currentUrl.includes('meta.ai')) {
-        console.log('[MetaV2] Navigating to meta.ai...');
-        await page.goto('https://www.meta.ai/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await delay(3000);
-    }
-
-    // If we're on the main chat page, click "Create" in the sidebar
     if (!currentUrl.includes('/media')) {
-        console.log('[MetaV2] Looking for "Create" button in sidebar...');
-        const clickedCreate = await clickByText(page, 'create', 'Create sidebar button');
-        if (clickedCreate) {
-            await delay(3000);
-            console.log(`[MetaV2] Navigated to: ${page.url()}`);
-        } else {
-            // Direct navigation fallback
-            console.log('[MetaV2] Fallback: navigating directly to /media...');
+        console.log('[MetaV2] Navigating directly to /media...');
+        await page.goto('https://www.meta.ai/media', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await delay(4000);
+
+        // Verify we landed on /media (not redirected to login or elsewhere)
+        const newUrl = page.url();
+        console.log(`[MetaV2] Navigated to: ${newUrl}`);
+        if (!newUrl.includes('/media') && !newUrl.includes('meta.ai')) {
+            console.log('[MetaV2] ⚠️ Unexpected redirect, retrying...');
             await page.goto('https://www.meta.ai/media', { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await delay(3000);
+            await delay(4000);
         }
+    } else {
+        console.log('[MetaV2] ✅ Already on /media');
     }
 
     // Step 2: Switch to Video mode
