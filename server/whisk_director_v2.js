@@ -275,7 +275,7 @@ async function generateImagesWhiskV2(browser, scenes, options = {}) {
     await SM.injectCookies(page, 'whisk');
 
     // Navigate to Whisk
-    await page.goto('https://labs.google/fx/tools/whisk', {
+    await page.goto('https://labs.google/fx/tools/whisk/project', {
         waitUntil: 'networkidle2',
         timeout: 30000
     });

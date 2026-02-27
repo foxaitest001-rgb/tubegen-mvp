@@ -6,42 +6,35 @@
 
 const path = require('path');
 const fs = require('fs');
+const SM = require('./session_manager');
 
-// ─── Whisk DOM Selectors (discovered via live inspection) ───
+// ─── Whisk DOM Selectors (ROBUST — no sc-* hashes, survives Whisk rebuilds) ───
+// Styled Components generates random class hashes per-build.
+// We use element types, roles, aria-labels, and text content instead.
 const WHISK_SELECTORS = {
-    // The three file upload inputs (appear after clicking "Add Images")
-    // They appear in order: Subject, Scene, Style
-    fileInput: 'input.sc-cd7e4875-0',           // All three use same class
+    // File upload inputs — Whisk has multiple input[type="file"] for Subject/Scene/Style
+    fileInput: 'input[type="file"]',
 
-    // Labels to identify which slot is which
-    slotLabel: 'h4.sc-10ad0ca3-3',              // H4 elements: "Subject", "Scene", "Style"
-    slotContainer: '.sc-52570d98-0',             // Parent container for each input
+    // Main prompt textarea — find by element type (Whisk usually has few textareas)
+    // Will be found dynamically via findPromptTextarea() below
+    promptTextarea: 'textarea',
 
-    // Main prompt textarea
-    promptTextarea: 'textarea.sc-18deeb1d-8',    // "Describe your idea..."
-
-    // Submit/Generate button
+    // Submit/Generate button — aria-label or text-based
     submitButton: 'button[aria-label="Submit prompt"]',
 
-    // "Add Images" button (opens Subject/Scene/Style panel)
-    addImagesButton: '.sc-63569c0e-0',           // Button with text "Add Images"
-
-    // Settings toggle (icon text: "tune")
-    settingsButton: '.sc-8b6c1c1e-1.gyhlCg',  // Same class, differentiate by icon text
-
-    // Aspect ratio button (icon text: "aspect_ratio")
-    // Both share class sc-8b6c1c1e-1, differentiate by inner icon text
-    aspectRatioContainer: '.sc-8b6c1c1e-0',    // Dropdown container
-
-    // Aspect ratio options inside dropdown
-    // Options: "1:1 Square", "9:16 Portrait", "16:9 Landscape"
-
-    // "I'm Feeling Lucky" / random prompt button
-    iflButton: '.sc-18b71c06-0',
+    // Settings/tune button — find by Material icon text "tune"
+    // Aspect ratio button — find by Material icon text "aspect_ratio"
+    // Both are found via text content in helper functions
 };
 
 // ─── Config ───
-const WHISK_URL = 'https://labs.google/fx/tools/whisk';
+// VERIFIED via Puppeteer inspection (2026-02-27):
+// - textarea placeholder: "Describe your idea or roll the dice for prompt ideas"
+// - Submit button: aria-label="Submit prompt" (Material icon: arrow_forward)
+// - Add Images: button with text "Add Images"
+// - Aspect ratio: button with text "aspect_ratio"
+// - Settings: button with text "tune"
+const WHISK_URL = 'https://labs.google/fx/tools/whisk/project';
 const GENERATION_TIMEOUT = 90000;    // 90s max wait for image generation
 const BETWEEN_GENERATIONS_DELAY = 35000; // 35s between generations (rate limit safety)
 const PAGE_LOAD_DELAY = 5000;         // 5s for page to fully load
@@ -127,6 +120,8 @@ async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualSt
     // Open new tab if needed
     if (!page) {
         page = await browser.newPage();
+        // Inject Whisk cookies BEFORE navigating (needed for authenticated access)
+        await SM.injectCookies(page, 'whisk');
         log(0, 'WHISK', `🌐 Opening Whisk: ${WHISK_URL}`);
         await page.goto(WHISK_URL, { waitUntil: 'networkidle2', timeout: 30000 });
         await interruptibleSleep(PAGE_LOAD_DELAY);
@@ -284,30 +279,30 @@ async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualSt
  */
 async function openAddImagesPanel(page) {
     try {
-        // Check if Subject/Scene/Style inputs are already visible
-        const inputs = await page.$$(WHISK_SELECTORS.fileInput);
+        // Check if file upload inputs are already visible
+        const inputs = await page.$$('input[type="file"]');
         if (inputs.length >= 3) {
             return; // Panel already open
         }
 
-        // Click "Add Images" button
-        const addBtn = await page.$(WHISK_SELECTORS.addImagesButton);
-        if (addBtn) {
-            await addBtn.click();
+        // Find "Add Images" button by text content
+        const clicked = await page.evaluate(() => {
+            const buttons = document.querySelectorAll('button, div[role="button"]');
+            for (const b of buttons) {
+                const text = (b.textContent || '').trim().toLowerCase();
+                if (text.includes('add images') || text.includes('add image')) {
+                    b.click();
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        if (clicked) {
             await interruptibleSleep(1500);
             log(0, 'UI', '📂 Opened Add Images panel');
         } else {
-            // Fallback: find by text content
-            await page.evaluate(() => {
-                const buttons = document.querySelectorAll('button');
-                for (const b of buttons) {
-                    if (b.textContent.includes('Add Images')) {
-                        b.click();
-                        return;
-                    }
-                }
-            });
-            await interruptibleSleep(1500);
+            log(0, 'WARN', 'Could not find Add Images button');
         }
     } catch (err) {
         log(0, 'WARN', `Could not open Add Images panel: ${err.message}`);
@@ -319,30 +314,102 @@ async function openAddImagesPanel(page) {
  */
 async function typePromptAndSubmit(page, prompt) {
     try {
-        // Clear existing prompt
-        const textarea = await page.$(WHISK_SELECTORS.promptTextarea);
+        // Strategy 1: Find textarea by tag (most reliable)
+        let textarea = await page.$('textarea');
+
+        // Strategy 2: Find by placeholder text
         if (!textarea) {
-            log(0, 'ERROR', 'Could not find prompt textarea');
+            textarea = await page.$('textarea[placeholder*="Describe"]') ||
+                await page.$('textarea[placeholder*="describe"]') ||
+                await page.$('textarea[placeholder*="idea"]') ||
+                await page.$('textarea[placeholder*="prompt"]');
+        }
+
+        // Strategy 3: Find contenteditable div
+        if (!textarea) {
+            textarea = await page.$('[contenteditable="true"]');
+        }
+
+        // Strategy 4: Find by evaluating all textareas and picking the biggest visible one
+        if (!textarea) {
+            textarea = await page.evaluateHandle(() => {
+                const all = document.querySelectorAll('textarea');
+                let best = null;
+                let bestSize = 0;
+                for (const ta of all) {
+                    const rect = ta.getBoundingClientRect();
+                    const size = rect.width * rect.height;
+                    if (rect.width > 100 && size > bestSize) {
+                        best = ta;
+                        bestSize = size;
+                    }
+                }
+                return best;
+            });
+            if (textarea && !(await textarea.evaluate(el => el !== null))) textarea = null;
+        }
+
+        if (!textarea) {
+            log(0, 'ERROR', 'Could not find prompt textarea — tried all strategies');
+            // Dump page info for debugging
+            const debugInfo = await page.evaluate(() => {
+                const textareas = document.querySelectorAll('textarea');
+                const editables = document.querySelectorAll('[contenteditable]');
+                const inputs = document.querySelectorAll('input[type="text"]');
+                return {
+                    url: window.location.href,
+                    textareas: textareas.length,
+                    editables: editables.length,
+                    textInputs: inputs.length,
+                    bodyText: document.body.innerText.substring(0, 200)
+                };
+            });
+            log(0, 'DEBUG', JSON.stringify(debugInfo));
             return;
         }
 
-        // Triple-click to select all, then type new prompt
+        // Clear and type prompt
         await textarea.click({ clickCount: 3 });
         await interruptibleSleep(200);
+        await page.keyboard.press('Backspace');
+        await interruptibleSleep(100);
         await textarea.type(prompt, { delay: 15 });
         log(0, 'TYPE', `📝 Prompt entered (${prompt.length} chars)`);
 
         await interruptibleSleep(500);
 
-        // Click Submit
-        const submitBtn = await page.$(WHISK_SELECTORS.submitButton);
+        // Try multiple submit strategies
+        // Strategy 1: button[aria-label="Submit prompt"]
+        let submitBtn = await page.$('button[aria-label="Submit prompt"]');
+
+        // Strategy 2: button[aria-label="Submit"]
+        if (!submitBtn) submitBtn = await page.$('button[aria-label="Submit"]');
+
+        // Strategy 3: Find button by text content
+        if (!submitBtn) {
+            submitBtn = await page.evaluateHandle(() => {
+                const btns = document.querySelectorAll('button');
+                for (const b of btns) {
+                    const text = (b.textContent || '').trim().toLowerCase();
+                    if (text === 'submit' || text === 'generate' || text === 'create' || text.includes('send')) {
+                        return b;
+                    }
+                    // Material icon: "send" or "arrow_forward"
+                    if (text === 'send' || text === 'arrow_forward' || text === 'arrow_upward') {
+                        return b;
+                    }
+                }
+                return null;
+            });
+        }
+
         if (submitBtn) {
             await submitBtn.click();
             log(0, 'SUBMIT', '🚀 Submitted prompt');
         } else {
             // Fallback: press Enter
             await page.keyboard.press('Enter');
-            log(0, 'SUBMIT', '🚀 Submitted via Enter key');
+            log(0, 'SUBMIT', '🚀 Submitted via Enter key (fallback)');
         }
     } catch (err) {
         log(0, 'ERROR', `Failed to type/submit prompt: ${err.message}`);
@@ -461,30 +528,27 @@ async function waitForResultAndDownload(page, outputDir, fileBaseName) {
 async function resetWhiskInputs(page) {
     try {
         // Clear the prompt textarea
-        const textarea = await page.$(WHISK_SELECTORS.promptTextarea);
+        const textarea = await page.$('textarea');
         if (textarea) {
             await textarea.click({ clickCount: 3 });
             await page.keyboard.press('Backspace');
         }
 
-        // Try to clear uploaded images by clicking remove/X buttons on each slot
+        // Try to clear uploaded images by clicking remove/X/close buttons
         await page.evaluate(() => {
-            // Look for close/remove buttons within the upload slots
-            const removeButtons = document.querySelectorAll('.sc-52570d98-0 button, .sc-10ad0ca3-2 button');
-            removeButtons.forEach(btn => {
+            // Find close/remove buttons near image upload areas
+            const allButtons = document.querySelectorAll('button');
+            for (const btn of allButtons) {
                 const text = (btn.textContent || '').trim().toLowerCase();
-                if (text.includes('close') || text.includes('remove') || text.includes('clear') || text === 'x' || text === '×') {
-                    btn.click();
+                // Material icon "close" or text-based close buttons
+                if (text === 'close' || text === 'clear' || text === 'remove' || text === '×' || text === 'x' || text === 'delete') {
+                    // Only click if it's near an image upload area (small button)
+                    const rect = btn.getBoundingClientRect();
+                    if (rect.width < 60 && rect.height < 60) {
+                        btn.click();
+                    }
                 }
-            });
-
-            // Also try clicking any X/close icons in the image slots
-            const closeIcons = document.querySelectorAll('[class*="remove"], [class*="delete"], [class*="close"]');
-            closeIcons.forEach(icon => {
-                if (icon.closest('.sc-52570d98-0') || icon.closest('.sc-10ad0ca3-2')) {
-                    icon.click();
-                }
-            });
+            }
         });
 
         await interruptibleSleep(500);
