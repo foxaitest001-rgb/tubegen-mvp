@@ -1701,17 +1701,27 @@ app.post('/generate-video', async (req, res) => {
             return directorFn(scriptData.structure, projectDir, visualStyle, aspectRatio, newJobId, styleDNA);
         }
 
-        // Build flat scene list using v1's field extraction logic
+        // Build flat scene list — try ALL known field names from Consultant output
         const scenes = [];
         for (let si = 0; si < scriptData.structure.length; si++) {
             const s = scriptData.structure[si];
-            const shots = s.shots || s.visual_prompts || [s.visual_prompt || s.visual || s.description];
+            // Try array fields first: shots[] → visual_prompts[] → video_prompts[]
+            const shots = s.shots || s.visual_prompts || s.video_prompts
+                || [s.visual_prompt || s.image_prompt || s.visual || s.description || s.narration || ''];
             for (let sh = 0; sh < shots.length; sh++) {
                 const raw = shots[sh];
-                const prompt = typeof raw === 'string' ? raw : (raw?.prompt || raw?.description || '');
-                scenes.push({ prompt: prompt || `Scene ${si + 1}`, index: si, shotIndex: sh });
+                const prompt = typeof raw === 'string' ? raw : (raw?.prompt || raw?.description || raw?.visual_prompt || '');
+                const finalPrompt = prompt || s.narration || s.title || '';
+                if (!finalPrompt || finalPrompt.length < 10) {
+                    console.log(`[WARN] Scene ${si + 1} shot ${sh + 1}: No visual prompt found!`);
+                    console.log(`[WARN] Scene ${si + 1} keys: [${Object.keys(s).join(', ')}]`);
+                    console.log(`[WARN] Scene ${si + 1} data: ${JSON.stringify(s).substring(0, 400)}`);
+                }
+                scenes.push({ prompt: finalPrompt || `Scene ${si + 1} - cinematic shot`, index: si, shotIndex: sh });
             }
         }
+        // Debug: Log all scene prompts
+        scenes.forEach((sc, i) => console.log(`[PLAN] Scene ${i + 1} prompt (${sc.prompt.length} chars): "${sc.prompt.substring(0, 100)}..."`));
         directorLog(0, 'PLAN', `📋 ${scenes.length} scenes queued — prompts verified`);
 
         const onProgress = (p) => {

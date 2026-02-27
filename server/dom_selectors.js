@@ -31,39 +31,40 @@ const WHISK = {
 };
 
 
-// ─── Meta.ai Imagine ───
+// ─── Meta.ai Create (/media page) ───
+// Verified Feb 2026 via browser inspection
 const META = {
-    url: 'https://www.meta.ai',
+    url: 'https://www.meta.ai/media',
 
-    // Mode toggle: Image / Video
-    // Both are buttons in parent "flex items-center gap-0 md:gap-1"
-    imageModeButton: { text: 'Image', selector: 'button', parentClass: 'flex items-center gap-0' },
-    videoModeButton: { text: 'Video', selector: 'button', parentClass: 'flex items-center gap-0' },
+    // Sidebar navigation
+    createButton: { text: 'Create' },       // Navigates to /media
 
-    // Aspect ratio: direct-click buttons with text matching ratio
-    // Available ratios: "9:16", "16:9"
-    ratioButtonClass: 'inline-flex cursor-pointer items-center gap-1 px-2 py-1.25',
+    // Mode toggle: Image ↔ Video (dropdown via combobox)
+    modeDropdown: 'button[role="combobox"]',  // Shows "Image" or "Video"
+    // Options when dropdown open: "Image", "Video"
+    // In Video mode: placeholder changes to "Describe your animation..."
+    //                submit button changes to "Animate"
+    //                aspect ratio selector DISAPPEARS
+
+    // Aspect ratio (dropdown via combobox, Image mode only)
+    ratioDropdown: 'button[role="combobox"]', // Shows "1:1", "9:16", "16:9"
+    // Note: 2nd combobox in toolbar (after mode dropdown)
 
     // Image upload
-    fileInput: 'input[type="file"].hidden',     // accept: image/jpeg,png,heic,heif + video/mp4,mov
-    imageUploadButton: { text: 'Image' },       // triggers the hidden file input
+    fileInput: 'input[type="file"]',
 
-    // Prompt
-    promptTextarea: 'textarea',                 // placeholder: "Describe your image..."
+    // Prompt input
+    promptInput: 'div[role="textbox"]',      // placeholder: "Describe your image/animation..."
 
-    // Submit
-    sendButton: 'button[aria-label="Send"]',
-    createButton: { text: 'Create' },
+    // Submit buttons
+    animateButton: { text: 'Animate' },      // Video mode (blue button)
+    sendButton: 'button[aria-label="Send"]', // Image mode (blue circle)
 
     // Video results
-    videoElement: 'video',                      // class: "h-full w-full object-cover"
-    // src pattern: https://video-arn2-1.xx.fbcdn.net/o1/v/t2/... (direct HTTPS, fetchable)
+    videoElement: 'video',                   // src: https://video-*.fbcdn.net/...
 
     // Download
     downloadButton: 'button[aria-label="Download"]',
-
-    // Image previews (after upload)
-    imagePreview: 'img[alt="Source media thumbnail"]',  // 60x60 thumbnails
 };
 
 

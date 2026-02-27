@@ -1,7 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
-// META DIRECTOR v2 — FIXED
-// Extension-inspired + v1-proven navigation techniques
-// Uses: text-based element search, page.evaluate, browser download
+// META DIRECTOR v2.1 — REWRITTEN FOR REAL /media UI
+// Verified UI (Feb 2026): meta.ai/media (Create page)
+//
+// FLOW:
+//  1. Navigate to meta.ai → click "Create" sidebar → lands on /media
+//  2. Click "Image ˅" dropdown → select "Video"
+//     - Placeholder changes: "Describe your image..." → "Describe your animation..."
+//     - "Animate" button appears (replaces send arrow)
+//     - Aspect ratio selector DISAPPEARS in Video mode
+//  3. Type prompt into div[role="textbox"]
+//  4. Click "Animate" button to submit
+//  5. Wait for video via MutationObserver
+//  6. Download via in-browser fetch / download button / blob extraction
 // ═══════════════════════════════════════════════════════════════
 
 const path = require('path');
@@ -12,18 +22,17 @@ const SM = require('./session_manager');
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ═══════════════════════════════════════════════════════════════
-// TEXT-BASED ELEMENT SEARCH
+// TEXT-BASED ELEMENT SEARCH (proven reliable)
 // ═══════════════════════════════════════════════════════════════
 
 async function clickByText(page, searchText, description = '') {
     const clicked = await page.evaluate((text) => {
-        const candidates = document.querySelectorAll('button, a, div[role="button"], span, label, li');
+        const candidates = document.querySelectorAll('button, a, div[role="button"], span, label, li, div[role="option"]');
         for (const el of candidates) {
             const txt = (el.textContent || '').trim().toLowerCase();
             const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
             const title = (el.getAttribute('title') || '').toLowerCase();
-            if (txt === text.toLowerCase() || txt.includes(text.toLowerCase()) ||
-                ariaLabel.includes(text.toLowerCase()) || title.includes(text.toLowerCase())) {
+            if (txt === text.toLowerCase() || ariaLabel.includes(text.toLowerCase()) || title.includes(text.toLowerCase())) {
                 el.click();
                 return true;
             }
@@ -40,56 +49,162 @@ async function clickByText(page, searchText, description = '') {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// UI CONFIGURATION — Navigate to Imagine Video mode
+// UI CONFIGURATION — Navigate to /media → Video mode
 // ═══════════════════════════════════════════════════════════════
 
 async function configureUI(page, options = {}) {
-    const { aspectRatio = '16:9' } = options;
-    console.log(`[MetaV2] ⚙️ Configuring UI: mode=video, aspect=${aspectRatio}`);
+    const { aspectRatio = '16:9', mode = 'video' } = options;
+    console.log(`[MetaV2] ⚙️ Configuring UI: mode=${mode}, aspect=${aspectRatio}`);
 
-    // Step 1: Click "Imagine" button
-    // Meta.ai has an "Imagine" button/toggle in the main UI
-    let clickedImagine = await clickByText(page, 'imagine', 'Imagine button');
-    if (clickedImagine) {
-        await delay(2000);
-    } else {
-        // Try navigating directly to imagine endpoint
-        console.log('[MetaV2] Trying direct navigation to meta.ai imagine...');
-        try {
-            await page.goto('https://www.meta.ai/imagine/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    // Step 1: Ensure we're on the Create/Media page (NOT /imagine/)
+    const currentUrl = page.url();
+    if (!currentUrl.includes('/media') && !currentUrl.includes('meta.ai')) {
+        console.log('[MetaV2] Navigating to meta.ai...');
+        await page.goto('https://www.meta.ai/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await delay(3000);
+    }
+
+    // If we're on the main chat page, click "Create" in the sidebar
+    if (!currentUrl.includes('/media')) {
+        console.log('[MetaV2] Looking for "Create" button in sidebar...');
+        const clickedCreate = await clickByText(page, 'create', 'Create sidebar button');
+        if (clickedCreate) {
             await delay(3000);
-        } catch {
-            // Stay on current page
-            console.log('[MetaV2] ⚠️ Direct navigation failed, staying on current page');
+            console.log(`[MetaV2] Navigated to: ${page.url()}`);
+        } else {
+            // Direct navigation fallback
+            console.log('[MetaV2] Fallback: navigating directly to /media...');
+            await page.goto('https://www.meta.ai/media', { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await delay(3000);
         }
     }
 
-    // Step 2: Click "Video" to switch to video mode
-    const clickedVideo = await clickByText(page, 'video', 'Video mode');
-    if (clickedVideo) await delay(1500);
+    // Step 2: Switch to Video mode
+    // The mode dropdown is a button[role="combobox"] showing "Image" or "Video"
+    if (mode === 'video') {
+        const isAlreadyVideo = await page.evaluate(() => {
+            const comboboxes = document.querySelectorAll('button[role="combobox"]');
+            for (const cb of comboboxes) {
+                if (cb.textContent.trim().toLowerCase() === 'video') return true;
+            }
+            return false;
+        });
 
-    // Step 3: Set aspect ratio
-    const clickedRatio = await clickByText(page, aspectRatio, `Aspect ${aspectRatio}`);
-    if (clickedRatio) await delay(1000);
+        if (isAlreadyVideo) {
+            console.log('[MetaV2] ✅ Already in Video mode');
+        } else {
+            // Click the Image dropdown (combobox) to open it
+            const openedDropdown = await page.evaluate(() => {
+                const comboboxes = document.querySelectorAll('button[role="combobox"]');
+                for (const cb of comboboxes) {
+                    const text = cb.textContent.trim().toLowerCase();
+                    if (text === 'image' || text === 'video') {
+                        cb.click();
+                        return true;
+                    }
+                }
+                return false;
+            });
 
-    // Step 4: Wait for input to be ready
-    const inputSelector = 'div[contenteditable="true"], textarea, div[role="textbox"], input[type="text"]';
+            if (openedDropdown) {
+                console.log('[MetaV2] ✅ Opened mode dropdown');
+                await delay(500);
+
+                // Select "Video" from the dropdown list
+                const selectedVideo = await page.evaluate(() => {
+                    // Look for dropdown options (role="option", listbox items, etc.)
+                    const options = document.querySelectorAll('[role="option"], li, div[role="menuitem"], div[role="menuitemradio"]');
+                    for (const opt of options) {
+                        const text = opt.textContent.trim().toLowerCase();
+                        if (text === 'video' || text.includes('video')) {
+                            opt.click();
+                            return true;
+                        }
+                    }
+                    // Fallback: any clickable with "video" text
+                    const all = document.querySelectorAll('span, div, button, a');
+                    for (const el of all) {
+                        if (el.textContent.trim().toLowerCase() === 'video' && el.offsetParent !== null) {
+                            el.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+
+                if (selectedVideo) {
+                    console.log('[MetaV2] ✅ Switched to Video mode');
+                    await delay(1500);
+                } else {
+                    console.log('[MetaV2] ⚠️ Could not select Video from dropdown');
+                }
+            } else {
+                // Text-based fallback
+                console.log('[MetaV2] Trying text-based fallback for Video mode...');
+                await clickByText(page, 'image', 'Image dropdown');
+                await delay(500);
+                await clickByText(page, 'video', 'Video option');
+                await delay(1500);
+            }
+        }
+    }
+
+    // Step 3: Verify input is ready
+    // In Video mode: placeholder changes to "Describe your animation..."
+    // The input is div[role="textbox"] or textarea
+    const inputSelector = 'div[role="textbox"], textarea, div[contenteditable="true"], input[type="text"]';
     try {
         await page.waitForSelector(inputSelector, { timeout: 10000 });
         console.log('[MetaV2] ✅ Input ready');
     } catch {
         console.log('[MetaV2] ⚠️ Input not detected after 10s');
+        // Debug: log what we see
+        const debugInfo = await page.evaluate(() => {
+            return {
+                url: window.location.href,
+                inputs: Array.from(document.querySelectorAll('textarea, div[contenteditable], input, div[role="textbox"]')).map(el => ({
+                    tag: el.tagName, role: el.getAttribute('role'),
+                    placeholder: el.getAttribute('placeholder') || el.getAttribute('data-placeholder'),
+                    classes: (el.className || '').substring(0, 50)
+                }))
+            };
+        });
+        console.log('[MetaV2] DEBUG:', JSON.stringify(debugInfo));
+    }
+
+    // NOTE: In Video mode, aspect ratio selector DISAPPEARS.
+    // Meta.ai Video mode does not show an aspect ratio dropdown.
+    // The video is generated at a fixed ratio by Meta.
+    if (mode !== 'video' && aspectRatio) {
+        // Only set aspect ratio in Image mode
+        const openedRatio = await page.evaluate(() => {
+            const comboboxes = document.querySelectorAll('button[role="combobox"]');
+            for (const cb of comboboxes) {
+                const text = cb.textContent.trim();
+                if (['1:1', '9:16', '16:9', '4:5'].includes(text)) {
+                    cb.click();
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        if (openedRatio) {
+            await delay(500);
+            await clickByText(page, aspectRatio, `Ratio ${aspectRatio}`);
+            await delay(1000);
+        }
     }
 
     console.log('[MetaV2] ⚙️ UI configuration complete');
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TYPE FULL PROMPT
+// TYPE PROMPT — Into div[role="textbox"] or textarea
 // ═══════════════════════════════════════════════════════════════
 
 async function typePrompt(page, prompt) {
-    const inputSelector = 'div[contenteditable="true"], textarea, div[role="textbox"], input[type="text"]';
+    const inputSelector = 'div[role="textbox"], textarea, div[contenteditable="true"], input[type="text"]';
 
     let inputEl = await page.$(inputSelector);
     if (!inputEl) {
@@ -98,17 +213,18 @@ async function typePrompt(page, prompt) {
     }
     if (!inputEl) throw new Error('Could not find prompt input field');
 
+    // Click to focus
     await inputEl.click();
-    await delay(200);
+    await delay(300);
 
-    // Clear: Ctrl+A + Backspace
+    // Clear existing text: Ctrl+A + Backspace
     await page.keyboard.down('Control');
     await page.keyboard.press('a');
     await page.keyboard.up('Control');
     await page.keyboard.press('Backspace');
     await delay(200);
 
-    // Also clear via DOM
+    // Also clear via DOM (belt-and-suspenders)
     await page.evaluate((sel) => {
         const el = document.querySelector(sel);
         if (el) {
@@ -123,53 +239,48 @@ async function typePrompt(page, prompt) {
     }, inputSelector);
     await delay(200);
 
-    // Set value directly (fast, reliable for long prompts)
+    // Re-click and type the prompt via keyboard (works with React/Lexical editors)
     await inputEl.click();
     await delay(100);
-
-    await page.evaluate((sel, text) => {
-        const el = document.querySelector(sel);
-        if (el) {
-            if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
-                el.value = text;
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-            } else {
-                // contenteditable — need both textContent and input event
-                el.textContent = text;
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                // Also trigger React's synthetic event
-                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-    }, inputSelector, prompt);
+    await page.keyboard.type(prompt, { delay: 15 });
 
     await delay(300);
     console.log(`[MetaV2] ✅ Typed prompt (${prompt.length} chars): "${prompt.substring(0, 80)}..."`);
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SUBMIT PROMPT
+// SUBMIT PROMPT — Click "Animate" button (Video mode)
 // ═══════════════════════════════════════════════════════════════
 
 async function submitPrompt(page) {
+    // In Video mode, the submit button says "Animate" (blue button, right side)
     const clicked = await page.evaluate(() => {
         const buttons = document.querySelectorAll('button');
         for (const btn of buttons) {
-            const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
             const text = (btn.textContent || '').trim().toLowerCase();
-            if (ariaLabel.includes('send') || ariaLabel.includes('submit') ||
-                ariaLabel.includes('generate') || text === 'generate' || text === 'send') {
+            const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+            // Priority order: Animate (Video mode) → Create → Send → Generate
+            if (text.includes('animate') || ariaLabel.includes('animate')) {
                 btn.click();
-                return true;
+                return 'animate';
             }
         }
-        return false;
+        // Fallback: look for Create, Send, Generate
+        for (const btn of buttons) {
+            const text = (btn.textContent || '').trim().toLowerCase();
+            const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+            if (text === 'create' || ariaLabel.includes('send') || ariaLabel.includes('submit') || text === 'generate') {
+                btn.click();
+                return text || ariaLabel;
+            }
+        }
+        return null;
     });
 
     if (clicked) {
-        console.log('[MetaV2] ✅ Submit clicked');
+        console.log(`[MetaV2] ✅ Submit clicked (${clicked})`);
     } else {
+        // Last resort: press Enter
         await page.keyboard.press('Enter');
         console.log('[MetaV2] ✅ Submitted via Enter');
     }
@@ -202,6 +313,7 @@ async function waitForVideo(page, timeoutMs = 180000) {
                     if (src && !existingVideoSrcs.has(src)) {
                         resolved = true;
                         observer.disconnect();
+                        clearInterval(pollInterval);
                         resolve(src);
                         return;
                     }
@@ -232,7 +344,7 @@ async function waitForVideo(page, timeoutMs = 180000) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// DOWNLOAD VIDEO — In-browser fetch with cookies
+// DOWNLOAD VIDEO — 3-tier: in-browser fetch → download button → blob
 // ═══════════════════════════════════════════════════════════════
 
 async function downloadVideo(page, videoUrl, outputDir, sceneNum) {
@@ -355,17 +467,23 @@ async function generateVideosMetaV2(browser, scenes, options = {}) {
         console.log('[MetaV2] Opening new Meta.ai tab...');
         page = await browser.newPage();
         await SM.injectCookies(page, 'meta');
-        await page.goto('https://www.meta.ai/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        // Navigate directly to /media (the Create page)
+        await page.goto('https://www.meta.ai/media', { waitUntil: 'domcontentloaded', timeout: 30000 });
         await delay(3000);
     } else {
         console.log('[MetaV2] ✅ Reusing existing Meta.ai tab');
         await page.bringToFront();
+        // Make sure we're on the /media page
+        if (!page.url().includes('/media')) {
+            await page.goto('https://www.meta.ai/media', { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await delay(3000);
+        }
     }
 
     await page.setBypassCSP(true);
 
-    // Configure UI
-    await configureUI(page, { aspectRatio });
+    // Configure UI: switch to Video mode
+    await configureUI(page, { aspectRatio, mode: 'video' });
 
     // Process scenes
     const results = [];
@@ -428,10 +546,10 @@ async function generateVideosMetaV2(browser, scenes, options = {}) {
                         if (!page) {
                             page = await browser.newPage();
                             await SM.injectCookies(page, 'meta');
-                            await page.goto('https://www.meta.ai/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+                            await page.goto('https://www.meta.ai/media', { waitUntil: 'domcontentloaded', timeout: 30000 });
                             await page.setBypassCSP(true);
                             await delay(3000);
-                            await configureUI(page, { aspectRatio });
+                            await configureUI(page, { aspectRatio, mode: 'video' });
                         }
                     } catch (recoveryErr) {
                         console.log(`[MetaV2] ❌ Recovery failed: ${recoveryErr.message}`);
