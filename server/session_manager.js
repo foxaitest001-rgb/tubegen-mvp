@@ -12,13 +12,15 @@ const ACCOUNTS_FILE = path.join(__dirname, 'accounts.json');
 // In-memory store (loaded from disk on init)
 let accounts = {
     meta: { cookies: null, verified: false, verifiedAt: null, stats: null },
-    grok: { cookies: null, verified: false, verifiedAt: null, stats: null }
+    grok: { cookies: null, verified: false, verifiedAt: null, stats: null },
+    whisk: { cookies: null, verified: false, verifiedAt: null, stats: null }
 };
 
 // ─── Service → Domain mapping ───
 const SERVICE_DOMAINS = {
     meta: ['.facebook.com', '.meta.ai', '.fbcdn.net', '.instagram.com'],
-    grok: ['.x.com', '.twitter.com', '.grok.com']
+    grok: ['.x.com', '.twitter.com', '.grok.com'],
+    whisk: ['.labs.google', 'labs.google']
 };
 
 // ─── Init: Load from disk ───
@@ -32,6 +34,9 @@ function init() {
             }
             if (data.grok && data.grok.cookies) {
                 accounts.grok = { ...data.grok, verified: false };
+            }
+            if (data.whisk && data.whisk.cookies) {
+                accounts.whisk = { ...data.whisk, verified: false };
             }
             console.log('[SessionMgr] ✅ Loaded saved sessions from accounts.json');
         }
@@ -124,16 +129,15 @@ async function verifySession(service, browser) {
 
     const testUrls = {
         meta: 'https://www.meta.ai/',
-        grok: 'https://grok.com/'
+        grok: 'https://grok.com/',
+        whisk: 'https://labs.google/fx/tools/whisk'
     };
 
     const loginIndicators = {
         meta: {
-            // If logged in, Meta.ai won't show "Log in" button
             loggedIn: async (page) => {
                 return await page.evaluate(() => {
                     const body = document.body.innerText || '';
-                    // Look for signs of being logged in
                     const hasLogout = body.includes('Log out') || body.includes('Settings');
                     const hasTextbox = !!document.querySelector('[contenteditable="true"]') ||
                         !!document.querySelector('textarea');
@@ -146,11 +150,23 @@ async function verifySession(service, browser) {
             loggedIn: async (page) => {
                 return await page.evaluate(() => {
                     const body = document.body.innerText || '';
-                    // Grok shows the editor when logged in
                     const hasEditor = !!document.querySelector('.tiptap') ||
                         !!document.querySelector('[contenteditable="true"]');
                     const noSignIn = !body.includes('Sign in') && !body.includes('sign in');
                     return hasEditor || noSignIn;
+                });
+            }
+        },
+        whisk: {
+            loggedIn: async (page) => {
+                return await page.evaluate(() => {
+                    const body = document.body.innerText || '';
+                    // Whisk shows project UI when logged in
+                    const hasWhiskUI = !!document.querySelector('textarea') ||
+                        !!document.querySelector('[contenteditable="true"]') ||
+                        body.includes('Create') || body.includes('Subject');
+                    const noSignIn = !body.includes('Sign in') && !body.includes('sign in');
+                    return hasWhiskUI && noSignIn;
                 });
             }
         }

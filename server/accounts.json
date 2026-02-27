@@ -230,5 +230,117 @@
         ".grok.com"
       ]
     }
+  },
+  "whisk": {
+    "cookies": [
+      {
+        "name": "EMAIL",
+        "value": "%22foxaitest001%40gmail.com%22",
+        "domain": "labs.google",
+        "path": "/",
+        "expires": 1774626119,
+        "httpOnly": false,
+        "secure": false,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "__Host-next-auth.csrf-token",
+        "value": "da1fb1f395f6a9c3e58755d22ee17a9d4d3b42d0e29a80086012f69584f2b664%7Cb92f166812e113f759a4bc1ea72472ca6e5eb8f26b31be5810b89177e8f2ff09",
+        "domain": "labs.google",
+        "path": "/",
+        "expires": -1,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "__Secure-next-auth.callback-url",
+        "value": "https%3A%2F%2Flabs.google%2Ffx%2Ftools%2Fwhisk%2Fproject%2F6175e526-fb6d-4ff3-881d-e35ed90cfff0",
+        "domain": "labs.google",
+        "path": "/",
+        "expires": -1,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "__Secure-next-auth.session-token",
+        "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..pzH-sF3M8IrGo0GP.7IuEsu5oRzwvG3DLgR8GWbwIW79hJ2eEHW6MNf0TC1q2DyqXn2CunTxff1zuclL3CtWW5ffUepjQINHu1suvnDHCWKhNj_KwH5BZ0MKQZajTcI2-So2Fy-diZaHMx42P24AgHLPgZ-UF4GZlWQ-c4DHFPUJu_YEkzg0flHg3AWDNBpKkTD6lDqIhJ2F4zzMJOcKqP1tLbe5twfPKd5My4kgZ5dX-EeOw_i3S8KAFdEBs-GVsPmUcGfe4PgvD9fd1wgQFk_Kz4z2k3yUvo5uhpE9vmXVRm96M0Mu6LLhaiQLDPgBimuM36RdvtNxO-9hVJ_hbFOwRHkrW6UxpM9YZ6MOqWvC5D53vMNp_QI7bWD0vnXHqtA4BCSvjs96LW9kloSg6l_8ARA2NqJ3O5-9szQKaE8JNWSbGF_JhjjqXy_vFDFx6K9ym5ZMc7o_b_SpHjYEx5DdLkU7ejsCKiUvquuixiM0D141X5q6jlRi_bRu8RNAcPrzR6ZXf8TSyfjt5bXHCty5U_-2MWhU8IFxgoROMx5QggFXaML5WeDAsj6jBvBeVwzlz5guf7xota_FfjFKTSncqm9X8xRCT81UIxoWPNNmNAt7P5vG7YSG_QPoOCXLJBPqqZPtB_2UVyxkoGuuV_3k0-0tboTCLQcshddlANniAr48tag3qjInZinBttzdv3WyOMPN6SY4gWPoF5UCCxeKL_Z1H2DCVIMMhb9KUtESllGmbi-8PYSalPNdvzgSvyWxgjEiupu7NllzTwWDa9YEKnkOkFQMgsGLOCNR06lsE3ClNH46jFVu08S0Ktvrn55-DA721DSYTH5NOfNqM9m3NmDVm_HNHk2WsweYsR4iEMjO8jD8eFoeauUI692-8sgBN4t__Ni9BnT7N5OsndMbtyIV_mYOZ1sg30RMLwonTMncfjvY2eJ-mTIgVW4AvdAYoqhtKb-KAYrDx8AHnSl-BGXfAs_Q8CF_sH_w6BI8wBr1z950G.ATNVQ96EYA8IN8hwrE18Ag",
+        "domain": "labs.google",
+        "path": "/",
+        "expires": 1774815083.368417,
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "_ga",
+        "value": "GA1.1.307442317.1758196293",
+        "domain": ".labs.google",
+        "path": "/",
+        "expires": 1806783074.318486,
+        "httpOnly": false,
+        "secure": false,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "_ga_5K7X2T4V16",
+        "value": "GS2.1.s1762470230$o1$g0$t1762470232$j58$l0$h0",
+        "domain": ".labs.google",
+        "path": "/",
+        "expires": 1797030232.901953,
+        "httpOnly": false,
+        "secure": false,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "_ga_X2GNH8R5NS",
+        "value": "GS2.1.s1772223067$o82$g1$t1772223075$j52$l0$h1177905443",
+        "domain": ".labs.google",
+        "path": "/",
+        "expires": 1806783075.835924,
+        "httpOnly": false,
+        "secure": false,
+        "sameSite": "Lax"
+      },
+      {
+        "name": "email",
+        "value": "foxaitest001%40gmail.com",
+        "domain": "labs.google",
+        "path": "/",
+        "expires": -1,
+        "httpOnly": true,
+        "secure": false,
+        "sameSite": "Lax"
+      }
+    ],
+    "verified": false,
+    "verifiedAt": null,
+    "loadedAt": "2026-02-27T20:12:00.000Z",
+    "stats": {
+      "count": 8,
+      "totalSize": "2.1kb",
+      "keyCookies": [
+        {
+          "name": "__Secure-next-auth.session-token",
+          "size": "1.0kb",
+          "domain": "labs.google"
+        },
+        {
+          "name": "__Host-next-auth.csrf-token",
+          "size": "0.1kb",
+          "domain": "labs.google"
+        },
+        {
+          "name": "EMAIL",
+          "size": "0.0kb",
+          "domain": "labs.google"
+        }
+      ],
+      "domains": [
+        "labs.google",
+        ".labs.google"
+      ]
+    }
   }
 }

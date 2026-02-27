@@ -16,6 +16,7 @@ interface ServiceAccount {
 interface AccountStatus {
     meta: ServiceAccount;
     grok: ServiceAccount;
+    whisk: ServiceAccount;
 }
 
 interface Props {
@@ -24,15 +25,16 @@ interface Props {
 
 const SERVICES = [
     { id: 'meta', name: 'Meta AI', icon: '🤖', url: 'meta.ai', ext: 'Cookie-Editor' },
-    { id: 'grok', name: 'Grok', icon: '⚡', url: 'grok.com', ext: 'Cookie-Editor' }
+    { id: 'grok', name: 'Grok', icon: '⚡', url: 'grok.com', ext: 'Cookie-Editor' },
+    { id: 'whisk', name: 'Whisk', icon: '🎨', url: 'labs.google/fx/tools/whisk', ext: 'Cookie-Editor' }
 ];
 
 export function AccountManager({ serverUrl }: Props) {
     const [status, setStatus] = useState<AccountStatus | null>(null);
     const [expanded, setExpanded] = useState(false);
-    const [cookieInputs, setCookieInputs] = useState<Record<string, string>>({ meta: '', grok: '' });
-    const [loading, setLoading] = useState<Record<string, boolean>>({ meta: false, grok: false });
-    const [messages, setMessages] = useState<Record<string, string>>({ meta: '', grok: '' });
+    const [cookieInputs, setCookieInputs] = useState<Record<string, string>>({ meta: '', grok: '', whisk: '' });
+    const [loading, setLoading] = useState<Record<string, boolean>>({ meta: false, grok: false, whisk: false });
+    const [messages, setMessages] = useState<Record<string, string>>({ meta: '', grok: '', whisk: '' });
 
     // Fetch status on mount
     useEffect(() => {
@@ -220,8 +222,8 @@ export function AccountManager({ serverUrl }: Props) {
                                 {/* Status message */}
                                 {messages[svc.id] && (
                                     <div className={`ftg-account-msg ${messages[svc.id].includes('✅') ? 'ftg-msg--ok' :
-                                            messages[svc.id].includes('❌') ? 'ftg-msg--err' :
-                                                messages[svc.id].includes('⚠️') ? 'ftg-msg--warn' : ''
+                                        messages[svc.id].includes('❌') ? 'ftg-msg--err' :
+                                            messages[svc.id].includes('⚠️') ? 'ftg-msg--warn' : ''
                                         }`}>
                                         {messages[svc.id]}
                                     </div>
