@@ -130,13 +130,37 @@ jobs:
           
           # Tunnel 1: VNC (for login)
           cloudflared tunnel --url http://localhost:6080 > /tmp/vnc_tunnel.log 2>&1 &
-          sleep 8
-          VNC_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/vnc_tunnel.log | head -1)
           
           # Tunnel 2: API (for video generation)
           cloudflared tunnel --url http://localhost:3001 > /tmp/api_tunnel.log 2>&1 &
-          sleep 8
-          API_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/api_tunnel.log | head -1)
+          
+          # Wait for VNC tunnel URL (retry up to 30 seconds)
+          VNC_URL=""
+          for i in $(seq 1 15); do
+            VNC_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/vnc_tunnel.log 2>/dev/null | head -1)
+            if [ -n "$VNC_URL" ]; then break; fi
+            echo "⏳ Waiting for VNC tunnel... (attempt $i/15)"
+            sleep 2
+          done
+          
+          # Wait for API tunnel URL (retry up to 30 seconds)
+          API_URL=""
+          for i in $(seq 1 15); do
+            API_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/api_tunnel.log 2>/dev/null | head -1)
+            if [ -n "$API_URL" ]; then break; fi
+            echo "⏳ Waiting for API tunnel... (attempt $i/15)"
+            sleep 2
+          done
+          
+          # Warn if either tunnel failed
+          if [ -z "$VNC_URL" ]; then
+            echo "⚠️ WARNING: VNC tunnel URL not found! Check /tmp/vnc_tunnel.log"
+            cat /tmp/vnc_tunnel.log
+          fi
+          if [ -z "$API_URL" ]; then
+            echo "⚠️ WARNING: API tunnel URL not found! Check /tmp/api_tunnel.log"
+            cat /tmp/api_tunnel.log
+          fi
           
           echo ""
           echo "╔═══════════════════════════════════════════════════════════════════════════════╗"
