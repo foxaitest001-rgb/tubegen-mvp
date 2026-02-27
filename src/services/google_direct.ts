@@ -5,12 +5,12 @@ const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
 // --- GENERATIVE AI (GEMINI) ---
 
-// WORKING MODEL: gemini-3-flash-preview (Confirmed by user logs)
-// Fallback: gemini-2.0-flash (may rate limit)
-// Fallback: gemini-1.5-pro (Try as last resort for quota)
+// Model priority: Try newer models first, fallback to older
+// Note: gemini-1.5-pro returns 404 (deprecated as of 2026)
 const FALLBACK_MODELS: string[] = [
     'gemini-2.0-flash',
-    'gemini-1.5-pro'
+    'gemini-2.5-flash-preview-05-20',
+    'gemini-2.0-flash-lite'
 ];
 
 export async function generateContentWithGoogle(systemPrompt: string, userQuery: string, primaryModel: string = 'gemini-3-flash-preview') {
