@@ -76,72 +76,41 @@ async function configureUI(page, options = {}) {
     }
 
     // Step 2: Switch to Video mode
-    // The mode dropdown is a button[role="combobox"] showing "Image" or "Video"
+    // The UI shows: [+] [Create] [Video v]
     if (mode === 'video') {
-        const isAlreadyVideo = await page.evaluate(() => {
-            const comboboxes = document.querySelectorAll('button[role="combobox"]');
-            for (const cb of comboboxes) {
-                if (cb.textContent.trim().toLowerCase() === 'video') return true;
+        const switched = await page.evaluate(() => {
+            // First check if we are already in Video mode by looking at the placeholder
+            const placeholderEl = document.querySelector('div[data-placeholder="Describe your animation..."], textarea[placeholder="Describe your animation..."]');
+            if (placeholderEl) return true;
+
+            // Otherwise, look for the Video button and click it
+            const buttons = document.querySelectorAll('button, div[role="button"], span');
+
+            // Try explicit "Video" buttons first
+            for (const b of buttons) {
+                const text = (b.textContent || '').trim().toLowerCase();
+                if (text === 'video' || text.includes('video')) {
+                    b.click();
+                    // If it was a dropdown trigger, we might need to click the Video option inside it now
+                    setTimeout(() => {
+                        const options = document.querySelectorAll('[role="menuitem"], [role="option"], li');
+                        for (const opt of options) {
+                            if ((opt.textContent || '').trim().toLowerCase() === 'video') {
+                                opt.click();
+                            }
+                        }
+                    }, 500);
+                    return true;
+                }
             }
             return false;
         });
 
-        if (isAlreadyVideo) {
-            console.log('[MetaV2] ✅ Already in Video mode');
+        if (switched) {
+            console.log('[MetaV2] ✅ Switched to Video mode via UI click');
+            await delay(1500);
         } else {
-            // Click the Image dropdown (combobox) to open it
-            const openedDropdown = await page.evaluate(() => {
-                const comboboxes = document.querySelectorAll('button[role="combobox"]');
-                for (const cb of comboboxes) {
-                    const text = cb.textContent.trim().toLowerCase();
-                    if (text === 'image' || text === 'video') {
-                        cb.click();
-                        return true;
-                    }
-                }
-                return false;
-            });
-
-            if (openedDropdown) {
-                console.log('[MetaV2] ✅ Opened mode dropdown');
-                await delay(500);
-
-                // Select "Video" from the dropdown list
-                const selectedVideo = await page.evaluate(() => {
-                    // Look for dropdown options (role="option", listbox items, etc.)
-                    const options = document.querySelectorAll('[role="option"], li, div[role="menuitem"], div[role="menuitemradio"]');
-                    for (const opt of options) {
-                        const text = opt.textContent.trim().toLowerCase();
-                        if (text === 'video' || text.includes('video')) {
-                            opt.click();
-                            return true;
-                        }
-                    }
-                    // Fallback: any clickable with "video" text
-                    const all = document.querySelectorAll('span, div, button, a');
-                    for (const el of all) {
-                        if (el.textContent.trim().toLowerCase() === 'video' && el.offsetParent !== null) {
-                            el.click();
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-
-                if (selectedVideo) {
-                    console.log('[MetaV2] ✅ Switched to Video mode');
-                    await delay(1500);
-                } else {
-                    console.log('[MetaV2] ⚠️ Could not select Video from dropdown');
-                }
-            } else {
-                // Text-based fallback
-                console.log('[MetaV2] Trying text-based fallback for Video mode...');
-                await clickByText(page, 'image', 'Image dropdown');
-                await delay(500);
-                await clickByText(page, 'video', 'Video option');
-                await delay(1500);
-            }
+            console.log('[MetaV2] ⚠️ Could not find Video button, typing /video shortcut or relying on initial_image upload... ');
         }
     }
 
@@ -310,16 +279,17 @@ async function submitPrompt(page) {
             const text = (btn.textContent || '').trim().toLowerCase();
             const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
             // Priority order: Animate (Video mode) → Create → Send → Generate
-            if (text.includes('animate') || ariaLabel.includes('animate')) {
+            if (text === 'animate' || ariaLabel === 'animate') {
                 btn.click();
                 return 'animate';
             }
         }
-        // Fallback: look for Create, Send, Generate
+        // Fallback: look for variations
         for (const btn of buttons) {
-            const text = (btn.textContent || '').trim().toLowerCase();
+            const text = (b.textContent || '').trim().toLowerCase();
             const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
-            if (text === 'create' || ariaLabel.includes('send') || ariaLabel.includes('submit') || text === 'generate') {
+            if (text.includes('animate') || ariaLabel.includes('animate') ||
+                text === 'create' || ariaLabel.includes('send') || ariaLabel.includes('submit') || text === 'generate') {
                 btn.click();
                 return text || ariaLabel;
             }
