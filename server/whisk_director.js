@@ -55,6 +55,37 @@ function interruptibleSleep(ms, signal) {
 }
 
 /**
+ * Safely evaluate a function in the page context with a timeout.
+ * Prevents "Runtime.callFunctionOn timed out" when the page freezes.
+ */
+async function safeEvaluate(page, fn, timeoutMs = 5000, ...args) {
+    try {
+        return await Promise.race([
+            page.evaluate(fn, ...args),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('safeEvaluate timeout')), timeoutMs))
+        ]);
+    } catch (err) {
+        if (typeof log === 'function') log(0, 'WARN', `safeEvaluate failed: ${err.message}`);
+        return null;
+    }
+}
+
+/**
+ * Safely evaluateHandle in the page context with a timeout.
+ */
+async function safeEvaluateHandle(page, fn, timeoutMs = 5000, ...args) {
+    try {
+        return await Promise.race([
+            page.evaluateHandle(fn, ...args),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('safeEvaluateHandle timeout')), timeoutMs))
+        ]);
+    } catch (err) {
+        if (typeof log === 'function') log(0, 'WARN', `safeEvaluateHandle failed: ${err.message}`);
+        return null;
+    }
+}
+
+/**
  * Director logging helper — sends logs to SSE connected clients
  */
 let _directorLog = null;
@@ -282,7 +313,7 @@ async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualSt
  */
 async function handleWelcomeModal(page) {
     try {
-        const clicked = await page.evaluate(() => {
+        const clicked = await safeEvaluate(page, () => {
             const btns = document.querySelectorAll('button, div[role="button"], span');
             for (const b of btns) {
                 const text = (b.textContent || '').trim().toLowerCase();
@@ -292,7 +323,7 @@ async function handleWelcomeModal(page) {
                 }
             }
             return false;
-        });
+        }, 5000);
         if (clicked) {
             await interruptibleSleep(1000);
             log(0, 'UI', 'Dismissed welcome modal/tooltip');
@@ -312,7 +343,7 @@ async function openAddImagesPanel(page) {
         }
 
         // Find "Add Images" button by text content
-        const clicked = await page.evaluate(() => {
+        const clicked = await safeEvaluate(page, () => {
             const buttons = document.querySelectorAll('button, div[role="button"]');
             for (const b of buttons) {
                 const text = (b.textContent || '').trim().toLowerCase();
@@ -322,7 +353,7 @@ async function openAddImagesPanel(page) {
                 }
             }
             return false;
-        });
+        }, 5000);
 
         if (clicked) {
             await interruptibleSleep(1500);
@@ -358,7 +389,7 @@ async function typePromptAndSubmit(page, prompt) {
 
         // Strategy 4: Find by evaluating all textareas and picking the biggest visible one
         if (!textarea) {
-            textarea = await page.evaluateHandle(() => {
+            textarea = await safeEvaluateHandle(page, () => {
                 const all = document.querySelectorAll('textarea');
                 let best = null;
                 let bestSize = 0;
@@ -371,14 +402,14 @@ async function typePromptAndSubmit(page, prompt) {
                     }
                 }
                 return best;
-            });
-            if (textarea && !(await textarea.evaluate(el => el !== null))) textarea = null;
+            }, 5000);
+            if (textarea && !(await safeEvaluate(textarea, el => el !== null, 3000))) textarea = null;
         }
 
         if (!textarea) {
             log(0, 'ERROR', 'Could not find prompt textarea — tried all strategies');
             // Dump page info for debugging
-            const debugInfo = await page.evaluate(() => {
+            const debugInfo = await safeEvaluate(page, () => {
                 const textareas = document.querySelectorAll('textarea');
                 const editables = document.querySelectorAll('[contenteditable]');
                 const inputs = document.querySelectorAll('input[type="text"]');
@@ -389,8 +420,8 @@ async function typePromptAndSubmit(page, prompt) {
                     textInputs: inputs.length,
                     bodyText: document.body.innerText.substring(0, 200)
                 };
-            });
-            log(0, 'DEBUG', JSON.stringify(debugInfo));
+            }, 5000);
+            log(0, 'DEBUG', JSON.stringify(debugInfo || { error: 'debugInfo timeout' }));
             return;
         }
 
@@ -433,7 +464,7 @@ async function typePromptAndSubmit(page, prompt) {
 
         // Strategy 3: Find button by text content
         if (!submitBtn) {
-            submitBtn = await page.evaluateHandle(() => {
+            submitBtn = await safeEvaluateHandle(page, () => {
                 const btns = document.querySelectorAll('button');
                 for (const b of btns) {
                     const text = (b.textContent || '').trim().toLowerCase();
@@ -446,7 +477,7 @@ async function typePromptAndSubmit(page, prompt) {
                     }
                 }
                 return null;
-            });
+            }, 5000);
         }
 
         // Close the Add Images panel if it's open (it blocks the UI)
@@ -498,7 +529,7 @@ async function waitForResultAndDownload(page, outputDir, fileBaseName) {
 
         while (Date.now() - startTime < GENERATION_TIMEOUT) {
             // Look for generated result images
-            resultImageSrc = await page.evaluate(() => {
+            resultImageSrc = await safeEvaluate(page, () => {
                 // Look for the main generated image in the results area
                 // Whisk typically shows results in an img element within results container
                 const images = document.querySelectorAll('img');
@@ -515,7 +546,7 @@ async function waitForResultAndDownload(page, outputDir, fileBaseName) {
                     }
                 }
                 return null;
-            });
+            }, 5000);
 
             if (resultImageSrc) {
                 log(0, 'RESULT', '🖼️ Image generated! Downloading...');
@@ -523,10 +554,10 @@ async function waitForResultAndDownload(page, outputDir, fileBaseName) {
             }
 
             // Also check for any loading indicators disappearing
-            const isLoading = await page.evaluate(() => {
+            const isLoading = await safeEvaluate(page, () => {
                 const spinners = document.querySelectorAll('[class*="loading"], [class*="spinner"], [class*="progress"]');
                 return spinners.length > 0;
-            });
+            }, 3000);
 
             if (!isLoading && Date.now() - startTime > 10000) {
                 // If no loading indicator and we've waited 10s, check for images again
@@ -595,7 +626,7 @@ async function waitForResultAndDownload(page, outputDir, fileBaseName) {
 async function resetWhiskInputs(page) {
     try {
         // Try clicking "Done", "Close", or clicking outside to dismiss any open panels
-        await page.evaluate(() => {
+        await safeEvaluate(page, () => {
             const btns = document.querySelectorAll('button');
             for (const b of btns) {
                 const text = (b.textContent || '').trim().toLowerCase();
@@ -605,7 +636,7 @@ async function resetWhiskInputs(page) {
             }
             // Click outside to dismiss focus
             document.body.click();
-        });
+        }, 5000);
         await interruptibleSleep(500);
 
         // Clear the prompt textarea
@@ -616,7 +647,7 @@ async function resetWhiskInputs(page) {
         }
 
         // Try to clear uploaded images by clicking remove/X/close buttons
-        await page.evaluate(() => {
+        await safeEvaluate(page, () => {
             // Find close/remove buttons near image upload areas
             const allButtons = document.querySelectorAll('button, [role="button"]');
             for (const btn of allButtons) {
@@ -634,7 +665,7 @@ async function resetWhiskInputs(page) {
                     }
                 }
             }
-        });
+        }, 5000);
 
         await interruptibleSleep(1000);
         log(0, 'RESET', '🔄 Whisk inputs cleared for next scene');
@@ -661,7 +692,7 @@ async function setAspectRatio(page, ratio = '16:9') {
         const targetLabel = ratioMap[ratio] || 'Landscape';
 
         // Click the aspect ratio button (find by icon text "aspect_ratio")
-        const clicked = await page.evaluate(() => {
+        const clicked = await safeEvaluate(page, () => {
             const buttons = document.querySelectorAll('button');
             for (const b of buttons) {
                 const iconText = (b.textContent || '').trim();
@@ -671,7 +702,7 @@ async function setAspectRatio(page, ratio = '16:9') {
                 }
             }
             return false;
-        });
+        }, 5000);
 
         if (!clicked) {
             log(0, 'RATIO', `⚠️ Could not find aspect ratio button, using default`);
@@ -681,7 +712,7 @@ async function setAspectRatio(page, ratio = '16:9') {
         await interruptibleSleep(1000);
 
         // Click the matching ratio option in the dropdown
-        const selected = await page.evaluate((label) => {
+        const selected = await safeEvaluate(page, (label) => {
             // Find elements containing the target ratio text
             const all = document.querySelectorAll('*');
             for (const el of all) {
@@ -697,13 +728,13 @@ async function setAspectRatio(page, ratio = '16:9') {
                 }
             }
             return null;
-        }, targetLabel);
+        }, 5000, targetLabel);
 
         if (selected) {
             log(0, 'RATIO', `📐 Aspect ratio set to: ${ratio} (${targetLabel})`);
         } else {
             // Fallback: try clicking by ratio string directly
-            await page.evaluate((r) => {
+            await safeEvaluate(page, (r) => {
                 const all = document.querySelectorAll('*');
                 for (const el of all) {
                     if ((el.textContent || '').trim() === r && el.children.length <= 1) {
@@ -711,7 +742,7 @@ async function setAspectRatio(page, ratio = '16:9') {
                         return;
                     }
                 }
-            }, ratio);
+            }, 5000, ratio);
             log(0, 'RATIO', `📐 Aspect ratio set to: ${ratio} (fallback)`);
         }
 
