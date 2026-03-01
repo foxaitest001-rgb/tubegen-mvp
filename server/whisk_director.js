@@ -394,12 +394,32 @@ async function typePromptAndSubmit(page, prompt) {
             return;
         }
 
-        // Clear and type prompt
-        await textarea.click({ clickCount: 3 });
-        await interruptibleSleep(200);
-        await page.keyboard.press('Backspace');
-        await interruptibleSleep(100);
-        await textarea.type(prompt, { delay: 15 });
+        // Clear and type prompt (with timeouts to prevent indefinite hanging)
+        try {
+            // Try native puppeteer click & type first (with 3-second timeout)
+            await Promise.race([
+                (async () => {
+                    await textarea.click({ clickCount: 3 });
+                    await interruptibleSleep(200);
+                    await page.keyboard.press('Backspace');
+                    await interruptibleSleep(100);
+                    await textarea.type(prompt, { delay: 15 });
+                })(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Click/Type timeout')), 3000))
+            ]);
+        } catch (interactionErr) {
+            log(0, 'WARN', `Puppeteer type hung or failed, forcing via DOM evaluate...`);
+            // Fallback: forcefully set value via DOM if it's obscured
+            await page.evaluate((el, text) => {
+                if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                    el.value = text;
+                } else {
+                    el.textContent = text;
+                }
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }, textarea, prompt);
+        }
         log(0, 'TYPE', `📝 Prompt entered (${prompt.length} chars)`);
 
         await interruptibleSleep(500);
@@ -443,7 +463,15 @@ async function typePromptAndSubmit(page, prompt) {
         await interruptibleSleep(500);
 
         if (submitBtn) {
-            await submitBtn.click();
+            try {
+                await Promise.race([
+                    submitBtn.click(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Submit click timeout')), 3000))
+                ]);
+            } catch (clickErr) {
+                log(0, 'WARN', `Submit click hung, forcing via DOM...`);
+                await page.evaluate(b => b.click(), submitBtn);
+            }
             log(0, 'SUBMIT', '🚀 Submitted prompt');
         } else {
             // Fallback: press Enter
