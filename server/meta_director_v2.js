@@ -323,7 +323,7 @@ async function submitPrompt(page) {
 // WAIT FOR VIDEO — MutationObserver (tracks NEW vs existing)
 // ═══════════════════════════════════════════════════════════════
 
-async function waitForVideo(page, timeoutMs = 180000) {
+async function waitForVideo(page, timeoutMs = 180000, directorState = null) {
     console.log('[MetaV2] ⏳ Waiting for video...');
 
     // 1. Snapshot existing media before generation starts
@@ -379,6 +379,12 @@ async function waitForVideo(page, timeoutMs = 180000) {
         }
 
         await delay(3000);
+
+        // Check if job was cancelled during the wait
+        if (directorState && directorState.stopped) {
+            console.log('[MetaV2] 🛑 Job cancelled during video wait. Bailing out.');
+            return { type: 'cancelled', error: 'Job cancelled' };
+        }
     }
 
     return { type: 'timeout', error: 'No video within 3 minutes' };
@@ -494,7 +500,9 @@ async function generateVideosMetaV2(browser, scenes, options = {}) {
     const {
         projectDir,
         aspectRatio = '16:9',
-        onProgress = () => { }
+        onProgress = () => { },
+        jobId = null,
+        directorState = null
     } = options;
 
     const videoDir = path.join(projectDir, 'videos');
@@ -548,6 +556,12 @@ async function generateVideosMetaV2(browser, scenes, options = {}) {
         let attempts = 0;
 
         while (attempts < 3 && !success) {
+            // CRITICAL: Check if this job was cancelled before each attempt
+            if (directorState && (directorState.stopped || (jobId && directorState.currentJobId !== jobId))) {
+                console.log(`[MetaV2] 🛑 Job cancelled (jobId mismatch or stopped). Aborting scene loop.`);
+                return results;
+            }
+
             attempts++;
             console.log(`[MetaV2] 🎬 Scene ${sceneNum} (attempt ${attempts}/3): "${prompt.substring(0, 80)}..."`);
 
@@ -560,14 +574,16 @@ async function generateVideosMetaV2(browser, scenes, options = {}) {
                 await typePrompt(page, prompt);
                 await submitPrompt(page);
 
-                const videoResult = await waitForVideo(page, 180000);
+                const videoResult = await waitForVideo(page, 180000, directorState);
 
                 if (!videoResult) throw new Error('No video within 3 minutes');
 
-                if (videoResult.type === 'timeout') {
+                if (videoResult.type === 'cancelled') {
+                    console.log('[MetaV2] 🛑 Job cancelled. Exiting scene loop.');
+                    return results;
+                } else if (videoResult.type === 'timeout') {
                     throw new Error(videoResult.error);
                 } else if (videoResult.type === 'image') {
-                    // UI was stuck in Image mode. Force a UI refresh on next attempt.
                     throw new Error(`UI State Error: ${videoResult.error}`);
                 }
 

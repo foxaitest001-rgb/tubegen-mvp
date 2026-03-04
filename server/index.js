@@ -23,7 +23,7 @@ const { BatchQueue } = require('./batch_queue');
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v8.1 (ROBUST DIRECTORS + META/FFMPEG FIXES)';
+const VERSION = 'v8.2 (JOB CANCELLATION + UPLOAD FIXES)';
 
 // ── Middleware ──
 app.use(cors());
@@ -1818,10 +1818,19 @@ app.post('/generate-pipeline-pro', async (req, res) => {
         return res.status(400).json({ error: "Missing scriptData or structure" });
     }
 
+    // CRITICAL: Force-stop any running job BEFORE starting new one
     if (directorState.isRunning) {
-        return res.status(409).json({ error: "A job is already running" });
+        directorLog(0, "CTRL", "🛑 Stopping current job to start new one...");
+        directorState.stopped = true;
+        directorState.isRunning = false;
+        // Wait longer for old directors to see the stop flag and bail out
+        await new Promise(r => setTimeout(r, 2000));
     }
 
+    // Reset state fully for new job
+    directorState.paused = false;
+    directorState.stopped = false;
+    directorState.restart = false;
     directorState.isRunning = true;
     const newJobId = `pro_${Date.now()}`;
     directorState.currentJobId = newJobId;
@@ -1903,6 +1912,13 @@ app.post('/generate-pipeline-pro', async (req, res) => {
                 aspectRatio
             );
 
+            // Check if this job was cancelled while Whisk was running
+            if (directorState.stopped || directorState.currentJobId !== newJobId) {
+                directorLog(0, "CTRL", "🛑 Job cancelled during Phase 1. Aborting.");
+                directorState.isRunning = false;
+                return;
+            }
+
             directorLog(0, "PHASE1_DONE", `✅ Whisk generated ${whiskResult.sceneImages.length} scene images`);
 
             // ─── Phase 2: Image-to-Video (I2V) ───
@@ -1944,7 +1960,9 @@ app.post('/generate-pipeline-pro', async (req, res) => {
                     aspectRatio,
                     mode: 'video',
                     isI2V: true,
-                    onProgress
+                    onProgress,
+                    jobId: newJobId,           // Pass jobId for cancellation support
+                    directorState: directorState  // Pass state for stop checking
                 });
 
                 // Map back to expected format for assembly
