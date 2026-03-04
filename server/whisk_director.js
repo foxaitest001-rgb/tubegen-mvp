@@ -599,31 +599,43 @@ async function waitForResultAndDownload(page, outputDir, fileBaseName) {
     log(0, 'WAIT', '⏳ Waiting for Whisk to generate...');
 
     try {
-        // Wait for a result image to appear
-        // Whisk shows results as img elements — wait for a new one
+        // CRITICAL: Snapshot ALL existing large images BEFORE we start waiting
+        // This prevents us from downloading an old result that's still on the page
+        const existingImageSrcs = await safeEvaluate(page, () => {
+            const srcs = [];
+            const images = document.querySelectorAll('img');
+            for (const img of images) {
+                const src = img.src || '';
+                if ((src.includes('blob:') || src.includes('data:image') || src.includes('lh3.googleusercontent') || src.includes('storage.googleapis'))
+                    && img.width > 200 && img.height > 200) {
+                    srcs.push(src);
+                }
+            }
+            return srcs;
+        }, 5000) || [];
+
+        log(0, 'WAIT', `📸 Snapshotted ${existingImageSrcs.length} existing images — will only detect NEW ones`);
+
         const startTime = Date.now();
         let resultImageSrc = null;
 
         while (Date.now() - startTime < GENERATION_TIMEOUT) {
-            // Look for generated result images
-            resultImageSrc = await safeEvaluate(page, () => {
-                // Look for the main generated image in the results area
-                // Whisk typically shows results in an img element within results container
+            // Look for generated result images that are NEW (not in our snapshot)
+            resultImageSrc = await safeEvaluate(page, (existingSrcs) => {
+                const existingSet = new Set(existingSrcs);
                 const images = document.querySelectorAll('img');
                 for (const img of images) {
                     const src = img.src || '';
-                    // Generated images typically have a blob: or data: URL, or a Google storage URL
                     if ((src.includes('blob:') || src.includes('data:image') || src.includes('lh3.googleusercontent') || src.includes('storage.googleapis'))
                         && img.width > 200 && img.height > 200) {
-                        // Check if this image is in a results area (not a UI icon)
                         const rect = img.getBoundingClientRect();
-                        if (rect.width > 200 && rect.height > 200) {
+                        if (rect.width > 200 && rect.height > 200 && !existingSet.has(src)) {
                             return src;
                         }
                     }
                 }
                 return null;
-            }, 5000);
+            }, 5000, existingImageSrcs);
 
             if (resultImageSrc) {
                 log(0, 'RESULT', '🖼️ Image generated! Downloading...');

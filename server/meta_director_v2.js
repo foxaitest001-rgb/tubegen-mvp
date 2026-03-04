@@ -238,9 +238,31 @@ async function configureUI(page, options = {}) {
 // ═══════════════════════════════════════════════════════════════
 
 async function typePrompt(page, prompt) {
+    // First, dismiss any lingering popups that might steal focus
+    await page.keyboard.press('Escape');
+    await delay(300);
+
     const inputSelector = 'div[role="textbox"], textarea, div[contenteditable="true"], input[type="text"]';
 
-    let inputEl = await page.$(inputSelector);
+    // Find the MAIN prompt input — avoid popup text fields
+    let inputEl = null;
+    const allInputs = await page.$$(inputSelector);
+    for (const el of allInputs) {
+        const placeholder = await page.evaluate(e => {
+            return e.getAttribute('placeholder') || e.getAttribute('data-placeholder') || e.textContent || '';
+        }, el);
+        const isVisible = await page.evaluate(e => {
+            const rect = e.getBoundingClientRect();
+            return rect.width > 100 && rect.height > 0;
+        }, el);
+        // The main prompt input has placeholders like "Describe your image..." or "Describe your video..."
+        // Avoid popup inputs ("Describe your changes..." which is smaller and overlaid)
+        if (isVisible) {
+            inputEl = el;
+            break;
+        }
+    }
+
     if (!inputEl) {
         await delay(2000);
         inputEl = await page.$(inputSelector);
@@ -356,7 +378,34 @@ async function uploadImage(page, filePath) {
     console.log(`[MetaV2] ✅ File attached: ${path.basename(filePath)}`);
 
     // Wait for upload visually (e.g. preview appears)
-    await delay(3000);
+    await delay(2000);
+
+    // CRITICAL: After upload, Meta may show a "Describe your changes..." popup.
+    // We MUST dismiss it so typePrompt targets the MAIN prompt input, not the popup.
+    await page.evaluate(() => {
+        // Check for any overlay/popup with "Describe your changes" text
+        const allElements = document.querySelectorAll('div, span, p');
+        for (const el of allElements) {
+            const text = (el.textContent || '').toLowerCase();
+            if (text.includes('describe your changes')) {
+                // Found the popup — click outside it to dismiss
+                const body = document.querySelector('body');
+                if (body) {
+                    // Dispatch click on the main area, not on the popup
+                    const evt = new MouseEvent('click', { bubbles: true, clientX: 500, clientY: 300 });
+                    body.dispatchEvent(evt);
+                }
+                break;
+            }
+        }
+    });
+    await delay(500);
+
+    // Press Escape to dismiss any remaining popups
+    await page.keyboard.press('Escape');
+    await delay(500);
+
+    console.log('[MetaV2] ✅ Upload complete, popups dismissed');
 }
 
 // ═══════════════════════════════════════════════════════════════
