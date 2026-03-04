@@ -326,75 +326,62 @@ async function submitPrompt(page) {
 async function waitForVideo(page, timeoutMs = 180000) {
     console.log('[MetaV2] ⏳ Waiting for video...');
 
-    return page.evaluate((timeout) => {
-        return new Promise((resolve) => {
-            const existingVideoSrcs = new Set();
-            document.querySelectorAll('video').forEach(v => {
-                if (v.src) existingVideoSrcs.add(v.src);
-                const source = v.querySelector('source');
-                if (source && source.src) existingVideoSrcs.add(source.src);
-            });
-
-            // Keep track of existing images to detect if it generated an image by mistake
-            const existingImageSrcs = new Set();
-            document.querySelectorAll('img').forEach(img => {
-                if (img.src) existingImageSrcs.add(img.src);
-            });
-
-            let resolved = false;
-
-            const checkForNewMedia = () => {
-                if (resolved) return;
-
-                // 1. Check for Video (Success)
-                const videos = document.querySelectorAll('video');
-                for (const video of videos) {
-                    const src = video.src || video.querySelector('source')?.src;
-                    if (src && !existingVideoSrcs.has(src)) {
-                        resolved = true;
-                        observer.disconnect();
-                        clearInterval(pollInterval);
-                        resolve({ type: 'video', src });
-                        return;
-                    }
-                }
-
-                // 2. Check for Image (Failure - wrong mode)
-                const images = document.querySelectorAll('img');
-                for (const img of images) {
-                    const src = img.src || '';
-                    if (src && !existingImageSrcs.has(src) && (src.startsWith('blob:') || src.includes('data:image'))) {
-                        // Looks like it generated an image instead of a video
-                        resolved = true;
-                        observer.disconnect();
-                        clearInterval(pollInterval);
-                        resolve({ type: 'image', error: 'Generated an image instead of a video. UI mode switch failed.' });
-                        return;
-                    }
-                }
-            };
-
-            const observer = new MutationObserver(checkForNewMedia);
-            observer.observe(document.body, {
-                childList: true, subtree: true,
-                attributes: true, attributeFilter: ['src']
-            });
-
-            const pollInterval = setInterval(() => {
-                checkForNewMedia();
-                if (resolved) clearInterval(pollInterval);
-            }, 3000);
-
-            setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    observer.disconnect();
-                    clearInterval(pollInterval);
-                    resolve({ type: 'timeout', error: 'No video within 3 minutes' });
-                }
-            }, timeout);
+    // 1. Snapshot existing media before generation starts
+    let initialState;
+    try {
+        initialState = await page.evaluate(() => {
+            const existingVideos = Array.from(document.querySelectorAll('video')).map(v => v.src || v.querySelector('source')?.src).filter(Boolean);
+            const existingImages = Array.from(document.querySelectorAll('img')).map(img => img.src).filter(Boolean);
+            return { existingVideos, existingImages };
         });
-    }, timeoutMs);
+    } catch (e) {
+        console.log('[MetaV2] ⚠️ Failed to snapshot initial DOM state, using empty sets.');
+        initialState = { existingVideos: [], existingImages: [] };
+    }
+
+    const startTime = Date.now();
+
+    // 2. Poll constantly from Node.js (Avoids 3-minute long page.evaluate throwing CDP timeouts)
+    while (Date.now() - startTime < timeoutMs) {
+        try {
+            // Short 3-second timeout for the evaluate itself
+            const result = await Promise.race([
+                page.evaluate(({ existingVideos, existingImages }) => {
+                    const videoSet = new Set(existingVideos);
+                    const imageSet = new Set(existingImages);
+
+                    // 1. Check for Video (Success)
+                    const videos = document.querySelectorAll('video');
+                    for (const video of videos) {
+                        const src = video.src || video.querySelector('source')?.src;
+                        if (src && !videoSet.has(src)) {
+                            return { type: 'video', src };
+                        }
+                    }
+
+                    // 2. Check for Image (Failure - UI mode switch probably failed)
+                    const images = document.querySelectorAll('img');
+                    for (const img of images) {
+                        const src = img.src || '';
+                        if (src && !imageSet.has(src) && (src.startsWith('blob:') || src.includes('data:image'))) {
+                            return { type: 'image', error: 'Generated an image instead of a video. UI mode switch failed.' };
+                        }
+                    }
+                    return null;
+                }, initialState),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Evaluate check timeout')), 3000))
+            ]);
+
+            if (result) return result; // Found video or error image
+
+        } catch (pollErr) {
+            // Usually execution context destroyed during a React re-render. Just ignore and try next loop.
+        }
+
+        await delay(3000);
+    }
+
+    return { type: 'timeout', error: 'No video within 3 minutes' };
 }
 
 // ═══════════════════════════════════════════════════════════════
