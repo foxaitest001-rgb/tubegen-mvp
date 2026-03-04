@@ -1,7 +1,7 @@
 
 const https = require('https');
 
-const API_KEY = 'AIzaSyA2leYYnoyR5D_kRKx0r6SBkKOnMG7PgjA';
+const API_KEY = 'AIzaSyDusoFvVDFqwDS0-6rHONDevEYyXOIcv-Q';
 const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`;
 
 console.log(`Fetching models from: ${url.replace(API_KEY, 'HIDDEN')}`);

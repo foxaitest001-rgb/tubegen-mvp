@@ -181,7 +181,11 @@ async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualSt
         // Type the subject description as a prompt (no image uploads for first reference)
         const subjectPrompt = `Portrait of ${subject.visual_description}, ${visualStyle} style, detailed, high quality, centered composition`;
 
-        await typePromptAndSubmit(page, subjectPrompt);
+        if (!await typePromptAndSubmit(page, subjectPrompt)) {
+            // Prompt failed (e.g., page hung), skip wait to prevent downloading the wrong image
+            log(0, 'SUBJECT', `⚠️ Failed to submit prompt for ${subject.name}, skipping wait.`);
+            continue;
+        }
 
         // Wait for generation to complete
         const resultImagePath = await waitForResultAndDownload(page, imagesDir, `subject_${subject.id}_ref`);
@@ -272,7 +276,10 @@ async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualSt
             scenePrompt += `, ${styleDNA.visual_identity.art_style}`;
         }
 
-        await typePromptAndSubmit(page, scenePrompt);
+        if (!await typePromptAndSubmit(page, scenePrompt)) {
+            log(sceneNum, 'SCENE', `⚠️ Scene ${sceneNum} failed at prompt submission, skipping wait.`);
+            continue;
+        }
 
         // Wait for result and download
         const resultPath = await waitForResultAndDownload(page, imagesDir, `scene_${sceneNum}_ref`);
@@ -422,7 +429,7 @@ async function typePromptAndSubmit(page, prompt) {
                 };
             }, 5000);
             log(0, 'DEBUG', JSON.stringify(debugInfo || { error: 'debugInfo timeout' }));
-            return;
+            return false;
         }
 
         // Clear and type prompt (with timeouts to prevent indefinite hanging)
@@ -441,7 +448,8 @@ async function typePromptAndSubmit(page, prompt) {
         } catch (interactionErr) {
             log(0, 'WARN', `Puppeteer type hung or failed, forcing via DOM evaluate...`);
             // Fallback: forcefully set value via DOM if it's obscured
-            await page.evaluate((el, text) => {
+            await safeEvaluate(page, (el, text) => {
+                if (!el) return;
                 if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
                     el.value = text;
                 } else {
@@ -449,7 +457,7 @@ async function typePromptAndSubmit(page, prompt) {
                 }
                 el.dispatchEvent(new Event('input', { bubbles: true }));
                 el.dispatchEvent(new Event('change', { bubbles: true }));
-            }, textarea, prompt);
+            }, 5000, textarea, prompt);
         }
         log(0, 'TYPE', `📝 Prompt entered (${prompt.length} chars)`);
 
@@ -501,7 +509,7 @@ async function typePromptAndSubmit(page, prompt) {
                 ]);
             } catch (clickErr) {
                 log(0, 'WARN', `Submit click hung, forcing via DOM...`);
-                await page.evaluate(b => b.click(), submitBtn);
+                await safeEvaluate(page, b => b && b.click(), 5000, submitBtn);
             }
             log(0, 'SUBMIT', '🚀 Submitted prompt');
         } else {
@@ -509,8 +517,10 @@ async function typePromptAndSubmit(page, prompt) {
             await page.keyboard.press('Enter');
             log(0, 'SUBMIT', '🚀 Submitted via Enter key (fallback)');
         }
+        return true;
     } catch (err) {
         log(0, 'ERROR', `Failed to type/submit prompt: ${err.message}`);
+        return false;
     }
 }
 

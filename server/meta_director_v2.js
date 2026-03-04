@@ -83,24 +83,29 @@ async function configureUI(page, options = {}) {
             const placeholderEl = document.querySelector('div[data-placeholder="Describe your animation..."], textarea[placeholder="Describe your animation..."]');
             if (placeholderEl) return true;
 
-            // Otherwise, look for the Video button and click it
-            const buttons = document.querySelectorAll('button, div[role="button"], span');
+            // 1. Look for the dropdown trigger
+            const triggers = document.querySelectorAll('div[role="button"]:has(svg), button:has(svg)');
+            let dropdownOpened = false;
+            for (const t of triggers) {
+                const text = (t.textContent || '').trim().toLowerCase();
+                if (text === 'image' || text === 'create' || text === 'video') {
+                    t.click();
+                    dropdownOpened = true;
+                    break;
+                }
+            }
 
-            // Try explicit "Video" buttons first
-            for (const b of buttons) {
-                const text = (b.textContent || '').trim().toLowerCase();
-                if (text === 'video' || text.includes('video')) {
-                    b.click();
-                    // If it was a dropdown trigger, we might need to click the Video option inside it now
-                    setTimeout(() => {
-                        const options = document.querySelectorAll('[role="menuitem"], [role="option"], li');
-                        for (const opt of options) {
-                            if ((opt.textContent || '').trim().toLowerCase() === 'video') {
-                                opt.click();
-                            }
-                        }
-                    }, 500);
-                    return true;
+            // 2. Look for the Video option in the dropdown (or standalone button)
+            const options = document.querySelectorAll('[role="menuitem"], [role="option"], li, span, button');
+            for (const opt of options) {
+                const text = (opt.textContent || '').trim().toLowerCase();
+                if (text === 'video') {
+                    // Make sure it's actually the menu item, not just random text
+                    const rect = opt.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                        opt.click();
+                        return true;
+                    }
                 }
             }
             return false;
@@ -110,7 +115,26 @@ async function configureUI(page, options = {}) {
             console.log('[MetaV2] ✅ Switched to Video mode via UI click');
             await delay(1500);
         } else {
-            console.log('[MetaV2] ⚠️ Could not find Video button, typing /video shortcut or relying on initial_image upload... ');
+            console.log('[MetaV2] ⚠️ Could not find Video button, typing /video shortcut...');
+            // Fallback: Type /video in the input box to trigger the mode switch natively
+            try {
+                const inputSelector = 'div[role="textbox"], textarea, div[contenteditable="true"], input[type="text"]';
+                const inputEl = await page.$(inputSelector);
+                if (inputEl) {
+                    await inputEl.click();
+                    await delay(100);
+                    // Clear first
+                    await page.keyboard.down('Control');
+                    await page.keyboard.press('a');
+                    await page.keyboard.up('Control');
+                    await page.keyboard.press('Backspace');
+
+                    await page.keyboard.type('/video '); // The space triggers the mode change pill
+                    await delay(1000);
+                }
+            } catch (e) {
+                console.log('[MetaV2] Failed to type /video shortcut');
+            }
         }
     }
 
@@ -189,19 +213,11 @@ async function typePrompt(page, prompt) {
     await page.keyboard.press('Backspace');
     await delay(200);
 
-    // Also clear via DOM (belt-and-suspenders)
-    await page.evaluate((sel) => {
-        const el = document.querySelector(sel);
-        if (el) {
-            if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
-                el.value = '';
-            } else {
-                el.textContent = '';
-                el.innerHTML = '';
-            }
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-    }, inputSelector);
+    // Safety taps
+    for (let i = 0; i < 3; i++) {
+        await page.keyboard.press('Backspace');
+        await page.keyboard.press('Delete');
+    }
     await delay(200);
 
     // Re-click and type the prompt via keyboard (works with React/Lexical editors)
@@ -221,6 +237,37 @@ async function uploadImage(page, filePath) {
     if (!fs.existsSync(filePath)) {
         throw new Error(`File not found: ${filePath}`);
     }
+
+    console.log(`[MetaV2] 🧹 Clearing any existing uploaded images first...`);
+    await page.evaluate(() => {
+        // Look for typical "remove" or "x" icons on image thumbnails
+        const removeButtons = document.querySelectorAll('button[aria-label*="remove" i], button[aria-label*="delete" i], div[role="button"][aria-label*="remove" i]');
+        for (const btn of removeButtons) {
+            btn.click();
+        }
+
+        // Also look for small SVG close/x icons overlaying thumbnails
+        const svgs = document.querySelectorAll('svg');
+        for (const svg of svgs) {
+            const path = svg.querySelector('path');
+            if (path && (path.getAttribute('d') || '').includes('M19 6.41')) { // Common "X" SVG path
+                const parentBtn = svg.closest('button, div[role="button"]');
+                if (parentBtn) parentBtn.click();
+            }
+        }
+
+        // Aggressive fallback: find any blob image and click buttons near it
+        const uploadedImgs = document.querySelectorAll('img[src^="blob:"]');
+        for (const img of uploadedImgs) {
+            const container = img.closest('div[role="button"], div[style*="position: relative"]') || img.parentElement;
+            if (container) {
+                const closeBtn = container.querySelector('button, div[role="button"]');
+                if (closeBtn) closeBtn.click();
+            }
+        }
+    });
+    // Wait a moment for UI to update
+    await new Promise(r => setTimeout(r, 1000));
 
     console.log(`[MetaV2] 📤 Uploading image...`);
 
@@ -286,7 +333,7 @@ async function submitPrompt(page) {
         }
         // Fallback: look for variations
         for (const btn of buttons) {
-            const text = (b.textContent || '').trim().toLowerCase();
+            const text = (btn.textContent || '').trim().toLowerCase();
             const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
             if (text.includes('animate') || ariaLabel.includes('animate') ||
                 text === 'create' || ariaLabel.includes('send') || ariaLabel.includes('submit') || text === 'generate') {
@@ -323,10 +370,18 @@ async function waitForVideo(page, timeoutMs = 180000) {
                 if (source && source.src) existingVideoSrcs.add(source.src);
             });
 
+            // Keep track of existing images to detect if it generated an image by mistake
+            const existingImageSrcs = new Set();
+            document.querySelectorAll('img').forEach(img => {
+                if (img.src) existingImageSrcs.add(img.src);
+            });
+
             let resolved = false;
 
-            const checkForNewVideo = () => {
+            const checkForNewMedia = () => {
                 if (resolved) return;
+
+                // 1. Check for Video (Success)
                 const videos = document.querySelectorAll('video');
                 for (const video of videos) {
                     const src = video.src || video.querySelector('source')?.src;
@@ -334,20 +389,34 @@ async function waitForVideo(page, timeoutMs = 180000) {
                         resolved = true;
                         observer.disconnect();
                         clearInterval(pollInterval);
-                        resolve(src);
+                        resolve({ type: 'video', src });
+                        return;
+                    }
+                }
+
+                // 2. Check for Image (Failure - wrong mode)
+                const images = document.querySelectorAll('img');
+                for (const img of images) {
+                    const src = img.src || '';
+                    if (src && !existingImageSrcs.has(src) && (src.startsWith('blob:') || src.includes('data:image'))) {
+                        // Looks like it generated an image instead of a video
+                        resolved = true;
+                        observer.disconnect();
+                        clearInterval(pollInterval);
+                        resolve({ type: 'image', error: 'Generated an image instead of a video. UI mode switch failed.' });
                         return;
                     }
                 }
             };
 
-            const observer = new MutationObserver(checkForNewVideo);
+            const observer = new MutationObserver(checkForNewMedia);
             observer.observe(document.body, {
                 childList: true, subtree: true,
                 attributes: true, attributeFilter: ['src']
             });
 
             const pollInterval = setInterval(() => {
-                checkForNewVideo();
+                checkForNewMedia();
                 if (resolved) clearInterval(pollInterval);
             }, 3000);
 
@@ -356,7 +425,7 @@ async function waitForVideo(page, timeoutMs = 180000) {
                     resolved = true;
                     observer.disconnect();
                     clearInterval(pollInterval);
-                    resolve(null);
+                    resolve({ type: 'timeout', error: 'No video within 3 minutes' });
                 }
             }, timeout);
         });
@@ -539,12 +608,20 @@ async function generateVideosMetaV2(browser, scenes, options = {}) {
                 await typePrompt(page, prompt);
                 await submitPrompt(page);
 
-                const videoUrl = await waitForVideo(page, 180000);
-                if (!videoUrl) throw new Error('No video within 3 minutes');
+                const videoResult = await waitForVideo(page, 180000);
+
+                if (!videoResult) throw new Error('No video within 3 minutes');
+
+                if (videoResult.type === 'timeout') {
+                    throw new Error(videoResult.error);
+                } else if (videoResult.type === 'image') {
+                    // UI was stuck in Image mode. Force a UI refresh on next attempt.
+                    throw new Error(`UI State Error: ${videoResult.error}`);
+                }
 
                 console.log(`[MetaV2] 🎥 Scene ${sceneNum}: Video detected`);
 
-                const result = await downloadVideo(page, videoUrl, videoDir, sceneNum);
+                const result = await downloadVideo(page, videoResult.src, videoDir, sceneNum);
 
                 if (result.success) {
                     results.push({ sceneIndex: i, status: 'done', filePath: result.filePath, attempts });

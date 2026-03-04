@@ -23,7 +23,7 @@ const { BatchQueue } = require('./batch_queue');
 
 const app = express();
 const PORT = 3001;
-const VERSION = 'v7.0 (ROBUST DIRECTORS + BATCH QUEUE)';
+const VERSION = 'v8.1 (ROBUST DIRECTORS + META/FFMPEG FIXES)';
 
 // ── Middleware ──
 app.use(cors());
@@ -1964,8 +1964,27 @@ app.post('/generate-pipeline-pro', async (req, res) => {
             if (successCount > 0) {
                 const videoFiles = i2vResults.filter(r => r.success).map(r => r.videoPath);
                 directorLog(0, "ASSEMBLY", `🔨 ${videoFiles.length} clips ready for FFmpeg assembly`);
-                // TODO: Sprint 5 — FFmpeg concatenation
-                directorLog(0, "ASSEMBLY", "⏳ FFmpeg assembly will be added in Sprint 5");
+
+                try {
+                    const { execSync } = require('child_process');
+                    const listFilePath = path.join(projectDir.server, 'videos', 'list.txt');
+                    const fileContent = videoFiles.map(vf => `file '${path.basename(vf)}'`).join('\n');
+                    fs.writeFileSync(listFilePath, fileContent);
+
+                    const finalOutputSrvr = path.join(projectDir.server, 'final_video.mp4');
+                    const finalOutputPub = path.join(projectDir.public, 'final_video.mp4');
+
+                    directorLog(0, "ASSEMBLY", "⚡ Attempting to stitch videos with FFmpeg...");
+                    execSync(`ffmpeg -y -f concat -safe 0 -i "${listFilePath}" -c copy "${finalOutputSrvr}"`, { stdio: 'ignore' });
+                    fs.copyFileSync(finalOutputSrvr, finalOutputPub);
+                    directorLog(0, "ASSEMBLY", "✅ FFmpeg assembly complete! Final video ready.");
+                } catch (err) {
+                    directorLog(0, "ASSEMBLY", "⚠️ FFmpeg missing or failed. Providing Scene 1 as fallback final_video.mp4.");
+                    const finalOutputSrvr = path.join(projectDir.server, 'final_video.mp4');
+                    const finalOutputPub = path.join(projectDir.public, 'final_video.mp4');
+                    fs.copyFileSync(videoFiles[0], finalOutputSrvr);
+                    fs.copyFileSync(finalOutputSrvr, finalOutputPub);
+                }
             } else {
                 directorLog(0, "ASSEMBLY", "⚠️ No video clips to assemble");
             }
