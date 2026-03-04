@@ -75,31 +75,111 @@ async function configureUI(page, options = {}) {
         console.log('[MetaV2] ✅ Already on /media');
     }
 
-    // Step 2: Switch to Video mode
-    // The UI shows: [+] [Create] [Video v]
+    // Step 2: Switch to Video mode using the combobox dropdown
+    // Real Meta.ai UI: button[role="combobox"] showing "Image" → popup with div[role="option"] "Video"
     if (mode === 'video') {
-        console.log('[MetaV2] 🔄 Switching to Video mode natively via text shortcut...');
-        try {
-            const inputSelector = 'div[role="textbox"], textarea, div[contenteditable="true"], input[type="text"]';
-            const inputEl = await page.$(inputSelector);
-            if (inputEl) {
-                await inputEl.click();
-                await delay(100);
+        console.log('[MetaV2] 🔄 Switching to Video mode via combobox dropdown...');
 
-                // Clear any existing text
-                await page.keyboard.down('Control');
-                await page.keyboard.press('a');
-                await page.keyboard.up('Control');
-                await page.keyboard.press('Backspace');
-                await delay(200);
+        let switched = false;
+        for (let attempt = 1; attempt <= 3 && !switched; attempt++) {
+            try {
+                // Step 2a: Check if already in Video mode
+                const currentMode = await page.evaluate(() => {
+                    const comboboxes = document.querySelectorAll('button[role="combobox"]');
+                    for (const cb of comboboxes) {
+                        const text = (cb.textContent || '').trim().toLowerCase();
+                        if (text === 'video') return 'video';
+                        if (text === 'image') return 'image';
+                    }
+                    return 'unknown';
+                });
 
-                // Type the shortcut to force the UI into Video state
-                await page.keyboard.type('/video ');
+                if (currentMode === 'video') {
+                    console.log('[MetaV2] ✅ Already in Video mode');
+                    switched = true;
+                    break;
+                }
+
+                console.log(`[MetaV2] Current mode: "${currentMode}", switching to Video (attempt ${attempt}/3)...`);
+
+                // Step 2b: Click the Image/Video combobox to open the dropdown
+                const clickedCombobox = await page.evaluate(() => {
+                    const comboboxes = document.querySelectorAll('button[role="combobox"]');
+                    for (const cb of comboboxes) {
+                        const text = (cb.textContent || '').trim().toLowerCase();
+                        // This is the Image/Video dropdown (not the aspect ratio one which shows "16:9" etc.)
+                        if (text === 'image' || text === 'video') {
+                            cb.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+
+                if (!clickedCombobox) {
+                    console.log('[MetaV2] ⚠️ Could not find Image/Video combobox');
+                    await delay(2000);
+                    continue;
+                }
+
+                // Step 2c: Wait for the popup options to appear
+                await delay(800);
+
+                // Step 2d: Click the "Video" option in the popup
+                const clickedVideo = await page.evaluate(() => {
+                    const options = document.querySelectorAll('[role="option"], [role="menuitem"], [role="listbox"] div, li');
+                    for (const option of options) {
+                        const text = (option.textContent || '').trim().toLowerCase();
+                        if (text === 'video') {
+                            option.click();
+                            return true;
+                        }
+                    }
+                    // Broader fallback: any clickable element that says "Video"
+                    const allEls = document.querySelectorAll('div, span, button, li');
+                    for (const el of allEls) {
+                        const text = (el.textContent || '').trim().toLowerCase();
+                        // Only match exact "video" (not "video mode" or "video settings")
+                        if (text === 'video' && el.offsetWidth > 0 && el.offsetHeight > 0) {
+                            el.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+
+                if (clickedVideo) {
+                    await delay(1000);
+                    // Verify the switch worked
+                    const verifyMode = await page.evaluate(() => {
+                        const comboboxes = document.querySelectorAll('button[role="combobox"]');
+                        for (const cb of comboboxes) {
+                            const text = (cb.textContent || '').trim().toLowerCase();
+                            if (text === 'video' || text === 'image') return text;
+                        }
+                        return 'unknown';
+                    });
+
+                    if (verifyMode === 'video') {
+                        console.log('[MetaV2] ✅ Switched to Video mode (verified)');
+                        switched = true;
+                    } else {
+                        console.log(`[MetaV2] ⚠️ Mode still "${verifyMode}" after clicking Video option`);
+                    }
+                } else {
+                    console.log('[MetaV2] ⚠️ Could not find Video option in dropdown');
+                    // Click away to close the popup
+                    await page.keyboard.press('Escape');
+                    await delay(500);
+                }
+            } catch (e) {
+                console.log(`[MetaV2] ⚠️ Video switch attempt ${attempt} error: ${e.message}`);
                 await delay(1000);
-                console.log('[MetaV2] ✅ Switched to Video mode natively');
             }
-        } catch (e) {
-            console.log('[MetaV2] ⚠️ Failed to trigger /video shortcut:', e.message);
+        }
+
+        if (!switched) {
+            console.log('[MetaV2] ❌ CRITICAL: Failed to switch to Video mode after 3 attempts');
         }
     }
 
