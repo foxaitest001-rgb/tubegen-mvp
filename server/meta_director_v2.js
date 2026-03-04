@@ -215,7 +215,7 @@ async function uploadImage(page, filePath) {
         const svgs = document.querySelectorAll('svg');
         for (const svg of svgs) {
             const path = svg.querySelector('path');
-            if (path && (path.getAttribute('d') || '').includes('M19 6.41')) { // Common "X" SVG path
+            if (path && (path.getAttribute('d') || '').includes('M19 6.41')) {
                 const parentBtn = svg.closest('button, div[role="button"]');
                 if (parentBtn) parentBtn.click();
             }
@@ -231,45 +231,45 @@ async function uploadImage(page, filePath) {
             }
         }
     });
-    // Wait a moment for UI to update
     await new Promise(r => setTimeout(r, 1000));
 
     console.log(`[MetaV2] 📤 Uploading image...`);
 
-    // Click the file upload icon (usually an image icon next to the prompt input)
-    const clickedUpload = await page.evaluate(() => {
-        const buttons = document.querySelectorAll('button[aria-label*="image" i], div[role="button"][aria-label*="image" i]');
-        for (const btn of buttons) {
-            btn.click();
-            return true;
-        }
+    // CRITICAL: Do NOT click any button with aria-label containing "image" —
+    // that matches the Image/Video DROPDOWN and resets the mode.
+    // Instead, directly find the hidden file input and upload to it.
+    // Meta always has a hidden input[type="file"] ready in the DOM.
+    let fileInput = await page.$('input[type="file"][accept*="image"]');
 
-        // Fallback: look for the SVG path that looks like a picture icon
-        const svgs = document.querySelectorAll('svg');
-        for (const svg of svgs) {
-            const parentBtn = svg.closest('button, div[role="button"]');
-            if (parentBtn && !parentBtn.disabled) {
-                // Heuristic: upload buttons are usually small squares near the input
-                const rect = parentBtn.getBoundingClientRect();
-                if (rect.width < 50 && rect.height < 50) {
-                    parentBtn.click();
+    // Broader fallback
+    if (!fileInput) {
+        fileInput = await page.$('input[type="file"]');
+    }
+
+    if (!fileInput) {
+        // Last resort: click the "+" button (which typically opens the file picker)
+        // The "+" button is safe, it does NOT match the Image/Video dropdown
+        const clickedPlus = await page.evaluate(() => {
+            const buttons = document.querySelectorAll('button, div[role="button"]');
+            for (const btn of buttons) {
+                const text = (btn.textContent || '').trim();
+                const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+                // Look for the "+" or "add" button (NOT the image/video dropdown)
+                if (text === '+' || ariaLabel.includes('add') || ariaLabel.includes('attach') || ariaLabel.includes('upload')) {
+                    btn.click();
                     return true;
                 }
             }
+            return false;
+        });
+        if (clickedPlus) {
+            await delay(1500);
+            fileInput = await page.$('input[type="file"][accept*="image"]') || await page.$('input[type="file"]');
         }
-        return false;
-    });
-
-    if (clickedUpload) {
-        await delay(1000);
-    } else {
-        console.log(`[MetaV2] ⚠️ Could not find upload button, trying to find file input directly...`);
     }
 
-    // Find the hidden file input
-    const fileInput = await page.$('input[type="file"][accept*="image"]');
     if (!fileInput) {
-        throw new Error('File input not found');
+        throw new Error('File input not found — cannot upload image');
     }
 
     await fileInput.uploadFile(filePath);

@@ -238,23 +238,33 @@ async function generateImagesWhisk(scenes, subjectRegistry, projectDir, visualSt
         await interruptibleSleep(1000);
 
         // ─── Upload references based on scene type ───
-        const fileInputs = await page.$$(WHISK_SELECTORS.fileInput);
+        // IMPORTANT: Find file inputs by their SECTION LABEL, not by DOM index.
+        // Whisk UI has sections: SUBJECT, SCENE, STYLE — each with its own file input.
+        // DOM order of inputs is NOT guaranteed to match visual order.
 
         if (sceneType === 'character' || sceneType === 'multi_character') {
-            // Upload SUBJECT reference (1st input)
-            if (subjectId && subjectRefs[subjectId] && fileInputs.length >= 1) {
+            if (subjectId && subjectRefs[subjectId]) {
                 log(sceneNum, 'UPLOAD', `📤 Uploading subject ref: ${subjectId}`);
-                await fileInputs[0].uploadFile(subjectRefs[subjectId]);
-                await interruptibleSleep(2000);
+                const subjectInput = await findFileInputByLabel(page, 'subject');
+                if (subjectInput) {
+                    await subjectInput.uploadFile(subjectRefs[subjectId]);
+                    await interruptibleSleep(2000);
+                } else {
+                    log(sceneNum, 'WARN', '⚠️ Could not find SUBJECT file input by label');
+                }
             }
         }
-        // For "establishing" scenes — no subject upload
 
-        // Upload STYLE reference (3rd input) — always if available
-        if (styleRefPath && fileInputs.length >= 3) {
+        // Upload STYLE reference — always if available
+        if (styleRefPath) {
             log(sceneNum, 'UPLOAD', `🎨 Uploading style ref`);
-            await fileInputs[2].uploadFile(styleRefPath);
-            await interruptibleSleep(2000);
+            const styleInput = await findFileInputByLabel(page, 'style');
+            if (styleInput) {
+                await styleInput.uploadFile(styleRefPath);
+                await interruptibleSleep(2000);
+            } else {
+                log(sceneNum, 'WARN', '⚠️ Could not find STYLE file input by label');
+            }
         }
 
         // ─── Build and type the scene prompt ───
@@ -336,6 +346,63 @@ async function handleWelcomeModal(page) {
             log(0, 'UI', 'Dismissed welcome modal/tooltip');
         }
     } catch (e) { }
+}
+
+/**
+ * Find a file input[type="file"] by its parent section label (SUBJECT, SCENE, STYLE).
+ * Whisk's UI has labeled sections. We walk the DOM to match the label text,
+ * then find the file input inside that section container.
+ * 
+ * @param {object} page - Puppeteer page
+ * @param {string} slotName - 'subject', 'scene', or 'style'
+ * @returns {ElementHandle|null}
+ */
+async function findFileInputByLabel(page, slotName) {
+    try {
+        // Strategy 1: Find the section by its label text and get the input inside it
+        const handle = await safeEvaluateHandle(page, (slot) => {
+            const target = slot.toUpperCase();
+            // Look for labels, headings, spans etc. that contain the slot name
+            const allLabels = document.querySelectorAll('span, label, div, h1, h2, h3, h4, h5, h6, p');
+            for (const label of allLabels) {
+                const text = (label.textContent || '').trim().toUpperCase();
+                if (text === target) {
+                    // Found the label — now walk up to its section container
+                    let container = label.parentElement;
+                    // Walk up a few levels to find a container with a file input
+                    for (let depth = 0; depth < 5 && container; depth++) {
+                        const input = container.querySelector('input[type="file"]');
+                        if (input) return input;
+                        container = container.parentElement;
+                    }
+                }
+            }
+            return null;
+        }, 5000, slotName);
+
+        // Check if handle is valid
+        if (handle) {
+            const isValid = await safeEvaluate(handle, el => el !== null && el.tagName === 'INPUT', 3000);
+            if (isValid) return handle;
+        }
+
+        // Strategy 2: Fallback — use index-based approach
+        // Subject=0, Scene=1, Style=2
+        const indexMap = { subject: 0, scene: 1, style: 2 };
+        const idx = indexMap[slotName.toLowerCase()] ?? -1;
+        if (idx >= 0) {
+            const allInputs = await page.$$('input[type="file"]');
+            if (allInputs.length > idx) {
+                log(0, 'UPLOAD', `⚠️ Using fallback index ${idx} for ${slotName} slot`);
+                return allInputs[idx];
+            }
+        }
+
+        return null;
+    } catch (err) {
+        log(0, 'WARN', `findFileInputByLabel(${slotName}) error: ${err.message}`);
+        return null;
+    }
 }
 
 /**
