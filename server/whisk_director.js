@@ -432,32 +432,32 @@ async function typePromptAndSubmit(page, prompt) {
             return false;
         }
 
-        // Clear and type prompt (with timeouts to prevent indefinite hanging)
+        // Clear and type prompt with keyboard (safe for React state)
         try {
-            // Try native puppeteer click & type first (with 3-second timeout)
-            await Promise.race([
-                (async () => {
-                    await textarea.click({ clickCount: 3 });
-                    await interruptibleSleep(200);
-                    await page.keyboard.press('Backspace');
-                    await interruptibleSleep(100);
-                    await textarea.type(prompt, { delay: 15 });
-                })(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Click/Type timeout')), 3000))
-            ]);
+            await textarea.click();
+            await interruptibleSleep(200);
+
+            // Clear input via keyboard
+            await page.keyboard.down('Control');
+            await page.keyboard.press('a');
+            await page.keyboard.up('Control');
+            await page.keyboard.press('Backspace');
+            await interruptibleSleep(100);
+
+            // 3 safety taps
+            for (let i = 0; i < 3; i++) {
+                await page.keyboard.press('Backspace');
+                await page.keyboard.press('Delete');
+            }
+            await interruptibleSleep(200);
+
+            // Re-focus and type
+            await textarea.click();
+            await interruptibleSleep(100);
+            await page.keyboard.type(prompt, { delay: 10 }); // Fast typing, no strict timeout
+
         } catch (interactionErr) {
-            log(0, 'WARN', `Puppeteer type hung or failed, forcing via DOM evaluate...`);
-            // Fallback: forcefully set value via DOM if it's obscured
-            await safeEvaluate(page, (el, text) => {
-                if (!el) return;
-                if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
-                    el.value = text;
-                } else {
-                    el.textContent = text;
-                }
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-            }, 5000, textarea, prompt);
+            log(0, 'WARN', `Failed to type prompt securely: ${interactionErr.message}`);
         }
         log(0, 'TYPE', `📝 Prompt entered (${prompt.length} chars)`);
 
@@ -668,10 +668,32 @@ async function resetWhiskInputs(page) {
                 if (text === 'close' || text === 'clear' || text === 'remove' || text === '×' || text === 'x' || text === 'delete' || text === 'cancel' || text === 'highlight_off' ||
                     ariaLabel.includes('remove') || ariaLabel.includes('delete') || ariaLabel.includes('clear')) {
 
-                    // Only click if it's near an image upload area (small button, often square/circular)
                     const rect = btn.getBoundingClientRect();
                     if (rect.width > 0 && rect.width < 60 && rect.height > 0 && rect.height < 60) {
                         btn.click();
+                    }
+                }
+            }
+
+            // Aggressive fallback: Look for small SVG close/x icons overlaying thumbnails
+            const svgs = document.querySelectorAll('svg');
+            for (const svg of svgs) {
+                const path = svg.querySelector('path');
+                // Check common 'X' paths if there is no aria-label
+                if (path && (path.getAttribute('d') || '').includes('M19 6.41')) {
+                    const parentBtn = svg.closest('button, div[role="button"]');
+                    if (parentBtn) {
+                        const rect = parentBtn.getBoundingClientRect();
+                        if (rect.width > 0 && rect.width < 60) parentBtn.click();
+                    }
+                }
+                // Check if SVG is in absolute/relative position container near top-right of an image
+                const rect = svg.getBoundingClientRect();
+                if (rect.width > 0 && rect.width < 32 && rect.height > 0 && rect.height < 32) {
+                    const parentWrapper = svg.closest('div[style*="position: relative"]');
+                    if (parentWrapper && parentWrapper.querySelector('img')) {
+                        const parentBtn = svg.closest('button, div[role="button"]');
+                        if (parentBtn) parentBtn.click();
                     }
                 }
             }

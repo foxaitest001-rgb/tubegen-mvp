@@ -78,63 +78,28 @@ async function configureUI(page, options = {}) {
     // Step 2: Switch to Video mode
     // The UI shows: [+] [Create] [Video v]
     if (mode === 'video') {
-        const switched = await page.evaluate(() => {
-            // First check if we are already in Video mode by looking at the placeholder
-            const placeholderEl = document.querySelector('div[data-placeholder="Describe your animation..."], textarea[placeholder="Describe your animation..."]');
-            if (placeholderEl) return true;
+        console.log('[MetaV2] 🔄 Switching to Video mode natively via text shortcut...');
+        try {
+            const inputSelector = 'div[role="textbox"], textarea, div[contenteditable="true"], input[type="text"]';
+            const inputEl = await page.$(inputSelector);
+            if (inputEl) {
+                await inputEl.click();
+                await delay(100);
 
-            // 1. Look for the dropdown trigger
-            const triggers = document.querySelectorAll('div[role="button"]:has(svg), button:has(svg)');
-            let dropdownOpened = false;
-            for (const t of triggers) {
-                const text = (t.textContent || '').trim().toLowerCase();
-                if (text === 'image' || text === 'create' || text === 'video') {
-                    t.click();
-                    dropdownOpened = true;
-                    break;
-                }
+                // Clear any existing text
+                await page.keyboard.down('Control');
+                await page.keyboard.press('a');
+                await page.keyboard.up('Control');
+                await page.keyboard.press('Backspace');
+                await delay(200);
+
+                // Type the shortcut to force the UI into Video state
+                await page.keyboard.type('/video ');
+                await delay(1000);
+                console.log('[MetaV2] ✅ Switched to Video mode natively');
             }
-
-            // 2. Look for the Video option in the dropdown (or standalone button)
-            const options = document.querySelectorAll('[role="menuitem"], [role="option"], li, span, button');
-            for (const opt of options) {
-                const text = (opt.textContent || '').trim().toLowerCase();
-                if (text === 'video') {
-                    // Make sure it's actually the menu item, not just random text
-                    const rect = opt.getBoundingClientRect();
-                    if (rect.width > 0 && rect.height > 0) {
-                        opt.click();
-                        return true;
-                    }
-                }
-            }
-            return false;
-        });
-
-        if (switched) {
-            console.log('[MetaV2] ✅ Switched to Video mode via UI click');
-            await delay(1500);
-        } else {
-            console.log('[MetaV2] ⚠️ Could not find Video button, typing /video shortcut...');
-            // Fallback: Type /video in the input box to trigger the mode switch natively
-            try {
-                const inputSelector = 'div[role="textbox"], textarea, div[contenteditable="true"], input[type="text"]';
-                const inputEl = await page.$(inputSelector);
-                if (inputEl) {
-                    await inputEl.click();
-                    await delay(100);
-                    // Clear first
-                    await page.keyboard.down('Control');
-                    await page.keyboard.press('a');
-                    await page.keyboard.up('Control');
-                    await page.keyboard.press('Backspace');
-
-                    await page.keyboard.type('/video '); // The space triggers the mode change pill
-                    await delay(1000);
-                }
-            } catch (e) {
-                console.log('[MetaV2] Failed to type /video shortcut');
-            }
+        } catch (e) {
+            console.log('[MetaV2] ⚠️ Failed to trigger /video shortcut:', e.message);
         }
     }
 
