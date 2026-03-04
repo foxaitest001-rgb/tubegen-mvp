@@ -414,29 +414,48 @@ async function uploadImage(page, filePath) {
 
 async function submitPrompt(page) {
     // In Video mode, the submit button says "Animate" (blue button, right side)
-    const clicked = await page.evaluate(() => {
-        const buttons = document.querySelectorAll('button');
-        for (const btn of buttons) {
-            const text = (btn.textContent || '').trim().toLowerCase();
-            const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
-            // Priority order: Animate (Video mode) → Create → Send → Generate
-            if (text === 'animate' || ariaLabel === 'animate') {
-                btn.click();
-                return 'animate';
+    // Sometimes it takes a moment to become clickable after typing
+    let clicked = null;
+
+    for (let retry = 0; retry < 6 && !clicked; retry++) {
+        if (retry > 0) await delay(500);
+
+        clicked = await page.evaluate(() => {
+            const buttons = document.querySelectorAll('button');
+
+            // Priority 1: Look for "Animate" (Video mode submit)
+            for (const btn of buttons) {
+                const text = (btn.textContent || '').trim().toLowerCase();
+                const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+                if (text === 'animate' || ariaLabel === 'animate') {
+                    btn.click();
+                    return 'animate';
+                }
             }
-        }
-        // Fallback: look for variations
-        for (const btn of buttons) {
-            const text = (btn.textContent || '').trim().toLowerCase();
-            const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
-            if (text.includes('animate') || ariaLabel.includes('animate') ||
-                text === 'create' || ariaLabel.includes('send') || ariaLabel.includes('submit') || text === 'generate') {
-                btn.click();
-                return text || ariaLabel;
+
+            // Priority 2: Look for "Create" (Image mode submit) or other variations
+            for (const btn of buttons) {
+                const text = (btn.textContent || '').trim().toLowerCase();
+                const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+                if (text.includes('animate') || ariaLabel.includes('animate') ||
+                    text === 'create' || text === 'generate') {
+                    btn.click();
+                    return text || ariaLabel;
+                }
             }
-        }
-        return null;
-    });
+
+            // Priority 3: Look for the circular send/submit button (blue arrow icon)
+            for (const btn of buttons) {
+                const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+                if (ariaLabel.includes('send') || ariaLabel.includes('submit')) {
+                    btn.click();
+                    return 'send-button';
+                }
+            }
+
+            return null;
+        });
+    }
 
     if (clicked) {
         console.log(`[MetaV2] ✅ Submit clicked (${clicked})`);

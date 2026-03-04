@@ -53,6 +53,16 @@ function App() {
     if (!directorLogs.length) return;
     const lastLog = directorLogs[directorLogs.length - 1];
 
+    // Detect project folder from server logs
+    // Server logs: "[PROJECT] Created folder: 2026-03-04_pro_pipeline"
+    if (lastLog.includes('Created folder:')) {
+      const parts = lastLog.split('Created folder:');
+      if (parts.length > 1) {
+        const folder = parts[1].trim();
+        setProjectFolder(folder);
+      }
+    }
+    // Also check for 'Output folder:' (legacy format)
     if (lastLog.includes('Output folder:')) {
       const parts = lastLog.split('Output folder:');
       if (parts.length > 1) {
@@ -62,14 +72,17 @@ function App() {
     }
 
     if (!projectFolder) {
-      const folderLog = directorLogs.find(l => l.includes('Output folder:'));
+      const folderLog = directorLogs.find(l => l.includes('Created folder:') || l.includes('Output folder:'));
       if (folderLog) {
-        const parts = folderLog.split('Output folder:');
+        const key = folderLog.includes('Created folder:') ? 'Created folder:' : 'Output folder:';
+        const parts = folderLog.split(key);
         if (parts.length > 1) setProjectFolder(parts[1].trim());
       }
     }
 
-    if (lastLog.includes('Final video created') && projectFolder) {
+    // Detect pipeline completion and trigger auto-download
+    // Server logs: "FFmpeg assembly complete" or "Pro Pipeline complete!"
+    if ((lastLog.includes('assembly complete') || lastLog.includes('Pipeline complete') || lastLog.includes('Final video created')) && projectFolder) {
       const dlUrl = `${serverUrl}/output/${projectFolder}/final_video.mp4`;
       setFinalVideoUrl(dlUrl);
     }
@@ -228,7 +241,7 @@ function App() {
   };
 
   const sourceLabel = videoSource === 'grok' ? 'Grok' : 'Meta.ai';
-  const hasVideo = finalVideoUrl || (projectFolder && directorLogs.some(l => l.includes('finished successfully')));
+  const hasVideo = finalVideoUrl || (projectFolder && directorLogs.some(l => l.includes('Pipeline complete') || l.includes('assembly complete') || l.includes('finished successfully')));
   const activeChannelInfo = CHANNEL_STYLES.find(c => c.id === channelStyle);
 
   return (
