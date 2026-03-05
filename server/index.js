@@ -171,6 +171,12 @@ function createProjectFolder(title) {
     };
 
     console.log(`[PROJECT] Created folder: ${folderName}`);
+    // CRITICAL: Also broadcast via SSE so frontend can capture the folder name
+    sendEvent({
+        type: 'log',
+        message: `[PROJECT] Created folder: ${folderName}`,
+        timestamp: Date.now()
+    });
     return currentProjectDir;
 }
 
@@ -2009,6 +2015,21 @@ app.post('/generate-pipeline-pro', async (req, res) => {
 
             directorState.isRunning = false;
             directorLog(0, "COMPLETE", `🎉 Pro Pipeline complete! ${whiskResult.sceneImages.length} images → ${successCount} videos`);
+
+            // CRITICAL: Send a proper 'completed' SSE event with file info for frontend auto-download
+            const finalVideoPath = `/output/${projectDir.name}/final_video.mp4`;
+            const finalExists = fs.existsSync(path.join(projectDir.server, 'final_video.mp4'));
+            sendEvent({
+                type: 'completed',
+                message: `Pro Pipeline complete! ${whiskResult.sceneImages.length} images → ${successCount} videos`,
+                projectFolder: projectDir.name,
+                files: finalExists ? [{
+                    name: 'final_video.mp4',
+                    path: finalVideoPath,
+                    isFinal: true,
+                    size: fs.statSync(path.join(projectDir.server, 'final_video.mp4')).size
+                }] : []
+            });
 
         } catch (err) {
             directorState.isRunning = false;

@@ -153,11 +153,17 @@ function App() {
       const endpoint = mode === 'pro' ? '/generate-pipeline-pro' : '/generate-video';
       addLog(`[Pipeline] 🔀 Routing to: ${endpoint}`);
 
-      await fetch(`${serverUrl}${endpoint}`, {
+      const pipelineRes = await fetch(`${serverUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scriptData: scriptResult })
       });
+      const pipelineData = await pipelineRes.json();
+      // Capture projectFolder from server response for download URL
+      if (pipelineData.projectFolder) {
+        setProjectFolder(pipelineData.projectFolder);
+        addLog(`[Pipeline] 📁 Output folder: ${pipelineData.projectFolder}`);
+      }
       addLog("[Pipeline] ✅ Director Job Started.");
 
       addLog("[Pipeline] 🎙️ Requesting Audio...");
@@ -201,6 +207,10 @@ function App() {
         const data = JSON.parse(event.data);
         if (data.type === 'completed') {
           setDirectorLogs(prev => [...prev, `🎉 ${data.message}`]);
+          // Capture projectFolder from completion event
+          if (data.projectFolder) {
+            setProjectFolder(data.projectFolder);
+          }
           const finalVideo = data.files?.find((f: any) => f.isFinal || f.name === 'final_video.mp4');
           if (finalVideo) {
             const downloadUrl = `${serverUrl}${finalVideo.path}`;

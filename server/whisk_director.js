@@ -617,11 +617,19 @@ async function waitForResultAndDownload(page, outputDir, fileBaseName) {
         log(0, 'WAIT', `📸 Snapshotted ${existingImageSrcs.length} existing images — will only detect NEW ones`);
 
         const startTime = Date.now();
+        const MINIMUM_GENERATION_TIME = 5000; // Don't accept any "new" image in the first 5 seconds
         let resultImageSrc = null;
 
         while (Date.now() - startTime < GENERATION_TIMEOUT) {
+            // Don't even check for new images in the first 5 seconds — 
+            // loading placeholders appear instantly and would be falsely detected
+            if (Date.now() - startTime < MINIMUM_GENERATION_TIME) {
+                await interruptibleSleep(1000);
+                continue;
+            }
+
             // Look for generated result images that are NEW (not in our snapshot)
-            resultImageSrc = await safeEvaluate(page, (existingSrcs) => {
+            const candidateSrc = await safeEvaluate(page, (existingSrcs) => {
                 const existingSet = new Set(existingSrcs);
                 const images = document.querySelectorAll('img');
                 for (const img of images) {
@@ -637,21 +645,30 @@ async function waitForResultAndDownload(page, outputDir, fileBaseName) {
                 return null;
             }, 5000, existingImageSrcs);
 
-            if (resultImageSrc) {
-                log(0, 'RESULT', '🖼️ Image generated! Downloading...');
-                break;
-            }
-
-            // Also check for any loading indicators disappearing
-            const isLoading = await safeEvaluate(page, () => {
-                const spinners = document.querySelectorAll('[class*="loading"], [class*="spinner"], [class*="progress"]');
-                return spinners.length > 0;
-            }, 3000);
-
-            if (!isLoading && Date.now() - startTime > 10000) {
-                // If no loading indicator and we've waited 10s, check for images again
+            if (candidateSrc) {
+                // STABILITY CHECK: Wait 2 seconds and verify the image URL is still present
+                // Loading placeholders get replaced quickly, real results persist
+                log(0, 'WAIT', '🔍 New image candidate found — verifying stability (2s)...');
                 await interruptibleSleep(2000);
-                continue;
+
+                const isStillThere = await safeEvaluate(page, (srcToCheck) => {
+                    const images = document.querySelectorAll('img');
+                    for (const img of images) {
+                        if (img.src === srcToCheck && img.width > 200 && img.height > 200) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }, 3000, candidateSrc);
+
+                if (isStillThere) {
+                    resultImageSrc = candidateSrc;
+                    log(0, 'RESULT', '🖼️ Image generated! Downloading...');
+                    break;
+                } else {
+                    log(0, 'WAIT', '⚠️ Image URL changed during stability check — was a placeholder, continuing...');
+                    continue;
+                }
             }
 
             await interruptibleSleep(3000);
