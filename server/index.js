@@ -156,7 +156,8 @@ function createProjectFolder(title) {
         .toLowerCase();
 
     const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const folderName = `${timestamp}_${safeName}`;
+    const timeSuffix = new Date().toTimeString().slice(0, 8).replace(/:/g, ''); // HHmmss
+    const folderName = `${timestamp}_${safeName}_${timeSuffix}`;
 
     const publicDir = path.join(PUBLIC_OUTPUT_DIR, folderName);
     const serverDir = path.join(SERVER_OUTPUT_DIR, folderName);
@@ -1991,19 +1992,51 @@ app.post('/generate-pipeline-pro', async (req, res) => {
 
                 try {
                     const { execSync } = require('child_process');
-                    const listFilePath = path.join(projectDir.server, 'videos', 'list.txt');
-                    const fileContent = videoFiles.map(vf => `file '${path.basename(vf)}'`).join('\n');
+                    const videosDir = path.join(projectDir.server, 'videos');
+
+                    // ─── Step 1: Merge each scene's video with its audio ───
+                    const processedClips = [];
+                    for (let i = 0; i < videoFiles.length; i++) {
+                        const sceneNum = i + 1;
+                        const videoFile = videoFiles[i];
+                        const audioFile = path.join(projectDir.server, `scene_${sceneNum}_audio.wav`);
+                        const outputClip = path.join(videosDir, `scene_${String(sceneNum).padStart(3, '0')}_with_audio.mp4`);
+
+                        if (fs.existsSync(audioFile)) {
+                            // Merge video + audio, trim to shortest stream
+                            try {
+                                execSync(
+                                    `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -c:v copy -c:a aac -b:a 128k -shortest "${outputClip}"`,
+                                    { stdio: 'ignore', timeout: 30000 }
+                                );
+                                directorLog(0, "ASSEMBLY", `🎵 Scene ${sceneNum}: Merged video + audio`);
+                                processedClips.push(outputClip);
+                            } catch (mergeErr) {
+                                directorLog(0, "ASSEMBLY", `⚠️ Scene ${sceneNum}: Audio merge failed, using video only`);
+                                processedClips.push(videoFile);
+                            }
+                        } else {
+                            directorLog(0, "ASSEMBLY", `📹 Scene ${sceneNum}: No audio file found, using video only`);
+                            processedClips.push(videoFile);
+                        }
+                    }
+
+                    // ─── Step 2: Concatenate all processed clips ───
+                    const listFilePath = path.join(videosDir, 'list.txt');
+                    const fileContent = processedClips.map(f => `file '${f.replace(/\\/g, '/')}'`).join('\n');
                     fs.writeFileSync(listFilePath, fileContent);
 
                     const finalOutputSrvr = path.join(projectDir.server, 'final_video.mp4');
                     const finalOutputPub = path.join(projectDir.public, 'final_video.mp4');
 
-                    directorLog(0, "ASSEMBLY", "⚡ Attempting to stitch videos with FFmpeg...");
-                    execSync(`ffmpeg -y -f concat -safe 0 -i "${listFilePath}" -c copy "${finalOutputSrvr}"`, { stdio: 'ignore' });
+                    directorLog(0, "ASSEMBLY", "⚡ Stitching all scenes into final video...");
+                    execSync(`ffmpeg -y -f concat -safe 0 -i "${listFilePath}" -c copy "${finalOutputSrvr}"`, { stdio: 'ignore', timeout: 60000 });
                     fs.copyFileSync(finalOutputSrvr, finalOutputPub);
-                    directorLog(0, "ASSEMBLY", "✅ FFmpeg assembly complete! Final video ready.");
+
+                    const sizeMB = (fs.statSync(finalOutputSrvr).size / (1024 * 1024)).toFixed(1);
+                    directorLog(0, "ASSEMBLY", `✅ FFmpeg assembly complete! Final video: ${sizeMB}MB`);
                 } catch (err) {
-                    directorLog(0, "ASSEMBLY", "⚠️ FFmpeg missing or failed. Providing Scene 1 as fallback final_video.mp4.");
+                    directorLog(0, "ASSEMBLY", `⚠️ FFmpeg failed: ${err.message}. Providing Scene 1 as fallback.`);
                     const finalOutputSrvr = path.join(projectDir.server, 'final_video.mp4');
                     const finalOutputPub = path.join(projectDir.public, 'final_video.mp4');
                     fs.copyFileSync(videoFiles[0], finalOutputSrvr);
