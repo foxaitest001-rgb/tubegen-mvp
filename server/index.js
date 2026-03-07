@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const puppeteer = require('puppeteer-extra');
@@ -20,6 +21,8 @@ const { generateVideosGrokV2 } = require('./grok_director_v2');
 const { generateVideosMetaV2 } = require('./meta_director_v2');
 const { generateImagesWhiskV2 } = require('./whisk_director_v2');
 const { BatchQueue } = require('./batch_queue');
+const { getStockForScene, searchStockVideo } = require('./stock_fallback');
+const { processAllSceneTimestamps } = require('./timestamp_generator');
 
 const app = express();
 const PORT = 3001;
@@ -1850,6 +1853,7 @@ app.post('/generate-pipeline-pro', async (req, res) => {
     const subjectRegistry = scriptData.subject_registry || [];
     const videoSource = scriptData.videoSource || 'meta';
     const channelStyle = scriptData.channelStyle || null;
+    const outputMode = scriptData.outputMode || 'auto'; // 'auto' = fire-and-forget, 'manual' = pause for timeline editing
 
     // Create project folder
     const projectDir = createProjectFolder(scriptData.topic || 'pro_pipeline');
@@ -1983,6 +1987,55 @@ app.post('/generate-pipeline-pro', async (req, res) => {
             const successCount = i2vResults.filter(r => r.success).length;
             directorLog(0, "PHASE2_DONE", `✅ I2V generated ${successCount}/${whiskResult.sceneImages.length} video clips`);
 
+            // ─── MANUAL MODE: Pause and send timeline data to frontend ───
+            if (outputMode === 'manual') {
+                directorLog(0, "PHASE", "━━━ MANUAL MODE: Awaiting user review ━━━");
+
+                // Build scene data for the timeline editor
+                const timelineScenes = enrichedScenes.map((scene, idx) => {
+                    const sceneNum = idx + 1;
+                    const i2v = i2vResults.find(r => r.sceneNum === sceneNum);
+                    const audioPath = path.join(projectDir.server, `scene_${sceneNum}_audio.wav`);
+                    const imagePath = whiskResult.sceneImages.find(img => img.sceneNum === sceneNum)?.filePath;
+
+                    return {
+                        sceneNum,
+                        voiceover: scene.voiceover || '',
+                        motionPrompt: scene.motion_prompt || scene._enrichedMotion || '',
+                        videoPath: i2v?.success ? `/output/${projectDir.name}/videos/${path.basename(i2v.videoPath)}` : null,
+                        imagePath: imagePath ? `/output/${projectDir.name}/images/${path.basename(imagePath)}` : null,
+                        audioPath: fs.existsSync(audioPath) ? `/output/${projectDir.name}/scene_${sceneNum}_audio.wav` : null,
+                        hasVideo: !!i2v?.success,
+                        hasAudio: fs.existsSync(audioPath),
+                        section: scene.section || `Scene ${sceneNum}`
+                    };
+                });
+
+                // Send timeline_ready event — frontend shows the TimelineEditor
+                sendEvent({
+                    type: 'timeline_ready',
+                    message: `${successCount} scenes ready for review`,
+                    projectFolder: projectDir.name,
+                    scenes: timelineScenes,
+                    totalScenes: enrichedScenes.length
+                });
+
+                directorLog(0, "MANUAL", `📋 Timeline sent to frontend: ${timelineScenes.length} scenes`);
+                directorLog(0, "MANUAL", `⏸️ Waiting for user to click 'Render Final Video'...`);
+                directorState.isRunning = false;
+                return; // STOP HERE — assembly will be triggered by /assemble endpoint
+            }
+
+            // ─── AUTO MODE: Continue to Phase 3 Assembly ───
+            // ─── Phase 2.5: Generate Timestamps + SRT Captions ───
+            directorLog(0, "PHASE", "━━━ PHASE 2.5: Timestamps & Captions ━━━");
+            try {
+                const tsResults = processAllSceneTimestamps(projectDir.server, enrichedScenes);
+                directorLog(0, "TIMESTAMPS", `📐 Generated timestamps for ${tsResults.length} scenes`);
+            } catch (tsErr) {
+                directorLog(0, "TIMESTAMPS", `⚠️ Timestamp generation failed: ${tsErr.message}`);
+            }
+
             // ─── Phase 3: FFmpeg Assembly ───
             directorLog(0, "PHASE", "━━━ PHASE 3: Assembly ━━━");
 
@@ -1994,22 +2047,29 @@ app.post('/generate-pipeline-pro', async (req, res) => {
                     const { execSync } = require('child_process');
                     const videosDir = path.join(projectDir.server, 'videos');
 
-                    // ─── Step 1: Merge each scene's video with its audio ───
+                    // ─── Step 1: Merge each scene's video with its audio (+ optional captions) ───
                     const processedClips = [];
                     for (let i = 0; i < videoFiles.length; i++) {
                         const sceneNum = i + 1;
                         const videoFile = videoFiles[i];
                         const audioFile = path.join(projectDir.server, `scene_${sceneNum}_audio.wav`);
+                        const srtFile = path.join(projectDir.server, `scene_${sceneNum}.srt`);
                         const outputClip = path.join(videosDir, `scene_${String(sceneNum).padStart(3, '0')}_with_audio.mp4`);
 
                         if (fs.existsSync(audioFile)) {
-                            // Merge video + audio, trim to shortest stream
+                            // Merge video + audio + optional captions
                             try {
-                                execSync(
-                                    `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -c:v copy -c:a aac -b:a 128k -shortest "${outputClip}"`,
-                                    { stdio: 'ignore', timeout: 30000 }
-                                );
-                                directorLog(0, "ASSEMBLY", `🎵 Scene ${sceneNum}: Merged video + audio`);
+                                let ffmpegCmd;
+                                if (fs.existsSync(srtFile)) {
+                                    // Burn captions with professional styling
+                                    const srtEscaped = srtFile.replace(/\\/g, '/').replace(/:/g, '\\:');
+                                    ffmpegCmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -vf "subtitles='${srtEscaped}':force_style='FontName=Inter,FontSize=24,PrimaryColour=&Hffffff,OutlineColour=&H000000,BackColour=&H80000000,Bold=1,Outline=2,Shadow=1,MarginV=30,Alignment=2'" -c:v libx264 -preset fast -c:a aac -b:a 128k -shortest "${outputClip}"`;
+                                    directorLog(0, "ASSEMBLY", `🎵📝 Scene ${sceneNum}: Merging video + audio + captions`);
+                                } else {
+                                    ffmpegCmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -c:v copy -c:a aac -b:a 128k -shortest "${outputClip}"`;
+                                }
+                                execSync(ffmpegCmd, { stdio: 'ignore', timeout: 60000 });
+                                directorLog(0, "ASSEMBLY", `✅ Scene ${sceneNum}: Merged successfully`);
                                 processedClips.push(outputClip);
                             } catch (mergeErr) {
                                 directorLog(0, "ASSEMBLY", `⚠️ Scene ${sceneNum}: Audio merge failed, using video only`);
@@ -2177,6 +2237,128 @@ app.post('/generate-voiceover', async (req, res) => {
         console.error("Piper Server Gen Error:", e);
         directorLog(sceneNum, "ERROR", `Audio Gen Failed: ${e.message}`);
         res.status(500).json({ error: e.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// MANUAL MODE: Assembly Endpoint (triggered from Timeline Editor)
+// ═══════════════════════════════════════════════════════════════
+
+app.post('/assemble', async (req, res) => {
+    const { projectFolder, sceneOrder } = req.body;
+    if (!projectFolder) return res.status(400).json({ error: "Missing projectFolder" });
+
+    const serverDir = path.join(SERVER_OUTPUT_DIR, projectFolder);
+    const publicDir = path.join(PUBLIC_OUTPUT_DIR, projectFolder);
+
+    if (!fs.existsSync(serverDir)) {
+        return res.status(404).json({ error: `Project folder not found: ${projectFolder}` });
+    }
+
+    directorLog(0, "ASSEMBLY", `🔨 Manual mode assembly for: ${projectFolder}`);
+
+    try {
+        const { execSync } = require('child_process');
+        const videosDir = path.join(serverDir, 'videos');
+
+        // Find all video files and sort them
+        let videoFiles;
+        if (sceneOrder && Array.isArray(sceneOrder)) {
+            // Custom ordering from timeline editor
+            videoFiles = sceneOrder.map(sceneNum => {
+                const pattern = path.join(videosDir, `scene_${String(sceneNum).padStart(3, '0')}*.mp4`);
+                const matches = require('glob').sync(pattern);
+                return matches[0] || null;
+            }).filter(Boolean);
+        } else {
+            // Default: find all mp4 files in videos dir
+            videoFiles = fs.readdirSync(videosDir)
+                .filter(f => f.endsWith('.mp4') && !f.includes('with_audio'))
+                .sort()
+                .map(f => path.join(videosDir, f));
+        }
+
+        if (videoFiles.length === 0) {
+            return res.status(400).json({ error: "No video files found to assemble" });
+        }
+
+        // Step 1: Merge each scene's video with its audio
+        const processedClips = [];
+        for (let i = 0; i < videoFiles.length; i++) {
+            const sceneNum = sceneOrder ? sceneOrder[i] : (i + 1);
+            const videoFile = videoFiles[i];
+            const audioFile = path.join(serverDir, `scene_${sceneNum}_audio.wav`);
+            const outputClip = path.join(videosDir, `scene_${String(sceneNum).padStart(3, '0')}_with_audio.mp4`);
+
+            if (fs.existsSync(audioFile)) {
+                try {
+                    execSync(
+                        `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -c:v copy -c:a aac -b:a 128k -shortest "${outputClip}"`,
+                        { stdio: 'ignore', timeout: 30000 }
+                    );
+                    directorLog(0, "ASSEMBLY", `🎵 Scene ${sceneNum}: Merged video + audio`);
+                    processedClips.push(outputClip);
+                } catch (mergeErr) {
+                    directorLog(0, "ASSEMBLY", `⚠️ Scene ${sceneNum}: Audio merge failed, using video only`);
+                    processedClips.push(videoFile);
+                }
+            } else {
+                processedClips.push(videoFile);
+            }
+        }
+
+        // Step 2: Concatenate all clips
+        const listFilePath = path.join(videosDir, 'list.txt');
+        const fileContent = processedClips.map(f => `file '${f.replace(/\\/g, '/')}'`).join('\n');
+        fs.writeFileSync(listFilePath, fileContent);
+
+        const finalOutputSrvr = path.join(serverDir, 'final_video.mp4');
+        const finalOutputPub = path.join(publicDir, 'final_video.mp4');
+
+        directorLog(0, "ASSEMBLY", "⚡ Stitching all scenes into final video...");
+        execSync(`ffmpeg -y -f concat -safe 0 -i "${listFilePath}" -c copy "${finalOutputSrvr}"`, { stdio: 'ignore', timeout: 60000 });
+
+        if (fs.existsSync(publicDir)) {
+            fs.copyFileSync(finalOutputSrvr, finalOutputPub);
+        }
+
+        const sizeMB = (fs.statSync(finalOutputSrvr).size / (1024 * 1024)).toFixed(1);
+        directorLog(0, "ASSEMBLY", `✅ FFmpeg assembly complete! Final video: ${sizeMB}MB`);
+
+        // Send completed event
+        const finalVideoPath = `/output/${projectFolder}/final_video.mp4`;
+        sendEvent({
+            type: 'completed',
+            message: `Manual mode assembly complete! Final video: ${sizeMB}MB`,
+            projectFolder: projectFolder,
+            files: [{
+                name: 'final_video.mp4',
+                path: finalVideoPath,
+                isFinal: true,
+                size: fs.statSync(finalOutputSrvr).size
+            }]
+        });
+
+        res.json({ success: true, path: finalVideoPath, sizeMB });
+    } catch (err) {
+        directorLog(0, "ERROR", `Assembly failed: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// STOCK FOOTAGE SEARCH API
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/search-stock', async (req, res) => {
+    const { q, aspectRatio } = req.query;
+    if (!q) return res.status(400).json({ error: "Missing query parameter 'q'" });
+
+    try {
+        const result = await searchStockVideo(q, aspectRatio || '16:9');
+        res.json({ query: q, result: result || null, found: !!result });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

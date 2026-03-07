@@ -1,13 +1,15 @@
 
 import { useState, useRef, useEffect } from 'react'
 import './App.css'
-import { Settings, Download, Zap, Film, Sparkles } from 'lucide-react';
+import { Settings, Download, Zap, Film, Sparkles, Edit3 } from 'lucide-react';
 import { ConsultantChat } from './components/ConsultantChat'
 import { AccountManager } from './components/AccountManager'
+import { TimelineEditor } from './components/TimelineEditor'
 import { generateNarrative } from './services/puter'
 
 type VideoSource = 'meta' | 'grok';
 type PipelineMode = 'quick' | 'pro';
+type OutputMode = 'auto' | 'manual';
 
 // Channel archetypes from Knowledge Base
 const CHANNEL_STYLES = [
@@ -30,6 +32,8 @@ function App() {
   const [pipelineMode, setPipelineMode] = useState<PipelineMode>('pro')
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [channelStyle, setChannelStyle] = useState('')
+  const [outputMode, setOutputMode] = useState<OutputMode>('auto')
+  const [timelineData, setTimelineData] = useState<{ scenes: any[]; projectFolder: string } | null>(null)
 
   const [directorLogs, setDirectorLogs] = useState<string[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null)
@@ -148,6 +152,7 @@ function App() {
       scriptResult.mood = config.mood || 'Cinematic';
       scriptResult.videoSource = videoSource;
       scriptResult.channelStyle = activeChannel || undefined;
+      scriptResult.outputMode = outputMode;
 
       // Route to correct endpoint based on pipeline mode
       const endpoint = mode === 'pro' ? '/generate-pipeline-pro' : '/generate-video';
@@ -211,6 +216,8 @@ function App() {
           if (data.projectFolder) {
             setProjectFolder(data.projectFolder);
           }
+          // Clear timeline editor on completion (manual mode assembled)
+          setTimelineData(null);
           const finalVideo = data.files?.find((f: any) => f.isFinal || f.name === 'final_video.mp4');
           if (finalVideo) {
             const downloadUrl = `${serverUrl}${finalVideo.path}`;
@@ -218,6 +225,14 @@ function App() {
             setDirectorLogs(prev => [...prev, `⬇️ Auto-downloading: ${downloadUrl}`]);
             handleDownloadVideo(downloadUrl);
           }
+        } else if (data.type === 'timeline_ready') {
+          // MANUAL MODE: Pipeline paused, show TimelineEditor
+          setDirectorLogs(prev => [...prev, `📋 Timeline ready: ${data.scenes?.length || 0} scenes`]);
+          if (data.projectFolder) setProjectFolder(data.projectFolder);
+          setTimelineData({
+            scenes: data.scenes || [],
+            projectFolder: data.projectFolder
+          });
         } else if (data.type === 'log') {
           setDirectorLogs(prev => [...prev, data.message]);
         }
@@ -339,6 +354,25 @@ function App() {
             </button>
           </div>
 
+          {/* Output Mode Toggle (Auto / Manual) */}
+          <div className="ftg-output-toggle">
+            <button
+              onClick={() => setOutputMode('auto')}
+              className={`ftg-output-btn ${outputMode === 'auto' ? 'ftg-output-btn--active' : ''}`}
+              title="Auto: Generate → Assemble → Download"
+            >
+              <Zap className="ftg-icon-xs" />
+              Auto
+            </button>
+            <button
+              onClick={() => setOutputMode('manual')}
+              className={`ftg-output-btn ${outputMode === 'manual' ? 'ftg-output-btn--active ftg-output-btn--manual' : ''}`}
+              title="Manual: Review timeline → Edit scenes → Render"
+            >
+              <Edit3 className="ftg-icon-xs" />
+              Manual
+            </button>
+          </div>
           {/* Source Toggle */}
           <div className="ftg-source-toggle">
             <button
@@ -411,6 +445,16 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* Timeline Editor (Manual Mode) — overlays everything when active */}
+      {timelineData && (
+        <TimelineEditor
+          scenes={timelineData.scenes}
+          projectFolder={timelineData.projectFolder}
+          serverUrl={serverUrl}
+          onRenderComplete={() => setTimelineData(null)}
+        />
+      )}
 
       {/* Account Session Manager */}
       <AccountManager serverUrl={serverUrl} />

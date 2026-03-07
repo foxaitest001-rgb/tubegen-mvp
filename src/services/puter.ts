@@ -398,6 +398,16 @@ export async function generateNarrative(
       ? 'Read as an engaging, friendly guide sharing a fascinating story. Maintain a warm, clear, and approachable tone that feels like a conversation with an expert friend.'
       : 'Match the requested style.'}
   
+  ## VOICEOVER PACING RULES (CRITICAL for TTS quality):
+  - Write voiceover as SHORT SENTENCES (max 15-20 words each)
+  - One idea per sentence. Never stack two concepts in one sentence.
+  - After every dramatic reveal, end the sentence. New line. Let it breathe.
+  - For lists: "First... Second... And finally..." (each on its own line)
+  - Use transition phrases to create natural beats: "But here's the thing.", "And that's when everything changed."
+  - Vary sentence length: alternate short punchy (5-8 words) with medium (12-18 words)
+  - NEVER write walls of text. Each voiceover line should be a single breath.
+  - Spell out acronyms phonetically for TTS: "NASA" -> "Nah-sah", "CEO" -> "See-ee-oh"
+  
   // NOTE: Initial visuals are just placeholders. The Frontend will call 'generateExactVisuals' later.
   6. **VISUAL PLACEHOLDER**:
      - Provide 1-2 generic "Establishing Shots" per scene. 
@@ -600,6 +610,38 @@ function selectVoiceForStyle(style?: string): string {
   return 'lessac'; // default neutral
 }
 
+// ─── TTS PACING PREPROCESSOR ───
+// Pre-process voiceover text for better Piper TTS pacing.
+// Piper reads newlines as pauses — this transforms flat prose into natural speech.
+function formatVoiceoverForTTS(text: string, platform: string = 'youtube'): string {
+  let formatted = text.trim();
+  formatted = formatted.replace(/\.\s+/g, '.\n\n');
+  formatted = formatted.replace(/\?\s+/g, '?\n\n');
+  formatted = formatted.replace(/!\s+/g, '!\n\n');
+  formatted = formatted.replace(/\. (But|However|Yet|Suddenly|Then|Meanwhile|Instead|Unfortunately|Surprisingly|In fact)/g, '.\n\n\n$1');
+  formatted = formatted.replace(/, /g, ',\n');
+  const lines = formatted.split('\n');
+  formatted = lines.map(line => {
+    const words = line.trim().split(' ');
+    if (words.length > 30) {
+      const mid = Math.floor(words.length / 2);
+      for (let i = mid - 4; i <= mid + 4 && i < words.length; i++) {
+        if (i >= 0 && words[i]?.match(/^(and|or|but|which|where|when|while|because|although|that)$/i)) {
+          words[i] = '\n' + words[i];
+          break;
+        }
+      }
+    }
+    return words.join(' ');
+  }).join('\n');
+  if (platform === 'shorts' || platform === 'tiktok' || platform === 'reels') {
+    formatted = formatted.replace(/\n\n\n/g, '\n\n');
+    formatted = formatted.replace(/\n\n/g, '\n');
+  }
+  formatted = formatted.replace(/\n{4,}/g, '\n\n\n');
+  return formatted;
+}
+
 // REPLACED: Client-side Piper removed. Now using Server-Side Piper.
 export async function generateAudioOnServer(text: string, voiceStyle: string, sceneNum: number, serverUrl: string) {
   try {
@@ -618,11 +660,15 @@ export async function generateAudioOnServer(text: string, voiceStyle: string, sc
 
     console.log(`[Service] Requesting server audio (Voice: ${voiceId})...`);
 
+    // Pre-process text for natural pacing before sending to TTS
+    const formattedText = formatVoiceoverForTTS(text);
+    console.log(`[Service] TTS Pacing: ${text.length} -> ${formattedText.length} chars (pauses injected)`);
+
     const resp = await fetch(`${serverUrl}/generate-voiceover`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text,
+        text: formattedText,
         voiceId,
         sceneNum
       })
