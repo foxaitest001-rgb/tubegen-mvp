@@ -116,7 +116,7 @@ jobs:
 
       - name: 🔑 Create Environment Variables
         run: |
-          echo "VITE_GOOGLE_API_KEY=AIzaSyAQHnP1RUfZOaasrgV5vVCzYBIEExJTVUU" > .env
+          echo "VITE_GOOGLE_API_KEY=AIzaSyB1uSmhlhkPyvFiytR_hLICY-P3LX3O5Ks" > .env
           echo "PEXELS_API_KEY=YNMGirrUXi4mHs1I2MErM8hDwkirbbXR3UuaJD2ubxUjC9Q4n8BZFuLb" >> .env
           echo "PIXABAY_API_KEY=54932020-5576d7602364f373cfe2b57ef" >> .env
           cat .env
