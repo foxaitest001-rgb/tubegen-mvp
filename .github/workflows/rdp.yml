@@ -114,6 +114,14 @@ jobs:
           echo "✅ Chrome opened with Meta.ai (Debug port: 9222)"
           echo "   Director will connect to this browser session"
 
+      - name: 🔑 Create Environment Variables
+        run: |
+          echo "VITE_GOOGLE_API_KEY=AIzaSyAQHnP1RUfZOaasrgV5vVCzYBIEExJTVUU" > .env
+          echo "PEXELS_API_KEY=YNMGirrUXi4mHs1I2MErM8hDwkirbbXR3UuaJD2ubxUjC9Q4n8BZFuLb" >> .env
+          echo "PIXABAY_API_KEY=54932020-5576d7602364f373cfe2b57ef" >> .env
+          cat .env
+          echo "✅ .env file created with API keys"
+
       - name: 🚀 Start Video Generation Server
         run: |
           export DISPLAY=:99
