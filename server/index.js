@@ -23,6 +23,7 @@ const { generateImagesWhiskV2 } = require('./whisk_director_v2');
 const { BatchQueue } = require('./batch_queue');
 const { getStockForScene, searchStockVideo } = require('./stock_fallback');
 const { processAllSceneTimestamps } = require('./timestamp_generator');
+const { findOutliers, getTranscript, analyzeWithGemini, runCommandCenter } = require('./command_center');
 
 const app = express();
 const PORT = 3001;
@@ -1948,16 +1949,53 @@ app.post('/generate-pipeline-pro', async (req, res) => {
                     directorLog
                 );
             } else {
-                // Map the downloaded scene images to the format expected by V2 Director
-                const v2Scenes = whiskResult.sceneImages.map(img => {
+                // ─── Stock Footage Fallback: Try Pexels/Pixabay before Meta.ai ───
+                const stockResults = [];
+                const scenesForMeta = [];
+
+                for (const img of whiskResult.sceneImages) {
                     const sceneData = enrichedScenes[img.sceneNum - 1];
                     const motionPrompt = sceneData?.motion_prompt || 'slow cinematic camera movement';
-                    return {
+                    const voiceover = sceneData?.voiceover || '';
+
+                    // Try stock footage first
+                    const stockQuery = voiceover || motionPrompt;
+                    directorLog(img.sceneNum, "STOCK", `🔍 Searching stock footage for Scene ${img.sceneNum}...`);
+
+                    try {
+                        const videosDir = path.join(projectDir.server, 'videos');
+                        if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
+
+                        const stockPath = await getStockForScene(
+                            stockQuery,
+                            videosDir,
+                            `scene_${String(img.sceneNum).padStart(3, '0')}.mp4`,
+                            aspectRatio
+                        );
+
+                        if (stockPath) {
+                            directorLog(img.sceneNum, "STOCK", `✅ Scene ${img.sceneNum}: Stock footage found! Skipping AI generation.`);
+                            stockResults.push({
+                                sceneNum: img.sceneNum,
+                                success: true,
+                                videoPath: stockPath
+                            });
+                            continue;
+                        }
+                    } catch (stockErr) {
+                        directorLog(img.sceneNum, "STOCK", `⚠️ Stock search error: ${stockErr.message}`);
+                    }
+
+                    directorLog(img.sceneNum, "STOCK", `📭 No stock found → using Meta.ai I2V`);
+                    scenesForMeta.push({
                         prompt: motionPrompt,
-                        initial_image: img.filePath, // Triggers V2 I2V mode
+                        initial_image: img.filePath,
                         index: img.sceneNum - 1
-                    };
-                });
+                    });
+                }
+
+                // Map the remaining scenes for Meta.ai V2 Director
+                const v2Scenes = scenesForMeta;
 
                 const onProgress = (p) => {
                     directorLog(p.sceneIndex + 1, p.status === 'done' ? 'DONE' : p.status === 'failed' ? 'FAIL' : 'GEN',
@@ -1977,11 +2015,18 @@ app.post('/generate-pipeline-pro', async (req, res) => {
                 });
 
                 // Map back to expected format for assembly
-                i2vResults = metaResults.map(r => ({
+                const metaMapped = metaResults.map(r => ({
                     sceneNum: r.sceneIndex + 1,
                     success: r.status === 'done',
                     videoPath: r.filePath
                 }));
+
+                // Merge stock + Meta results, sorted by scene number
+                i2vResults = [...stockResults, ...metaMapped].sort((a, b) => a.sceneNum - b.sceneNum);
+
+                if (stockResults.length > 0) {
+                    directorLog(0, "STOCK", `📊 Stock: ${stockResults.length} scenes | Meta.ai: ${metaMapped.filter(r => r.success).length} scenes`);
+                }
             }
 
             const successCount = i2vResults.filter(r => r.success).length;
@@ -2057,18 +2102,34 @@ app.post('/generate-pipeline-pro', async (req, res) => {
                         const outputClip = path.join(videosDir, `scene_${String(sceneNum).padStart(3, '0')}_with_audio.mp4`);
 
                         if (fs.existsSync(audioFile)) {
-                            // Merge video + audio + optional captions
+                            // Merge video + audio: LOOP video to match full audio duration
                             try {
+                                // Get audio duration so we know how long to loop the video
+                                let audioDuration = 0;
+                                try {
+                                    const durOutput = execSync(
+                                        `ffprobe -v error -show_entries format=duration -of csv=p=0 "${audioFile}"`,
+                                        { encoding: 'utf-8', timeout: 5000 }
+                                    ).trim();
+                                    audioDuration = parseFloat(durOutput) || 0;
+                                } catch (e) { /* fallback: use -shortest */ }
+
                                 let ffmpegCmd;
-                                if (fs.existsSync(srtFile)) {
-                                    // Burn captions with professional styling
+                                if (audioDuration > 0 && fs.existsSync(srtFile)) {
+                                    // Loop video + burn captions + full audio
                                     const srtEscaped = srtFile.replace(/\\/g, '/').replace(/:/g, '\\:');
-                                    ffmpegCmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -vf "subtitles='${srtEscaped}':force_style='FontName=Inter,FontSize=24,PrimaryColour=&Hffffff,OutlineColour=&H000000,BackColour=&H80000000,Bold=1,Outline=2,Shadow=1,MarginV=30,Alignment=2'" -c:v libx264 -preset fast -c:a aac -b:a 128k -shortest "${outputClip}"`;
-                                    directorLog(0, "ASSEMBLY", `🎵📝 Scene ${sceneNum}: Merging video + audio + captions`);
+                                    ffmpegCmd = `ffmpeg -y -stream_loop -1 -i "${videoFile}" -i "${audioFile}" -vf "subtitles='${srtEscaped}':force_style='FontName=Inter,FontSize=24,PrimaryColour=&Hffffff,OutlineColour=&H000000,BackColour=&H80000000,Bold=1,Outline=2,Shadow=1,MarginV=30,Alignment=2'" -t ${audioDuration} -c:v libx264 -preset fast -c:a aac -b:a 128k "${outputClip}"`;
+                                    directorLog(0, "ASSEMBLY", `🎵📝 Scene ${sceneNum}: Loop video (${audioDuration.toFixed(1)}s) + audio + captions`);
+                                } else if (audioDuration > 0) {
+                                    // Loop video + full audio (no captions)
+                                    ffmpegCmd = `ffmpeg -y -stream_loop -1 -i "${videoFile}" -i "${audioFile}" -t ${audioDuration} -c:v libx264 -preset fast -c:a aac -b:a 128k "${outputClip}"`;
+                                    directorLog(0, "ASSEMBLY", `🎵 Scene ${sceneNum}: Loop video (${audioDuration.toFixed(1)}s) + audio`);
                                 } else {
+                                    // Fallback: simple merge (no duration info)
                                     ffmpegCmd = `ffmpeg -y -i "${videoFile}" -i "${audioFile}" -c:v copy -c:a aac -b:a 128k -shortest "${outputClip}"`;
+                                    directorLog(0, "ASSEMBLY", `🎵 Scene ${sceneNum}: Simple merge (no duration)`);
                                 }
-                                execSync(ffmpegCmd, { stdio: 'ignore', timeout: 60000 });
+                                execSync(ffmpegCmd, { stdio: 'ignore', timeout: 120000 });
                                 directorLog(0, "ASSEMBLY", `✅ Scene ${sceneNum}: Merged successfully`);
                                 processedClips.push(outputClip);
                             } catch (mergeErr) {
@@ -2218,9 +2279,22 @@ app.post('/generate-voiceover', async (req, res) => {
 
         console.log(`[AUDIO] Found model at: ${modelPath}`);
 
-        // Execute Piper
-        // Command: echo "text" | ./piper --model model.onnx --output_file out.wav
-        const cmd = `echo "${text.replace(/"/g, '\\"')}" | "${piperBinary}" --model "${modelPath}" --output_file "${outputPath}"`;
+        // Clean text for Piper: remove literal newlines (sent by formatVoiceoverForTTS),
+        // convert them to periods/spaces so Piper's --sentence_silence handles the pausing
+        const cleanText = text
+            .replace(/\n{2,}/g, '. ')      // Double+ newlines → sentence break
+            .replace(/\n/g, ', ')           // Single newlines → comma pause
+            .replace(/\.\s*\./g, '.')       // Clean double periods
+            .replace(/,\s*,/g, ',')         // Clean double commas
+            .replace(/\s+/g, ' ')           // Normalize whitespace
+            .trim();
+
+        // Execute Piper with NATURAL PACING flags:
+        // --sentence_silence 0.5  → 500ms pause between sentences (breathing)
+        // --length_scale 1.15     → 15% slower (conversational, not rushed)
+        // --noise_scale 0.667     → adds slight vocal variation (less robotic)
+        // --noise_w 0.8           → phoneme duration variation (more human)
+        const cmd = `echo "${cleanText.replace(/"/g, '\\"')}" | "${piperBinary}" --model "${modelPath}" --output_file "${outputPath}" --sentence_silence 0.5 --length_scale 1.15 --noise_scale 0.667 --noise_w 0.8`;
 
         await execAsync(cmd);
 
@@ -2414,6 +2488,68 @@ app.post('/accounts/:service/verify', async (req, res) => {
 app.delete('/accounts/:service/remove', (req, res) => {
     const result = SM.removeSession(req.params.service);
     res.json(result);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// COMMAND CENTER — YouTube Outlier Research API
+// ═══════════════════════════════════════════════════════════════
+
+// GET /research-outliers?niche=scary+history&minViews=500000&maxSubs=100000
+app.get('/research-outliers', async (req, res) => {
+    const { niche, minViews, maxSubs, maxResults } = req.query;
+    if (!niche) return res.status(400).json({ error: "Missing 'niche' query parameter" });
+
+    try {
+        const outliers = await findOutliers(niche, {
+            minViews: parseInt(minViews) || 500000,
+            maxSubs: parseInt(maxSubs) || 100000,
+            maxResults: parseInt(maxResults) || 50
+        });
+        res.json({ niche, found: outliers.length, outliers });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /research-full — Full pipeline: outliers → transcript → Gemini → blueprint
+app.post('/research-full', async (req, res) => {
+    const { niche, minViews, maxSubs } = req.body;
+    if (!niche) return res.status(400).json({ error: "Missing 'niche' field" });
+
+    try {
+        directorLog(0, "RESEARCH", `🔬 Command Center research: "${niche}"`);
+        const result = await runCommandCenter(niche, {
+            minViews: minViews || 500000,
+            maxSubs: maxSubs || 100000
+        });
+
+        if (result.blueprint) {
+            directorLog(0, "RESEARCH", `✅ Blueprint generated: ${result.blueprint.retention_rules?.length || 0} retention rules`);
+        } else {
+            directorLog(0, "RESEARCH", `⚠️ No blueprint — ${result.outliers.length} outliers found`);
+        }
+
+        res.json(result);
+    } catch (err) {
+        directorLog(0, "RESEARCH", `❌ Research failed: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// STOCK FOOTAGE SEARCH API
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/search-stock', async (req, res) => {
+    const { q, aspectRatio } = req.query;
+    if (!q) return res.status(400).json({ error: "Missing query parameter 'q'" });
+
+    try {
+        const result = await searchStockVideo(q, aspectRatio || '16:9');
+        res.json({ query: q, result: result || null, found: !!result });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.listen(PORT, () => {

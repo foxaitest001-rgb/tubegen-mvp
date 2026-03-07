@@ -303,7 +303,8 @@ export async function generateNarrative(
   visualStyle?: string,
   aspectRatio?: string,
   platform?: string,
-  mood?: string
+  mood?: string,
+  viralBlueprint?: any
 ) {
   const strategy = getRetentionStrategy(niche);
   console.log(`[Service] Applied Viral Strategy: ${strategy.structure_name} for niche: ${niche}`);
@@ -407,6 +408,32 @@ export async function generateNarrative(
   - Vary sentence length: alternate short punchy (5-8 words) with medium (12-18 words)
   - NEVER write walls of text. Each voiceover line should be a single breath.
   - Spell out acronyms phonetically for TTS: "NASA" -> "Nah-sah", "CEO" -> "See-ee-oh"
+  
+  ${viralBlueprint ? `
+  ## 🎯 VIRAL BLUEPRINT INJECTION (from Command Center research)
+  This script MUST follow the proven structure and retention psychology from a real viral video.
+  
+  ### HOOK TECHNIQUE: ${viralBlueprint.hook_analysis?.opening_technique || 'Mystery opening'}
+  - Hook Type: ${viralBlueprint.hook_analysis?.hook_type || 'mystery'}
+  - Retention Trigger: ${viralBlueprint.hook_analysis?.retention_trigger || 'unanswered question'}
+  
+  ### EMOTIONAL ARC:
+  - Opening: ${viralBlueprint.emotional_arc?.opening_emotion || 'curiosity'}
+  - Peak: ${viralBlueprint.emotional_arc?.peak_emotion || 'awe'}
+  - Closing: ${viralBlueprint.emotional_arc?.closing_emotion || 'resolution'}
+  - Tension: ${viralBlueprint.emotional_arc?.tension_curve || 'builds'}
+  
+  ### RETENTION RULES (Apply ALL of these):
+  ${(viralBlueprint.retention_rules || []).map((r: string) => `  - ${r}`).join('\n')}
+  
+  ### PACING:
+  - Target words per sentence: ${viralBlueprint.pacing?.avg_words_per_sentence || 12}
+  - Pause frequency: ${viralBlueprint.pacing?.pause_frequency || 'at_transitions'}
+  - Speed variation: ${viralBlueprint.pacing?.speed_variation || 'slow_fast_alternating'}
+  
+  ### REPLICATION DIRECTIVE:
+  ${viralBlueprint.replication_prompt || 'Follow the proven structure above.'}
+  ` : ''}
   
   // NOTE: Initial visuals are just placeholders. The Frontend will call 'generateExactVisuals' later.
   6. **VISUAL PLACEHOLDER**:
